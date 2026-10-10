@@ -1,0 +1,46 @@
+name: Feature
+description: Nueva funcionalidad o mejora para la app Room_Link.
+title: "[feat] "
+labels: ["type: feature", "status: todo"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto / motivación
+      description: ¿Qué problema de usuario resuelve? ¿Por qué ahora?
+      placeholder: Como <rol> quiero <acción> para <beneficio>.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Criterios de aceptación
+      description: Lista en formato Given/When/Then o checklist verificable.
+      placeholder: |
+        - [ ] El usuario puede ...
+        - [ ] Al tocar X ocurre Y.
+        - [ ] Se cubre con test unitario y de integración.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Fuera de alcance
+      description: Qué NO se hace en esta tarjeta. Ayuda a no sobredimensionar.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notas técnicas / dependencias
+      description: APIs, pantallas afectadas, mocks, deps nuevas, tarjetas bloqueantes.
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioridad
+      options:
+        - P0 - crítica
+        - P1 - alta
+        - P2 - normal
+        - P3 - baja
+      default: 2
+    validations:
+      required: true

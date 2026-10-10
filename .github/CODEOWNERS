@@ -1,0 +1,10 @@
+# Ownership de archivos. Las personas listadas son reviewers requeridos cuando se tocan esos paths.
+# Formato: <ruta> <@owner-1> <@owner-2>
+# Cambiar @Potato-pdf por los handles reales a medida que se sume gente.
+
+*                       @Potato-pdf
+
+# Áreas específicas (activar cuando existan)
+# /app/src/auth/        @Potato-pdf
+# /app/src/api/         @Potato-pdf
+# /.github/workflows/   @Potato-pdf

@@ -1,0 +1,40 @@
+name: PR labeler
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  label:
+    name: Etiquetar PR por prefijo de rama
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add labels based on branch prefix
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.payload.pull_request.head.ref || '';
+            const map = [
+              { prefix: 'feature/', labels: ['type: feature'] },
+              { prefix: 'fix/',     labels: ['type: bug'] },
+              { prefix: 'chore/',   labels: ['type: chore'] },
+              { prefix: 'release/', labels: ['type: release'] },
+              { prefix: 'hotfix/',  labels: ['type: hotfix', 'priority: P0'] },
+              { prefix: 'docs/',    labels: ['type: docs'] },
+            ];
+            const match = map.find(m => branch.startsWith(m.prefix));
+            if (!match) {
+              core.notice(`La rama "${branch}" no coincide con ningún prefijo conocido. No se agregan labels.`);
+              return;
+            }
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: match.labels,
+            });
+            core.notice(`Labels aplicadas: ${match.labels.join(', ')}`);

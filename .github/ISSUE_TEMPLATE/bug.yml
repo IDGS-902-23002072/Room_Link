@@ -1,0 +1,54 @@
+name: Bug
+description: Reportar un comportamiento incorrecto o inesperado.
+title: "[bug] "
+labels: ["type: bug", "status: todo"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Resumen
+      description: Qué está mal, en una o dos frases.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducir
+      placeholder: |
+        1. Abrir la app en ...
+        2. Tocar ...
+        3. Observar ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamiento esperado
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportamiento actual
+      description: Incluir logs, screenshots o grabación si está disponible.
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Entorno
+      placeholder: "Expo SDK, dispositivo/emulador, OS, versión de la app."
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severidad
+      options:
+        - S0 - bloqueante (app no usable)
+        - S1 - alta (feature principal rota)
+        - S2 - media (workaround existe)
+        - S3 - baja (cosmético)
+      default: 2
+    validations:
+      required: true

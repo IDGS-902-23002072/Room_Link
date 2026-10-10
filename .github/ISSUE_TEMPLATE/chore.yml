@@ -1,0 +1,23 @@
+name: Chore / Mantenimiento
+description: Deuda técnica, bump de dependencias, config, docs, refactor sin cambio de comportamiento.
+title: "[chore] "
+labels: ["type: chore", "status: todo"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Qué hay que hacer
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Por qué
+      description: Motivación (seguridad, performance, mantenibilidad, cumplimiento, etc.).
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impacto esperado
+      description: Qué cambia para usuarios, dev experience o CI.
