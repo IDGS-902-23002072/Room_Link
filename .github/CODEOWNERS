@@ -5,6 +5,7 @@
 *                       @Potato-pdf
 
 # Áreas específicas (activar cuando existan)
-# /app/src/auth/        @Potato-pdf
-# /app/src/api/         @Potato-pdf
+# /frontend/src/auth/   @Potato-pdf
+# /frontend/src/api/    @Potato-pdf
+# /backend/src/         @Potato-pdf
 # /.github/workflows/   @Potato-pdf

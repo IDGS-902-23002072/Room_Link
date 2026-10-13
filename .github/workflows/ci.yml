@@ -11,14 +11,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint-and-unit:
-    name: Lint + unit tests
+  lint-and-unit-frontend:
+    name: Frontend · lint + unit tests
     runs-on: ubuntu-latest
-    # Hasta que exista app/package.json este job se saltea solo.
-    if: hashFiles('app/package.json') != ''
+    # Hasta que exista frontend/package.json este job se saltea solo.
+    if: hashFiles('frontend/package.json') != ''
     defaults:
       run:
-        working-directory: app
+        working-directory: frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: app/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -43,13 +43,52 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-unit
-          path: app/coverage
+          name: coverage-unit-frontend
+          path: frontend/coverage
+          if-no-files-found: ignore
+
+  lint-and-unit-backend:
+    name: Backend · lint + unit tests
+    runs-on: ubuntu-latest
+    # Hasta que exista backend/package.json este job se saltea solo.
+    if: hashFiles('backend/package.json') != ''
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: |
+          if grep -q '"lint"[[:space:]]*:' package.json; then
+            bun run lint
+          else
+            echo "::notice::backend/package.json aún no define script 'lint'. Skip."
+          fi
+
+      - name: Unit tests
+        run: bun test --coverage unit
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit-backend
+          path: backend/coverage
           if-no-files-found: ignore
 
   bootstrap-notice:
-    name: App not initialized yet
+    name: Nothing initialized yet
     runs-on: ubuntu-latest
-    if: hashFiles('app/package.json') == ''
+    if: hashFiles('frontend/package.json') == '' && hashFiles('backend/package.json') == ''
     steps:
-      - run: echo "::notice::app/package.json todavía no existe. CI pasa en modo bootstrap hasta que se inicialice el proyecto Expo."
+      - run: echo "::notice::Ni frontend/package.json ni backend/package.json existen. CI pasa en modo bootstrap hasta que se inicialicen los proyectos."

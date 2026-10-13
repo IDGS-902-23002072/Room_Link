@@ -1,6 +1,6 @@
-# app
+# frontend
 
-Código de la aplicación móvil Expo (JavaScript).
+Aplicación móvil Expo (JavaScript / React Native).
 
 Pendiente: inicializar con `npx create-expo-app@latest .` cuando lleguen los requerimientos y se defina el template base (blank / tabs / navigation).
 
