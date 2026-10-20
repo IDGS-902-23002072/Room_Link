@@ -161,3 +161,20 @@ export const chatMessages = mysqlTable(
     index("idx_chat_messages_room").on(table.roomId, table.id),
   ],
 );
+
+// Tipos generados automáticamente por Drizzle ORM
+export type AppApplicationRow = typeof appApplications.$inferSelect;
+export type NewAppApplication = typeof appApplications.$inferInsert;
+
+export type ConnConnectionRow = typeof connConnections.$inferSelect;
+export type NewConnConnection = typeof connConnections.$inferInsert;
+
+export type ChatRoomRow = typeof chatRooms.$inferSelect;
+export type NewChatRoom = typeof chatRooms.$inferInsert;
+
+export type ChatRoomMemberRow = typeof chatRoomMembers.$inferSelect;
+export type NewChatRoomMember = typeof chatRoomMembers.$inferInsert;
+
+export type ChatMessageRow = typeof chatMessages.$inferSelect;
+export type NewChatMessage = typeof chatMessages.$inferInsert;
+
