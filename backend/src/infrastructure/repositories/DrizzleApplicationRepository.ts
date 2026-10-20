@@ -1,13 +1,17 @@
 import { eq } from "drizzle-orm";
 import type { MySql2Database } from "drizzle-orm/mysql2";
 import { Application, type IApplicationRepository } from "../../domain/index.js";
-import { appApplications } from "../../db/schema/social.js";
+import {
+  appApplications,
+  type AppApplicationRow,
+  type NewAppApplication,
+} from "../../db/schema/social.js";
 
 export class DrizzleApplicationRepository implements IApplicationRepository {
   constructor(private db: MySql2Database<any>) {}
 
   async findById(id: string): Promise<Application | null> {
-    const rows = await this.db
+    const rows: AppApplicationRow[] = await this.db
       .select()
       .from(appApplications)
       .where(eq(appApplications.id, id))
@@ -29,7 +33,7 @@ export class DrizzleApplicationRepository implements IApplicationRepository {
   }
 
   async findByListingId(listingId: string): Promise<Application[]> {
-    const rows = await this.db
+    const rows: AppApplicationRow[] = await this.db
       .select()
       .from(appApplications)
       .where(eq(appApplications.listingId, listingId));
@@ -50,7 +54,7 @@ export class DrizzleApplicationRepository implements IApplicationRepository {
   }
 
   async findByApplicantId(applicantId: string): Promise<Application[]> {
-    const rows = await this.db
+    const rows: AppApplicationRow[] = await this.db
       .select()
       .from(appApplications)
       .where(eq(appApplications.applicantId, applicantId));
@@ -71,14 +75,16 @@ export class DrizzleApplicationRepository implements IApplicationRepository {
   }
 
   async create(app: Application): Promise<Application> {
-    await this.db.insert(appApplications).values({
+    const newRecord: NewAppApplication = {
       id: app.id,
       listingId: app.listingId,
       applicantId: app.applicantId,
       status: app.status,
       message: app.message ?? null,
       compatibilityScore: app.compatibilityScore ? app.compatibilityScore.toFixed(2) : null,
-    });
+    };
+
+    await this.db.insert(appApplications).values(newRecord);
     return app;
   }
 
