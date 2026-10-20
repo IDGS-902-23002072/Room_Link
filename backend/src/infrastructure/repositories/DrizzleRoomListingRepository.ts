@@ -1,13 +1,18 @@
 import { count, eq } from "drizzle-orm";
 import type { MySql2Database } from "drizzle-orm/mysql2";
 import { RoomListing, type IRoomListingRepository } from "../../domain/index.js";
-import { roomListings, roomPhotos } from "../../db/schema/rooms.js";
+import {
+  roomListings,
+  roomPhotos,
+  type RoomListingRow,
+  type NewRoomListing,
+} from "../../db/schema/rooms.js";
 
 export class DrizzleRoomListingRepository implements IRoomListingRepository {
   constructor(private db: MySql2Database<any>) {}
 
   async findById(id: string): Promise<RoomListing | null> {
-    const rows = await this.db
+    const rows: RoomListingRow[] = await this.db
       .select()
       .from(roomListings)
       .where(eq(roomListings.id, id))
@@ -37,7 +42,7 @@ export class DrizzleRoomListingRepository implements IRoomListingRepository {
   }
 
   async findPublished(limit = 20, offset = 0): Promise<RoomListing[]> {
-    const rows = await this.db
+    const rows: RoomListingRow[] = await this.db
       .select()
       .from(roomListings)
       .where(eq(roomListings.status, "published"))
@@ -70,7 +75,7 @@ export class DrizzleRoomListingRepository implements IRoomListingRepository {
   }
 
   async findByHostId(hostId: string): Promise<RoomListing[]> {
-    const rows = await this.db
+    const rows: RoomListingRow[] = await this.db
       .select()
       .from(roomListings)
       .where(eq(roomListings.hostId, hostId));
@@ -101,7 +106,7 @@ export class DrizzleRoomListingRepository implements IRoomListingRepository {
   }
 
   async create(room: RoomListing): Promise<RoomListing> {
-    await this.db.insert(roomListings).values({
+    const newRecord: NewRoomListing = {
       id: room.id,
       hostId: room.hostId,
       locationId: room.locationId ?? null,
@@ -111,7 +116,9 @@ export class DrizzleRoomListingRepository implements IRoomListingRepository {
       status: room.status,
       maxRoommates: room.maxRoommates ?? null,
       availableFrom: room.availableFrom ?? null,
-    });
+    };
+
+    await this.db.insert(roomListings).values(newRecord);
     return room;
   }
 
