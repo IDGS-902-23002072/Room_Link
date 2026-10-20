@@ -26,3 +26,8 @@ export const coreOutboxEvents = mysqlTable(
   },
   (table) => [index("idx_outbox_pending").on(table.processedAt, table.id)],
 );
+
+// Tipos generados automáticamente por Drizzle ORM
+export type CoreOutboxEventRow = typeof coreOutboxEvents.$inferSelect;
+export type NewCoreOutboxEvent = typeof coreOutboxEvents.$inferInsert;
+
