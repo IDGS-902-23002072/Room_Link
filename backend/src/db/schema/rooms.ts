@@ -136,3 +136,20 @@ export const roomFavorites = mysqlTable(
   },
   (table) => [primaryKey({ columns: [table.userId, table.listingId] })],
 );
+
+// Tipos generados automáticamente por Drizzle ORM
+export type RoomListingRow = typeof roomListings.$inferSelect;
+export type NewRoomListing = typeof roomListings.$inferInsert;
+
+export type RoomPhotoRow = typeof roomPhotos.$inferSelect;
+export type NewRoomPhoto = typeof roomPhotos.$inferInsert;
+
+export type RoomRuleRow = typeof roomRules.$inferSelect;
+export type NewRoomRule = typeof roomRules.$inferInsert;
+
+export type RoomCostItemRow = typeof roomCostItems.$inferSelect;
+export type NewRoomCostItem = typeof roomCostItems.$inferInsert;
+
+export type RoomFavoriteRow = typeof roomFavorites.$inferSelect;
+export type NewRoomFavorite = typeof roomFavorites.$inferInsert;
+
