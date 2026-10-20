@@ -1,5 +1,5 @@
-import { CompatibilityQuiz } from '@/components/compatibility-quiz';
+import { Redirect } from 'expo-router';
 
-export default function HomeScreen() {
-  return <CompatibilityQuiz />;
+export default function Inicio() {
+  return <Redirect href="/explorar" />;
 }

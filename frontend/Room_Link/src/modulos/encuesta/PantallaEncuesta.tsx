@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'expo-router';
 import {
   Pressable,
   ScrollView,
@@ -8,6 +9,12 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { BarraProgreso } from './componentes/BarraProgreso';
+import { BotonPrincipal } from './componentes/BotonPrincipal';
+import { MedidorResultado } from './componentes/MedidorResultado';
+import { OpcionesPregunta } from './componentes/OpcionesPregunta';
+import { preguntasConvivencia, preguntasHabitos } from './datos/preguntas';
 
 const colors = {
   background: '#FBF9FC',
@@ -20,136 +27,17 @@ const colors = {
   white: '#FFFFFF',
 };
 
-const lifestyleQuestions = [
-  {
-    id: 'wake-up',
-    prompt: '¿Cuándo empieza tu día?',
-    options: ['Temprano', 'Más tarde', 'Variable'],
-    initial: 'Temprano',
-  },
-  {
-    id: 'tidiness',
-    prompt: '¿Qué tan ordenado eres?',
-    options: ['Muy ordenado', 'Flexible', 'Relajado'],
-    initial: 'Muy ordenado',
-  },
-  {
-    id: 'atmosphere',
-    prompt: '¿Qué ambiente prefieres?',
-    options: ['Tranquilo', 'Con música', 'Social'],
-    initial: 'Tranquilo',
-  },
-] as const;
-
-const homeQuestions = [
-  {
-    id: 'pets',
-    prompt: '¿Vivirías con mascotas?',
-    options: ['Sí', 'No', 'Depende'],
-    initial: 'Sí',
-  },
-  {
-    id: 'smoking',
-    prompt: '¿Cómo te sientes con el tabaco?',
-    options: ['Sin humo', 'Exterior', 'Sin problema'],
-    initial: 'Sin humo',
-  },
-  {
-    id: 'roommates',
-    prompt: '¿Con quién prefieres compartir?',
-    options: ['Cualquier género', 'Mujeres', 'Hombres'],
-    initial: 'Cualquier género',
-  },
-  {
-    id: 'visits',
-    prompt: '¿Qué visitas te resultan cómodas?',
-    options: ['Ocasionales', 'Frecuentes', 'Acordadas'],
-    initial: 'Ocasionales',
-  },
-] as const;
-
 type Step = 1 | 2 | 3;
 type Answers = Record<string, string>;
 
 const initialAnswers: Answers = Object.fromEntries(
-  [...lifestyleQuestions, ...homeQuestions].map((question) => [
+  [...preguntasHabitos, ...preguntasConvivencia].map((question) => [
     question.id,
     question.initial,
   ]),
 );
 
-type Question = {
-  id: string;
-  prompt: string;
-  options: readonly string[];
-};
-
-function QuestionChoices({
-  question,
-  selected,
-  onSelect,
-}: {
-  question: Question;
-  selected: string;
-  onSelect: (answer: string) => void;
-}) {
-  return (
-    <View style={styles.question}>
-      <Text style={styles.questionPrompt}>{question.prompt}</Text>
-      <View style={styles.options}>
-        {question.options.map((option) => {
-          const isSelected = selected === option;
-          return (
-            <Pressable
-              accessibilityRole="radio"
-              accessibilityState={{ checked: isSelected }}
-              key={option}
-              onPress={() => onSelect(option)}
-              style={({ pressed }) => [
-                styles.option,
-                isSelected && styles.optionSelected,
-                pressed && styles.optionPressed,
-              ]}>
-              <Text
-                numberOfLines={1}
-                style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                {option}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-function ProgressBar({ progress }: { progress: number }) {
-  return (
-    <View
-      accessibilityLabel={`Progreso: ${progress}%`}
-      accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: 100, now: progress }}
-      style={styles.progressTrack}>
-      <View style={[styles.progressFill, { width: `${progress}%` }]} />
-    </View>
-  );
-}
-
-function ResultMeter({ label, value }: { label: string; value: number }) {
-  return (
-    <View style={styles.meter}>
-      <View style={styles.meterLabelRow}>
-        <Text style={styles.meterLabel}>{label}</Text>
-        <Text style={styles.meterValue}>{value}%</Text>
-      </View>
-      <View style={styles.meterTrack}>
-        <View style={[styles.meterFill, { width: `${value}%` }]} />
-      </View>
-    </View>
-  );
-}
-
-export function CompatibilityQuiz() {
+export function PantallaEncuesta() {
   const [step, setStep] = useState<Step>(1);
   const [answers, setAnswers] = useState<Answers>(initialAnswers);
   const [profileReady, setProfileReady] = useState(false);
@@ -165,20 +53,25 @@ export function CompatibilityQuiz() {
       <ScrollView
         contentContainerStyle={[styles.content, { width: contentWidth }]}
         showsVerticalScrollIndicator={false}>
+        <Link href="/explorar" asChild>
+          <Pressable accessibilityRole="button" style={styles.exitLink}>
+            <Text style={styles.exitLinkText}>‹  Volver a descubrir</Text>
+          </Pressable>
+        </Link>
         <Text style={styles.brand}>ROOMLINK / 03</Text>
 
         {step === 1 && (
           <>
             <Text style={styles.title}>Tu ritmo de vida</Text>
             <Text style={styles.subtitle}>Paso 1 de 2 · Hábitos cotidianos</Text>
-            <ProgressBar progress={50} />
+            <BarraProgreso progreso={50} />
             <View style={styles.questions}>
-              {lifestyleQuestions.map((question) => (
-                <QuestionChoices
+              {preguntasHabitos.map((question) => (
+                <OpcionesPregunta
                   key={question.id}
-                  question={question}
-                  selected={answers[question.id]}
-                  onSelect={(answer) => setAnswer(question.id, answer)}
+                  pregunta={question}
+                  seleccionada={answers[question.id]}
+                  alSeleccionar={(answer) => setAnswer(question.id, answer)}
                 />
               ))}
             </View>
@@ -188,7 +81,7 @@ export function CompatibilityQuiz() {
                 Tus hábitos nos ayudan a encontrar mejores conexiones.
               </Text>
             </View>
-            <PrimaryButton label="Continuar" onPress={() => setStep(2)} />
+            <BotonPrincipal etiqueta="Continuar" alPresionar={() => setStep(2)} />
           </>
         )}
 
@@ -198,18 +91,21 @@ export function CompatibilityQuiz() {
             <Text style={styles.subtitle}>
               Paso 2 de 2 · Preferencias de convivencia
             </Text>
-            <ProgressBar progress={100} />
+            <BarraProgreso progreso={100} />
             <View style={styles.questions}>
-              {homeQuestions.map((question) => (
-                <QuestionChoices
+              {preguntasConvivencia.map((question) => (
+                <OpcionesPregunta
                   key={question.id}
-                  question={question}
-                  selected={answers[question.id]}
-                  onSelect={(answer) => setAnswer(question.id, answer)}
+                  pregunta={question}
+                  seleccionada={answers[question.id]}
+                  alSeleccionar={(answer) => setAnswer(question.id, answer)}
                 />
               ))}
             </View>
-            <PrimaryButton label="Ver mis resultados" onPress={() => setStep(3)} />
+            <BotonPrincipal
+              etiqueta="Ver mis resultados"
+              alPresionar={() => setStep(3)}
+            />
             <Pressable
               accessibilityRole="button"
               onPress={() => setStep(1)}
@@ -233,9 +129,9 @@ export function CompatibilityQuiz() {
               </Text>
             </View>
             <View style={styles.meters}>
-              <ResultMeter label="Limpieza" value={90} />
-              <ResultMeter label="Horarios regulares" value={80} />
-              <ResultMeter label="Vida social" value={55} />
+              <MedidorResultado etiqueta="Limpieza" valor={90} />
+              <MedidorResultado etiqueta="Horarios regulares" valor={80} />
+              <MedidorResultado etiqueta="Vida social" valor={55} />
             </View>
             <View style={styles.noteCard}>
               <Text style={styles.noteTitle}>Tus afinidades principales</Text>
@@ -250,9 +146,9 @@ export function CompatibilityQuiz() {
                 </Text>
               </View>
             )}
-            <PrimaryButton
-              label="Encontrar roomies"
-              onPress={() => setProfileReady(true)}
+            <BotonPrincipal
+              etiqueta="Encontrar roomies"
+              alPresionar={() => setProfileReady(true)}
             />
             <Pressable
               accessibilityRole="button"
@@ -264,17 +160,6 @@ export function CompatibilityQuiz() {
         )}
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}>
-      <Text style={styles.primaryButtonText}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -290,6 +175,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 8,
     paddingBottom: 28,
+  },
+  exitLink: {
+    alignSelf: 'flex-start',
+    paddingVertical: 7,
+  },
+  exitLinkText: {
+    color: colors.plum,
+    fontSize: 10,
+    fontWeight: '600',
   },
   brand: {
     color: colors.muted,
