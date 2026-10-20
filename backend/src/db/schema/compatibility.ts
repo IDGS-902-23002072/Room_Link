@@ -135,3 +135,20 @@ export const searchSavedSearches = mysqlTable(
     uniqueIndex("uq_search_saved_name").on(table.userId, table.name),
   ],
 );
+
+// Tipos generados automáticamente por Drizzle ORM
+export type CompatProfileRow = typeof compatProfiles.$inferSelect;
+export type NewCompatProfile = typeof compatProfiles.$inferInsert;
+
+export type CompatDimensionWeightRow = typeof compatDimensionWeights.$inferSelect;
+export type NewCompatDimensionWeight = typeof compatDimensionWeights.$inferInsert;
+
+export type MatchAffinityScoreRow = typeof matchAffinityScores.$inferSelect;
+export type NewMatchAffinityScore = typeof matchAffinityScores.$inferInsert;
+
+export type MatchSavedProfileRow = typeof matchSavedProfiles.$inferSelect;
+export type NewMatchSavedProfile = typeof matchSavedProfiles.$inferInsert;
+
+export type SearchSavedSearchRow = typeof searchSavedSearches.$inferSelect;
+export type NewSearchSavedSearch = typeof searchSavedSearches.$inferInsert;
+
