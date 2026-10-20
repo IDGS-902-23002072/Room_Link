@@ -1,64 +1,146 @@
-# backend
+# Backend de Room_Link
 
-API y lógica de servidor (Bun + TypeScript).
+API construida con **Hono**, **TypeScript**, **Drizzle ORM** y **MySQL 8**. Implementa una arquitectura de **Monolito Modular con MVC** fundamentada en **Domain-Driven Design (DDD)** con una única capa de dominio compartida.
 
-Pendiente: inicializar con `bun init` cuando lleguen los requerimientos y se defina el contrato de la API (REST, WebSocket, etc.).
+---
 
-Hasta que eso ocurra, esta carpeta está intencionalmente vacía.
+## 1. Arquitectura: Monolito Modular con MVC y DDD
 
-## Arquitectura
+Para mantener alta cohesión y bajo acoplamiento:
+1. **Un solo Dominio (`src/domain/`)**: Las entidades del negocio (`User`, `Profile`, `RoomListing`, `Application`, `CompatibilityProfile`) y las interfaces de los repositorios (`IUserRepository`, etc.) viven aquí. Son clases puras de TypeScript: **no tocan la base de datos, no usan Drizzle y no conocen HTTP**.
+2. **Módulos con MVC independiente (`src/modules/`)**:
+   - Cada módulo (`auth`, `profile`, `rooms`, `applications`) tiene:
+     - `*.controller.ts` (Controlador HTTP): Lee la petición, valida la entrada y delega al servicio.
+     - `*.service.ts` (Servicio de Aplicación): Coordina los casos de uso y lógica del negocio llamando a los repositorios. **Nunca hace consultas SQL ni importa `db` directamente**.
+     - `*.view.ts` (Vista / Serializador DTO): Decide qué datos salen al cliente, protegiendo campos privados (como hashes de contraseña).
+     - `*.routes.ts`: Define las rutas de ese módulo.
+     - `index.ts`: Expone las rutas hacia el resto de la aplicación.
+3. **Infraestructura (`src/infrastructure/` y `src/db/`)**:
+   - `src/db/schema/`: Modelos declarativos de Drizzle ORM que representan las tablas MySQL y exportan los tipos inferidos (`$inferSelect`, `$inferInsert`).
+   - `src/infrastructure/repositories/`: **El ÚNICO lugar del sistema que se conecta a la base de datos**. Usan el cliente `db` de Drizzle y convierten las filas (`$inferSelect`) en entidades de Dominio.
 
-**Monolito modular con patrón MVC por módulo.**
+### ⚠️ Regla de Oro de Acceso a Datos
 
-Un único proceso Bun que corre toda la API, pero el código está dividido en **módulos independientes por dominio de negocio** (un módulo = una capacidad del producto, no una capa técnica). Cada módulo es autocontenido: tiene su propio controller, modelo, vistas/serializadores, servicios y rutas. Los módulos solo se comunican por sus interfaces públicas, nunca tocándose archivos internos entre sí.
+> **Los Repositorios son el único componente autorizado para tocar la Base de Datos.**
 
-### Por qué este patrón
-
-- **Escalable por partes**: si un módulo crece, se refactoriza o se extrae a servicio sin tocar al resto.
-- **Entregable incremental**: un módulo incompleto no bloquea al resto. Se agrega, se saca o se deshabilita a nivel de registro de rutas.
-- **Simple de operar**: un solo proceso, un solo deploy, una sola base de datos (al principio) — sin la complejidad operativa de microservicios.
-- **MVC conocido**: cada carpeta sigue la misma forma, baja la curva para sumar gente.
-
-### Layout propuesto
-
+```text
+[ Cliente HTTP ]
+       │
+       ▼
+[ Controller ]        (Recibe req, valida, llama al Service)
+       │
+       ▼
+[ Service ]           (Lógica de negocio pura, llama a interfaces de Repository)
+       │
+       ▼
+[ IRepository ]       (Contrato / Interfaz en la Capa de Dominio)
+       │
+       ▼
+[ DrizzleRepository ] (Infraestructura: ÚNICO que usa db, Drizzle ORM y SQL)
+       │
+       ▼
+[ MySQL 8.4 ]
 ```
+
+* ❌ **PROHIBIDO**: Hacer `db.select()` o importar `db` dentro de Controllers o Services.
+* ❌ **PROHIBIDO**: Poner métodos de persistencia (`save()`, `delete()`) dentro de las Entidades de Dominio (no usamos patrón Active Record; las entidades son POJOs puros con reglas de negocio).
+* ✅ **CORRECTO**: Toda consulta o inserción pasa por un Repositorio (`src/infrastructure/repositories/Drizzle*Repository.ts`), tipado al 100% con `$inferSelect` y `$inferInsert`.
+
+
+```text
 backend/
 ├── src/
-│   ├── server.ts              # Bun.serve + composición de módulos
-│   ├── config/                # env, logger, conexiones DB
-│   ├── shared/                # tipos, utilidades y middleware comunes (sin lógica de negocio)
-│   └── modules/
-│       ├── <modulo>/
-│       │   ├── <modulo>.routes.ts        # declaración de rutas del módulo
-│       │   ├── <modulo>.controller.ts    # HTTP in/out: parsea request, llama al service, devuelve response
-│       │   ├── <modulo>.service.ts       # lógica de negocio pura (sin HTTP)
-│       │   ├── <modulo>.model.ts         # entidad + acceso a datos (bun:sqlite / Bun.sql)
-│       │   ├── <modulo>.view.ts          # serializadores (DTOs de salida)
-│       │   ├── <modulo>.schema.ts        # validación de entrada (ej. Zod)
-│       │   ├── index.ts                  # API pública del módulo (lo que exporta al resto)
-│       │   └── *.test.ts                 # unit tests junto al código
-│       └── <otro-modulo>/...
-└── tests/                     # tests de integración entre módulos (opcional, también pueden vivir en /tests raíz)
+│   ├── app.ts                         # Composición de módulos y servidor Hono
+│   ├── server.ts                      # Punto de entrada HTTP (un solo servidor)
+│   ├── config.ts                      # Variables de entorno y configuración
+│   ├── domain/                        # CAPA DE DOMINIO ÚNICA (DDD)
+│   │   ├── entities/                  # User, Profile, RoomListing, Application, Compatibility
+│   │   ├── repositories/              # Interfaces (IUserRepository, IRoomListingRepository...)
+│   │   └── index.ts
+│   ├── modules/                       # MÓDULOS MODULARES CON MVC
+│   │   ├── auth/                      # Controller, Service, View, Routes
+│   │   ├── profile/                   # Controller, Service, View, Routes
+│   │   ├── rooms/                     # Controller, Service, View, Routes
+│   │   └── applications/              # Controller, Service, View, Routes
+│   ├── infrastructure/
+│   │   └── repositories/              # Implementaciones con Drizzle ORM
+│   └── db/
+│       ├── client.ts                  # Cliente db Drizzle y pool mysql2
+│       ├── migrate.ts                 # Script ejecutor de migraciones
+│       └── schema/                    # Tablas Drizzle MySQL
+├── tests/
+│   ├── unit/                          # Pruebas unitarias de dominio, módulos y app
+│   └── integration/                   # Pruebas de integración con MySQL
+├── drizzle/                           # Migraciones SQL generadas por Drizzle
+├── Dockerfile                         # Imagen Docker del servicio backend
+└── drizzle.config.ts                  # Configuración de migraciones Drizzle
 ```
 
-### Reglas de módulo
+---
 
-1. **Un módulo = una responsabilidad de negocio.** Ejemplos tentativos: `auth`, `rooms`, `bookings`, `payments`, `notifications`. Nombres en inglés, singular o plural consistente dentro del repo.
-2. **Importaciones hacia afuera solo vía `index.ts`.** Nada de `import ... from "../rooms/rooms.service"`. Si otro módulo necesita algo, se exporta explícitamente desde `index.ts`.
-3. **El controller no tiene lógica de negocio.** Solo traduce HTTP ↔ service. La lógica va en el service.
-4. **El model es el único que toca la base.** Services llaman al model, nunca a la DB directo.
-5. **La view/DTO decide qué sale.** Nunca se devuelve una entidad del model crudo; siempre pasa por un serializador.
-6. **Cada módulo registra sus propias rutas** en `*.routes.ts` y `server.ts` solo las compone.
+## 2. Aclaraciones: Servidores, Dockers y Archivos de Configuración
 
-### Agregar o remover un módulo
+### ¿Por qué parecía haber 2 servidores?
+- **Un solo servidor**: En el código sólo existe **un único servidor HTTP**, iniciado en `src/server.ts`.
+- **`app.ts` vs `server.ts`**: `app.ts` define la aplicación Hono y registra las rutas (útil para hacer pruebas unitarias sin abrir puertos). `server.ts` es el ejecutable que escucha peticiones en el puerto asignado (por defecto `3000`).
+- **Scripts duplicados**: La IA anterior había agregado comandos paralelos para Node.js y Bun (`dev:node`, `dev:bun`, etc.). Ahora el flujo está simplificado y estandarizado con `npm run dev`, `npm start`, etc.
 
-- **Agregar**: crear la carpeta siguiendo el layout, exportar sus rutas desde `index.ts`, montar en `server.ts`.
-- **Deshabilitar temporalmente**: comentar el registro de rutas en `server.ts`. El resto del sistema sigue funcionando.
-- **Remover**: borrar la carpeta y la línea de registro. Al no haber imports cruzados por archivos internos, no quedan referencias colgadas (si están, el type-checker las marca).
+### ¿Qué hace cada Docker (`compose.yaml` en raíz vs `backend/Dockerfile`)?
+- **`compose.yaml` (en la raíz)**: Es el **orquestador de Docker Compose**. Levanta:
+  1. El contenedor con el motor de base de datos **MySQL 8.4** en el puerto `3307`.
+  2. Un contenedor temporal que ejecuta automáticamente las migraciones contra MySQL.
+- **`backend/Dockerfile` (en `backend/`)**: Es la **receta de construcción de la imagen del backend**. No es un servidor aparte; es el archivo que Docker Compose utiliza para empaquetar y ejecutar la aplicación Node.js en contenedores.
 
-## Convenciones
+### ¿Para qué son los archivos de configuración en `backend/`?
+- **`drizzle.config.ts`**: Le indica a la herramienta CLI de Drizzle (`drizzle-kit`) dónde están los esquemas de tablas (`src/db/schema/index.ts`), dónde guardar las migraciones SQL (`drizzle/`) y las credenciales de conexión.
+- **`tsconfig.json`**: Configura las opciones del compilador de TypeScript (`NodeNext`, modo estricto de tipos).
+- **`vitest.config.ts`**: Configura el ejecutor de pruebas unitarias y de integración Vitest.
+- **`database/bootstrap-local.sql`**: Script SQL auxiliar para desarrolladores que no usan Docker e instalan MySQL nativamente en su computadora.
+- **`.dockerignore`**: Evita que `node_modules` o archivos innecesarios de tu máquina local se copien a la imagen Docker.
 
-- Runtime: **Bun** (no Node.js). Server con `Bun.serve()`.
-- SQLite: `bun:sqlite`. Postgres: `Bun.sql`. Redis: `Bun.redis`.
-- Tests: `bun test`. Convención `*.unit.test.ts` / `*.integration.test.ts` (los workflows filtran por substring).
-- Variables de entorno: Bun carga `.env` automáticamente (no usar `dotenv`).
+---
+
+## 3. Inicio Rápido
+
+### Requisitos:
+1. Node.js (versión 20 o superior).
+2. Levantar la base de datos MySQL (con Docker Compose en la raíz: `docker compose up -d`).
+
+### Comandos de Desarrollo:
+
+```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. Aplicar migraciones a MySQL
+npm run db:migrate
+
+# 3. Iniciar el servidor en modo desarrollo (recarga automática)
+npm run dev
+```
+
+La API estará disponible en `http://localhost:3000`.
+
+---
+
+## 4. Comandos de la Aplicación
+
+| Comando | Acción |
+|---|---|
+| `npm run dev` | Inicia el servidor de desarrollo con recarga en caliente (`watch`). |
+| `npm start` | Inicia el servidor en producción. |
+| `npm run build` | Compila TypeScript a JavaScript. |
+| `npm run typecheck` | Comprueba tipos de TypeScript sin emitir archivos. |
+| `npm test` | Ejecuta la suite de pruebas unitarias y de integración. |
+| `npm run test:unit` | Ejecuta únicamente las pruebas unitarias rápidas. |
+| `npm run db:generate` | Genera nuevas migraciones SQL en `drizzle/` si cambias los esquemas. |
+| `npm run db:migrate` | Aplica las migraciones SQL a MySQL. |
+| `npm run db:check` | Comprueba consistencia en migraciones Drizzle. |
+| `npm run db:studio` | **Drizzle Studio**: Abre el gestor visual de base de datos en `https://local.drizzle.studio`. |
+
+---
+
+## 5. Documentación de Drizzle ORM
+
+Para aprender a realizar consultas (`select`), inserciones (`insert`), actualizaciones (`update`), joins y transacciones con Drizzle ORM, consulta:
+👉 **[Guía Completa de Drizzle ORM](../docs/drizzle-guide.md)**.

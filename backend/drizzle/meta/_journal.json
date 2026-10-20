@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1792523321896,
+      "tag": "0000_smooth_titanium_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1792523332829,
+      "tag": "0001_business_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1792523359439,
+      "tag": "0002_perfect_talon",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1792523728032,
+      "tag": "0003_slimy_starhawk",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1792523835906,
+      "tag": "0004_rapid_grey_gargoyle",
+      "breakpoints": true
+    }
+  ]
+}

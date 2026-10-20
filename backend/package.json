@@ -1,0 +1,43 @@
+{
+  "name": "room-link-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit/",
+    "test:integration": "vitest run tests/integration/",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:check": "drizzle-kit check",
+    "db:studio": "drizzle-kit studio",
+    "check": "npm run typecheck && npm run db:check && npm run test:unit",
+    "dev:node": "tsx watch src/server.ts",
+    "dev:bun": "bun --hot src/server.ts",
+    "start:node": "tsx src/server.ts",
+    "start:bun": "bun src/server.ts",
+    "test:unit:bun": "bunx --bun vitest run tests/unit/",
+    "db:migrate:node": "tsx src/db/migrate.ts",
+    "db:migrate:bun": "bun src/db/migrate.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.5",
+    "drizzle-orm": "0.45.4",
+    "hono": "4.13.13",
+    "mysql2": "3.24.6"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "drizzle-kit": "0.31.11",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}
