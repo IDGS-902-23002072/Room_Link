@@ -17,10 +17,10 @@ jobs:
   eas-build:
     name: EAS build (${{ github.event.inputs.profile || 'preview' }})
     runs-on: ubuntu-latest
-    if: hashFiles('app/package.json') != ''
+    if: hashFiles('frontend/package.json') != ''
     defaults:
       run:
-        working-directory: app
+        working-directory: frontend
     permissions:
       contents: read
     steps:
@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: app/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -44,13 +44,13 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       # Build se dispara contra el perfil elegido. Para que esto funcione
-      # hay que haber configurado `eas.json` dentro de app/ y haber corrido
+      # hay que haber configurado `eas.json` dentro de frontend/ y haber corrido
       # `eas build:configure` una vez. Hasta entonces el step siguiente falla
       # a propósito con mensaje claro.
       - name: Build (Android + iOS)
         run: |
           if [ ! -f eas.json ]; then
-            echo "::error::Falta app/eas.json. Correr 'eas build:configure' localmente y commitear." >&2
+            echo "::error::Falta frontend/eas.json. Correr 'eas build:configure' localmente y commitear." >&2
             exit 1
           fi
           eas build --non-interactive --no-wait \

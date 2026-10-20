@@ -71,10 +71,11 @@ Ejemplos:
 
 ## Entorno local
 
-Pendiente: instrucciones específicas se agregarán al inicializar `app/` con Expo.
+Pendiente: instrucciones específicas se agregarán al inicializar `frontend/` con Expo y `backend/` con Bun.
 
 Requisitos previos tentativos:
-- Node LTS (20.x o 22.x).
-- `npm` o `pnpm`.
+- Node LTS (20.x o 22.x) para el frontend.
+- `npm` o `pnpm` para el frontend.
 - Expo CLI vía `npx` (no hace falta instalación global).
 - Para builds nativas: Android Studio (emulador) y/o Xcode (iOS, solo macOS).
+- [Bun](https://bun.sh) ≥ 1.1 para el backend.
