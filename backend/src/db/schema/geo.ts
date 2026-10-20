@@ -70,3 +70,14 @@ export const geoPointsOfInterest = mysqlTable(
     index("idx_geo_poi_coords").on(table.latitude, table.longitude),
   ],
 );
+
+// Tipos generados automáticamente por Drizzle ORM
+export type GeoZoneRow = typeof geoZones.$inferSelect;
+export type NewGeoZone = typeof geoZones.$inferInsert;
+
+export type GeoLocationRow = typeof geoLocations.$inferSelect;
+export type NewGeoLocation = typeof geoLocations.$inferInsert;
+
+export type GeoPointOfInterestRow = typeof geoPointsOfInterest.$inferSelect;
+export type NewGeoPointOfInterest = typeof geoPointsOfInterest.$inferInsert;
+
