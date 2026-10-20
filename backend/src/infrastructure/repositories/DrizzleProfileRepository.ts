@@ -1,13 +1,17 @@
 import { eq } from "drizzle-orm";
 import type { MySql2Database } from "drizzle-orm/mysql2";
 import { Profile, type IProfileRepository } from "../../domain/index.js";
-import { profileProfiles } from "../../db/schema/profile.js";
+import {
+  profileProfiles,
+  type ProfileRow,
+  type NewProfile,
+} from "../../db/schema/profile.js";
 
 export class DrizzleProfileRepository implements IProfileRepository {
   constructor(private db: MySql2Database<any>) {}
 
   async findByUserId(userId: string): Promise<Profile | null> {
-    const rows = await this.db
+    const rows: ProfileRow[] = await this.db
       .select()
       .from(profileProfiles)
       .where(eq(profileProfiles.userId, userId))
@@ -33,7 +37,7 @@ export class DrizzleProfileRepository implements IProfileRepository {
   }
 
   async create(profile: Profile): Promise<Profile> {
-    await this.db.insert(profileProfiles).values({
+    const newRecord: NewProfile = {
       userId: profile.userId,
       fullName: profile.fullName,
       birthDate: profile.birthDate,
@@ -41,7 +45,9 @@ export class DrizzleProfileRepository implements IProfileRepository {
       bio: profile.bio ?? null,
       phone: profile.phone ?? null,
       identityStatus: profile.identityStatus,
-    });
+    };
+
+    await this.db.insert(profileProfiles).values(newRecord);
     return profile;
   }
 
