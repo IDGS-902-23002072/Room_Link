@@ -79,76 +79,132 @@ Drizzle incluye su propia herramienta administrativa gráfica nativa: **Drizzle 
 
 ---
 
-## 4. Explotando al 100% los Tipos Generados por Drizzle
+## 4. Arquitectura de Acceso a Datos: Los Repositorios son el Único Puente
+
+En el backend de Room_Link se sigue estrictamente la arquitectura limpia y DDD:
+
+> [!IMPORTANT]
+> **Ni la Base de Datos se toca directamente en la lógica, ni los Modelos de Dominio se conectan a la BD.**
+>
+> Los **Repositorios** son el único puente autorizado para ejecutar consultas Drizzle ORM y hablar con MySQL.
+
+```text
+  ┌──────────────────────────────────────────────────────────────┐
+  │                        Capa HTTP (Hono)                      │
+  │                  modules/*/*.controller.ts                   │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │ Llama al servicio
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │                 Capa de Casos de Uso / Servicio              │
+  │                   modules/*/*.service.ts                     │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │ Usa interfaces (IUserRepository...)
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │                   Capa de Dominio Única (DDD)                │
+  │                   domain/entities/*.ts                       │
+  │   - Clases de negocio puras (User, Profile, RoomListing)     │
+  │   - NO contienen SQL, NO importan Drizzle, NO tocan la BD   │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │ Implementado por
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │             Capa de Infraestructura (Drizzle ORM)             │
+  │         infrastructure/repositories/Drizzle*Repository.ts    │
+  │   - ÚNICO lugar que importa 'db' y tablas de Drizzle         │
+  │   - Ejecuta consultas tipadas con $inferSelect/$inferInsert  │
+  │   - Mapea filas de la base de datos a Entidades de Dominio   │
+  └──────────────────────────────┬───────────────────────────────┘
+                                 │ mysql2 pool
+                                 ▼
+                          [ MySQL 8.4 ]
+```
+
+### Reglas Claras para el Equipo:
+* **¿Un Servicio puede hacer `db.select()`?** ❌ **NO**. El servicio solo debe llamar a `this.userRepo.findById(id)`.
+* **¿Un Modelo de Dominio puede tener `user.save()` o conectarse a MySQL?** ❌ **NO**. Las entidades de dominio son modelos puros de negocio (no Active Record).
+* **¿Dónde vive Drizzle?** ✅ **Exclusivamente en `src/infrastructure/repositories/` y en `src/db/`**.
+
+---
+
+## 5. Explotando al 100% los Tipos Generados por Drizzle
 
 Uno de los mayores superpoderes de Drizzle ORM es que **no necesitas escribir interfaces TypeScript duplicadas a mano**. Drizzle infiere automáticamente los tipos exactos de la base de datos a partir de la definición de cada tabla:
 
 ### A. Los dos tipos fundamentales por tabla
 
-Para cada tabla existen dos tipos generados:
-1. **`$inferSelect` (o `InferSelectModel<typeof tabla>`)**:
+Para cada tabla del esquema se exportan automáticamente dos tipos:
+1. **`$inferSelect` (o `typeof table.$inferSelect`)**:
    Representa la fila completa que devuelve la base de datos al hacer un `SELECT`. Todos los campos generados por la BD (como `id`, `createdAt`, `updatedAt`) están presentes y no son opcionales.
-2. **`$inferInsert` (o `InferInsertModel<typeof tabla>`)**:
+2. **`$inferInsert` (o `typeof table.$inferInsert`)**:
    Representa el objeto que debes enviar para hacer un `INSERT`. Drizzle detecta inteligentemente qué campos son obligatorios y cuáles son opcionales porque tienen valores por defecto (`defaultNow()`, `autoincrement()`, `default(sql\`(UUID())\`)`, o permiten `NULL`).
 
-### B. Ejemplo en `src/db/schema/rooms.ts`:
+### B. Catálogo de Tipos Disponibles en el Proyecto
 
-```typescript
-import { mysqlTable, char, varchar, decimal, timestamp, date } from "drizzle-orm/mysql-core";
+Todos estos tipos ya están generados y disponibles para importar desde `src/db/schema/index.js`:
 
-export const roomListings = mysqlTable("room_listings", {
-  id: char("id", { length: 36 }).primaryKey().notNull().default(sql`(UUID())`),
-  hostId: char("host_id", { length: 36 }).notNull(),
-  title: varchar("title", { length: 200 }).notNull(),
-  description: text("description"),
-  monthlyRent: decimal("monthly_rent", { precision: 10, scale: 2 }).notNull(),
-  availableFrom: date("available_from"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+| Módulo / Esquema | Tipo SELECT (`$inferSelect`) | Tipo INSERT (`$inferInsert`) |
+|---|---|---|
+| **Autenticación** (`auth.ts`) | `AuthUserRow`, `AuthUserRoleRow`, `AuthSessionRow`, `AuthLoginAttemptRow` | `NewAuthUser`, `NewAuthUserRole`, `NewAuthSession`, `NewAuthLoginAttempt` |
+| **Perfiles** (`profile.ts`) | `ProfileRow`, `ProfilePhotoRow`, `ProfileContactPrivacyRow`, `ProfileHousingPreferenceRow` | `NewProfile`, `NewProfilePhoto`, `NewProfileContactPrivacy`, `NewProfileHousingPreference` |
+| **Habitaciones** (`rooms.ts`) | `RoomListingRow`, `RoomPhotoRow`, `RoomRuleRow`, `RoomCostItemRow`, `RoomFavoriteRow` | `NewRoomListing`, `NewRoomPhoto`, `NewRoomRule`, `NewRoomCostItem`, `NewRoomFavorite` |
+| **Compatibilidad** (`compatibility.ts`) | `CompatProfileRow`, `CompatDimensionWeightRow`, `MatchAffinityScoreRow`, `MatchSavedProfileRow` | `NewCompatProfile`, `NewCompatDimensionWeight`, `NewMatchAffinityScore`, `NewMatchSavedProfile` |
+| **Social / Mensajes** (`social.ts`) | `AppApplicationRow`, `ConnConnectionRow`, `ChatRoomRow`, `ChatRoomMemberRow`, `ChatMessageRow` | `NewAppApplication`, `NewConnConnection`, `NewChatRoom`, `NewChatRoomMember`, `NewChatMessage` |
+| **Geografía** (`geo.ts`) | `GeoZoneRow`, `GeoLocationRow`, `GeoPointOfInterestRow` | `NewGeoZone`, `NewGeoLocation`, `NewGeoPointOfInterest` |
+| **Gobernanza / Moderación** (`governance.ts`) | `ModReportRow`, `ModSanctionRow`, `ModActivityLogRow`, `NotifNotificationRow` | `NewModReport`, `NewModSanction`, `NewModActivityLog`, `NewNotifNotification` |
+| **Core** (`core.ts`) | `CoreOutboxEventRow` | `NewCoreOutboxEvent` |
 
-// 🚀 Tipos inferidos automáticamente exportados:
-export type RoomListingRow = typeof roomListings.$inferSelect;
-export type NewRoomListing = typeof roomListings.$inferInsert;
-```
+### C. Mapeo en Repositorios: De Tipo Drizzle a Entidad de Dominio
 
-¿Qué diferencia hay entre `RoomListingRow` y `NewRoomListing`?
-* En `RoomListingRow`: `id` es `string`, `createdAt` es `Date`.
-* En `NewRoomListing`: `id` es `string | undefined` (porque MySQL o Drizzle le asigna UUID automáticamente) y `createdAt` es `Date | undefined` (porque tiene `defaultNow()`). ¡TypeScript nunca te obligará a enviar campos que la base de datos ya sabe generar!
-
----
-
-### C. Uso de los tipos en la Capa de Infraestructura / Repositorios
-
-Los repositorios utilizan estos tipos directamente para garantizar cero errores en tiempo de compilación:
+Los repositorios reciben los tipos de Drizzle y los transforman a los modelos del dominio:
 
 ```typescript
 import { eq } from "drizzle-orm";
 import { db } from "../db/client.js";
-import {
-  roomListings,
-  type RoomListingRow,
-  type NewRoomListing
-} from "../db/schema/rooms.js";
+import { roomListings, type RoomListingRow, type NewRoomListing } from "../db/schema/rooms.js";
+import { RoomListing } from "../../domain/index.js";
 
 export class DrizzleRoomListingRepository {
-  // 1. SELECT tipado con RoomListingRow:
-  async findById(id: string): Promise<RoomListingRow | null> {
+  // 1. SELECT: Recibe RoomListingRow ($inferSelect) y retorna la Entidad pura de Dominio
+  async findById(id: string): Promise<RoomListing | null> {
     const rows: RoomListingRow[] = await db
       .select()
       .from(roomListings)
       .where(eq(roomListings.id, id))
       .limit(1);
 
-    return rows[0] ?? null;
+    const row = rows[0];
+    if (!row) return null;
+
+    // Hidratación hacia el Modelo de Dominio con sus reglas de negocio:
+    return new RoomListing({
+      id: row.id,
+      hostId: row.hostId,
+      title: row.title,
+      monthlyRent: Number(row.monthlyRent),
+      status: row.status,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
+    });
   }
 
-  // 2. INSERT tipado con NewRoomListing:
-  async create(data: NewRoomListing): Promise<void> {
-    // TypeScript valida exactamente los campos obligatorios:
-    await db.insert(roomListings).values(data);
+  // 2. INSERT: Transforma la Entidad de Dominio a NewRoomListing ($inferInsert)
+  async create(room: RoomListing): Promise<void> {
+    const record: NewRoomListing = {
+      id: room.id,
+      hostId: room.hostId,
+      title: room.title,
+      monthlyRent: room.monthlyRent.toFixed(2),
+      status: room.status,
+      // Drizzle sabe que createdAt tiene defaultNow() en la base de datos
+    };
+
+    await db.insert(roomListings).values(record);
   }
 }
 ```
+
 
 ---
 
