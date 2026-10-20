@@ -1,13 +1,19 @@
 import { eq } from "drizzle-orm";
 import type { MySql2Database } from "drizzle-orm/mysql2";
 import { User, type IUserRepository } from "../../domain/index.js";
-import { authUsers, authUserRoles } from "../../db/schema/auth.js";
+import {
+  authUsers,
+  authUserRoles,
+  type AuthUserRow,
+  type NewAuthUser,
+  type NewAuthUserRole,
+} from "../../db/schema/auth.js";
 
 export class DrizzleUserRepository implements IUserRepository {
   constructor(private db: MySql2Database<any>) {}
 
   async findById(id: string): Promise<User | null> {
-    const rows = await this.db
+    const rows: AuthUserRow[] = await this.db
       .select()
       .from(authUsers)
       .where(eq(authUsers.id, id))
@@ -38,7 +44,7 @@ export class DrizzleUserRepository implements IUserRepository {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const rows = await this.db
+    const rows: AuthUserRow[] = await this.db
       .select()
       .from(authUsers)
       .where(eq(authUsers.email, email))
@@ -69,19 +75,21 @@ export class DrizzleUserRepository implements IUserRepository {
   }
 
   async create(user: User): Promise<User> {
-    await this.db.insert(authUsers).values({
+    const newRecord: NewAuthUser = {
       id: user.id,
       email: user.email,
       passwordHash: user.passwordHash ?? null,
       status: user.status,
       termsAcceptedAt: user.termsAcceptedAt,
-    });
+    };
+    await this.db.insert(authUsers).values(newRecord);
 
     for (const role of user.roles) {
-      await this.db.insert(authUserRoles).values({
+      const roleRecord: NewAuthUserRole = {
         userId: user.id,
         role,
-      });
+      };
+      await this.db.insert(authUserRoles).values(roleRecord);
     }
 
     return user;
