@@ -2,14 +2,15 @@
 
 Aplicación móvil (Expo + React Native, JavaScript) con backend propio (Bun + TypeScript).
 
-> Estado: **pre-requirements**. El repositorio está preparado para desarrollo Kanban; `frontend/` y `backend/` todavía no están inicializados.
+> Estado: **infraestructura backend inicializada**. MySQL, Drizzle, Hono y TypeScript están listos; el frontend y los módulos de dominio todavía están pendientes.
 
 ## Estructura
 
 ```
 .
 ├── frontend/         # Proyecto Expo / React Native (pendiente de inicializar)
-├── backend/          # API Bun + TypeScript (pendiente de inicializar)
+├── backend/          # API Hono + Drizzle + TypeScript (Node.js o Bun)
+├── compose.yaml      # MySQL 8.4 y ejecución automática de migraciones
 ├── docs/             # Documentación del proyecto
 │   └── kanban.md     # Tablero, columnas, DoR/DoD, labels
 ├── scripts/          # Automatización (labels de GitHub, etc.)
@@ -21,6 +22,29 @@ Aplicación móvil (Expo + React Native, JavaScript) con backend propio (Bun + T
 
 - Flujo de ramas y convenciones de commits: [CONTRIBUTING.md](CONTRIBUTING.md).
 - Tablero Kanban y Definition of Done: [docs/kanban.md](docs/kanban.md).
+- Base de datos con y sin Docker: [docs/database.md](docs/database.md).
+
+## Base de datos y backend
+
+Para levantar MySQL en Docker desde la raíz:
+
+```bash
+docker compose up --build --wait
+```
+
+El contenedor publica MySQL en `localhost:3307` para poder coexistir con una instalación local en `3306`. La guía de base de datos también explica cómo trabajar sin Docker.
+
+El backend puede arrancarse ejecutando:
+
+```bash
+cd backend
+DB_PORT=3307 npm run dev
+```
+
+La documentación detallada del backend, su arquitectura de monolito modular con DDD y la guía de Drizzle ORM se encuentran en:
+- [backend/README.md](backend/README.md)
+- [docs/drizzle-guide.md](docs/drizzle-guide.md)
+
 
 ## Branches
 
@@ -43,7 +67,7 @@ Cuatro workflows en `.github/workflows/`:
 ## Próximos pasos
 
 1. Inicializar la app en `frontend/` cuando lleguen los requerimientos (`npx create-expo-app@latest .`).
-2. Inicializar el backend en `backend/` (`bun init`) y definir contrato de API.
+2. Definir el contrato de API y construir los módulos de dominio sobre Hono y Drizzle.
 3. Crear el GitHub Project (`Room_Link`) y las labels (`scripts/setup-labels.ps1`).
 4. Cargar las primeras tarjetas desde los requerimientos.
 5. Configurar branch protection para `main` y `develop` en Settings → Branches.
