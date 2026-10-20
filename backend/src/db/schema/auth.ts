@@ -144,3 +144,17 @@ export const authLoginAttempts = mysqlTable(
   },
   (table) => [index("idx_auth_attempts_email").on(table.email, table.createdAt)],
 );
+
+// Tipos generados automáticamente por Drizzle ORM
+export type AuthUserRow = typeof authUsers.$inferSelect;
+export type NewAuthUser = typeof authUsers.$inferInsert;
+
+export type AuthUserRoleRow = typeof authUserRoles.$inferSelect;
+export type NewAuthUserRole = typeof authUserRoles.$inferInsert;
+
+export type AuthSessionRow = typeof authSessions.$inferSelect;
+export type NewAuthSession = typeof authSessions.$inferInsert;
+
+export type AuthLoginAttemptRow = typeof authLoginAttempts.$inferSelect;
+export type NewAuthLoginAttempt = typeof authLoginAttempts.$inferInsert;
+
