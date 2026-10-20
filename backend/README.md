@@ -108,6 +108,7 @@ La API estará disponible en `http://localhost:3000`.
 | `npm run db:generate` | Genera nuevas migraciones SQL en `drizzle/` si cambias los esquemas. |
 | `npm run db:migrate` | Aplica las migraciones SQL a MySQL. |
 | `npm run db:check` | Comprueba consistencia en migraciones Drizzle. |
+| `npm run db:studio` | **Drizzle Studio**: Abre el gestor visual de base de datos en `https://local.drizzle.studio`. |
 
 ---
 
