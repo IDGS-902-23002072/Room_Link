@@ -7,17 +7,45 @@ API construida con **Hono**, **TypeScript**, **Drizzle ORM** y **MySQL 8**. Impl
 ## 1. Arquitectura: Monolito Modular con MVC y DDD
 
 Para mantener alta cohesión y bajo acoplamiento:
-1. **Un solo Dominio (`src/domain/`)**: Las entidades del negocio (`User`, `Profile`, `RoomListing`, `Application`, `CompatibilityProfile`) y las interfaces de los repositorios (`IUserRepository`, etc.) viven aquí. No conocen nada de bases de datos, SQL ni HTTP.
+1. **Un solo Dominio (`src/domain/`)**: Las entidades del negocio (`User`, `Profile`, `RoomListing`, `Application`, `CompatibilityProfile`) y las interfaces de los repositorios (`IUserRepository`, etc.) viven aquí. Son clases puras de TypeScript: **no tocan la base de datos, no usan Drizzle y no conocen HTTP**.
 2. **Módulos con MVC independiente (`src/modules/`)**:
    - Cada módulo (`auth`, `profile`, `rooms`, `applications`) tiene:
      - `*.controller.ts` (Controlador HTTP): Lee la petición, valida la entrada y delega al servicio.
-     - `*.service.ts` (Servicio de Aplicación): Coordina los casos de uso y lógica del negocio.
+     - `*.service.ts` (Servicio de Aplicación): Coordina los casos de uso y lógica del negocio llamando a los repositorios. **Nunca hace consultas SQL ni importa `db` directamente**.
      - `*.view.ts` (Vista / Serializador DTO): Decide qué datos salen al cliente, protegiendo campos privados (como hashes de contraseña).
      - `*.routes.ts`: Define las rutas de ese módulo.
      - `index.ts`: Expone las rutas hacia el resto de la aplicación.
 3. **Infraestructura (`src/infrastructure/` y `src/db/`)**:
-   - `src/db/schema/`: Modelos declarativos de Drizzle ORM que representan las tablas MySQL.
-   - `src/infrastructure/repositories/`: Implementaciones concretas de los repositorios usando Drizzle (`DrizzleUserRepository`, `DrizzleRoomListingRepository`, etc.).
+   - `src/db/schema/`: Modelos declarativos de Drizzle ORM que representan las tablas MySQL y exportan los tipos inferidos (`$inferSelect`, `$inferInsert`).
+   - `src/infrastructure/repositories/`: **El ÚNICO lugar del sistema que se conecta a la base de datos**. Usan el cliente `db` de Drizzle y convierten las filas (`$inferSelect`) en entidades de Dominio.
+
+### ⚠️ Regla de Oro de Acceso a Datos
+
+> **Los Repositorios son el único componente autorizado para tocar la Base de Datos.**
+
+```text
+[ Cliente HTTP ]
+       │
+       ▼
+[ Controller ]        (Recibe req, valida, llama al Service)
+       │
+       ▼
+[ Service ]           (Lógica de negocio pura, llama a interfaces de Repository)
+       │
+       ▼
+[ IRepository ]       (Contrato / Interfaz en la Capa de Dominio)
+       │
+       ▼
+[ DrizzleRepository ] (Infraestructura: ÚNICO que usa db, Drizzle ORM y SQL)
+       │
+       ▼
+[ MySQL 8.4 ]
+```
+
+* ❌ **PROHIBIDO**: Hacer `db.select()` o importar `db` dentro de Controllers o Services.
+* ❌ **PROHIBIDO**: Poner métodos de persistencia (`save()`, `delete()`) dentro de las Entidades de Dominio (no usamos patrón Active Record; las entidades son POJOs puros con reglas de negocio).
+* ✅ **CORRECTO**: Toda consulta o inserción pasa por un Repositorio (`src/infrastructure/repositories/Drizzle*Repository.ts`), tipado al 100% con `$inferSelect` y `$inferInsert`.
+
 
 ```text
 backend/
