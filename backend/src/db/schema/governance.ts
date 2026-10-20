@@ -227,3 +227,26 @@ export const analyticsDailyMetrics = mysqlTable("analytics_daily_metrics", {
   avgAffinityScore: decimal("avg_affinity_score", { precision: 5, scale: 2 }),
   createdAt: timestamp("created_at", { fsp: 6 }).notNull().defaultNow(),
 });
+
+// Tipos generados automáticamente por Drizzle ORM
+export type ModReportRow = typeof modReports.$inferSelect;
+export type NewModReport = typeof modReports.$inferInsert;
+
+export type ModSanctionRow = typeof modSanctions.$inferSelect;
+export type NewModSanction = typeof modSanctions.$inferInsert;
+
+export type ModListingReviewRow = typeof modListingReviews.$inferSelect;
+export type NewModListingReview = typeof modListingReviews.$inferInsert;
+
+export type ModActivityLogRow = typeof modActivityLog.$inferSelect;
+export type NewModActivityLog = typeof modActivityLog.$inferInsert;
+
+export type NotifNotificationRow = typeof notifNotifications.$inferSelect;
+export type NewNotifNotification = typeof notifNotifications.$inferInsert;
+
+export type NotifPreferenceRow = typeof notifPreferences.$inferSelect;
+export type NewNotifPreference = typeof notifPreferences.$inferInsert;
+
+export type AnalyticsDailyMetricRow = typeof analyticsDailyMetrics.$inferSelect;
+export type NewAnalyticsDailyMetric = typeof analyticsDailyMetrics.$inferInsert;
+
