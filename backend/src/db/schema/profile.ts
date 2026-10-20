@@ -116,3 +116,17 @@ export const profileHousingPreferences = mysqlTable(
     ),
   ],
 );
+
+// Tipos generados automáticamente por Drizzle ORM
+export type ProfileRow = typeof profileProfiles.$inferSelect;
+export type NewProfile = typeof profileProfiles.$inferInsert;
+
+export type ProfilePhotoRow = typeof profilePhotos.$inferSelect;
+export type NewProfilePhoto = typeof profilePhotos.$inferInsert;
+
+export type ProfileContactPrivacyRow = typeof profileContactPrivacy.$inferSelect;
+export type NewProfileContactPrivacy = typeof profileContactPrivacy.$inferInsert;
+
+export type ProfileHousingPreferenceRow = typeof profileHousingPreferences.$inferSelect;
+export type NewProfileHousingPreference = typeof profileHousingPreferences.$inferInsert;
+
