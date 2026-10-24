@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-const pestanas = ['Perfil', 'Habitaciones', 'Filtros'] as const;
+const pestanas = ['Perfil', 'Preferencias', 'Filtros'] as const;
 
 export type PestanaExploracion = (typeof pestanas)[number];
 

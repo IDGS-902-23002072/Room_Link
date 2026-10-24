@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Link, useRouter } from 'expo-router';
 import {
   Pressable,
   ScrollView,
@@ -9,7 +9,15 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import {
+  guardarTestCompatibilidad,
+  obtenerTestCompatibilidad,
+  type DimensionCompatibilidad,
+  type RespuestasCompatibilidad,
+  type ResumenDimension,
+} from '../compatibilidad/api';
 import { BarraProgreso } from './componentes/BarraProgreso';
 import { BotonPrincipal } from './componentes/BotonPrincipal';
 import { MedidorResultado } from './componentes/MedidorResultado';
@@ -28,24 +36,188 @@ const colors = {
 };
 
 type Step = 1 | 2 | 3;
-type Answers = Record<string, string>;
+type Answers = Partial<RespuestasCompatibilidad>;
+const BORRADOR_KEY =
+  `@roomlink/compatibility-test-draft:${process.env.EXPO_PUBLIC_USER_ID?.trim() || 'unconfigured'}`;
 
-const initialAnswers: Answers = Object.fromEntries(
-  [...preguntasHabitos, ...preguntasConvivencia].map((question) => [
-    question.id,
-    question.initial,
-  ]),
-);
+const dimensionNames: Record<DimensionCompatibilidad, string> = {
+  schedule: 'Horarios',
+  cleanliness: 'Limpieza',
+  noise: 'Ruido',
+  pets: 'Mascotas',
+  smoking: 'Tabaco',
+  visits: 'Visitas',
+  genderPref: 'Preferencia de género',
+};
+
+const allQuestions = [...preguntasHabitos, ...preguntasConvivencia];
+const compatibilityDimensions = allQuestions.map((question) => question.id);
+const compatibilityDimensionSet = new Set<string>(compatibilityDimensions);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isValidDraft(value: unknown): value is Answers {
+  if (!isRecord(value)) return false;
+  return Object.entries(value).every(
+    ([dimension, answer]) =>
+      compatibilityDimensionSet.has(dimension) &&
+      Number.isInteger(answer) &&
+      Number(answer) >= 1 &&
+      Number(answer) <= 5,
+  );
+}
+
+function isCompleteAnswers(answers: Answers): answers is RespuestasCompatibilidad {
+  return compatibilityDimensions.every(
+    (dimension) =>
+      Number.isInteger(answers[dimension]) &&
+      Number(answers[dimension]) >= 1 &&
+      Number(answers[dimension]) <= 5,
+  );
+}
+
+function calculateSummary(answers: Answers): ResumenDimension[] {
+  return allQuestions.flatMap(({ id }) => {
+    const answer = answers[id];
+    if (answer === undefined) return [];
+    const percentage = Math.round(((answer - 1) / 4) * 100);
+    return [
+      {
+        dimension: id,
+        percentage,
+        level: percentage <= 33 ? 'bajo' : percentage <= 66 ? 'medio' : 'alto',
+      },
+    ];
+  });
+}
 
 export function PantallaEncuesta() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>(1);
-  const [answers, setAnswers] = useState<Answers>(initialAnswers);
-  const [profileReady, setProfileReady] = useState(false);
+  const [answers, setAnswers] = useState<Answers>({});
+  const [hydrated, setHydrated] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedResult, setSavedResult] = useState<ResumenDimension[] | null>(null);
   const { width } = useWindowDimensions();
   const contentWidth = Math.min(width, 460);
 
+  useEffect(() => {
+    let active = true;
+    const hydrate = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(BORRADOR_KEY);
+        if (stored) {
+          try {
+            const parsed: unknown = JSON.parse(stored);
+            if (!isValidDraft(parsed)) {
+              await AsyncStorage.removeItem(BORRADOR_KEY);
+              throw new Error('El borrador local no tiene respuestas válidas y se eliminó.');
+            }
+            if (active) setAnswers(parsed);
+          } catch (cause) {
+            if (active) {
+              setError(
+                cause instanceof Error
+                  ? cause.message
+                  : 'El borrador local estaba dañado y se eliminó.',
+              );
+            }
+            await AsyncStorage.removeItem(BORRADOR_KEY);
+          }
+        }
+      } catch (cause) {
+        if (active) {
+          setError(cause instanceof Error ? cause.message : 'No se pudo recuperar el borrador.');
+        }
+      }
+      try {
+        const result = await obtenerTestCompatibilidad();
+        if (active && result.completed && result.answers) {
+          setAnswers(result.answers);
+          setSavedResult(result.summary);
+        }
+      } catch (cause) {
+        if (active) {
+          setError(
+            cause instanceof Error ? cause.message : 'No se pudo consultar el test.',
+          );
+        }
+      } finally {
+        if (active) {
+          setHydrated(true);
+          setLoading(false);
+        }
+      }
+    };
+    void hydrate();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    void AsyncStorage.setItem(BORRADOR_KEY, JSON.stringify(answers)).catch((cause: unknown) => {
+      setError(
+        cause instanceof Error
+          ? `No se pudo guardar el borrador local: ${cause.message}`
+          : 'No se pudo guardar el borrador local.',
+      );
+    });
+  }, [answers, hydrated]);
+
   const setAnswer = (questionId: string, answer: string) => {
-    setAnswers((current) => ({ ...current, [questionId]: answer }));
+    const question = allQuestions.find(({ id }) => id === questionId);
+    if (!question) return;
+    const numericAnswer = question.options.indexOf(answer) + 1;
+    if (numericAnswer < 1) return;
+    setAnswers((current) => ({
+      ...current,
+      [question.id]: numericAnswer,
+    }));
+    setSavedResult(null);
+    setError(null);
+  };
+
+  const continueToStep = (currentQuestions: typeof preguntasHabitos, next: Step) => {
+    const unanswered = currentQuestions.some(({ id }) => answers[id] === undefined);
+    if (unanswered) {
+      setError('Responde todas las preguntas para continuar.');
+      return;
+    }
+    setError(null);
+    setStep(next);
+  };
+
+  const saveAndExplore = async () => {
+    if (!isCompleteAnswers(answers)) {
+      setError('Completa las siete respuestas antes de guardar el test.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await guardarTestCompatibilidad(answers);
+      setSavedResult(result.summary);
+      try {
+        await AsyncStorage.removeItem(BORRADOR_KEY);
+      } catch (cause) {
+        setError(
+          cause instanceof Error
+            ? `El test se guardó, pero no se pudo eliminar el borrador: ${cause.message}`
+            : 'El test se guardó, pero no se pudo eliminar el borrador local.',
+        );
+      }
+      router.push('/explorar');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo guardar el test.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -60,6 +232,7 @@ export function PantallaEncuesta() {
         </Link>
         <Text style={styles.brand}>ROOMLINK / 03</Text>
 
+        {loading && <Text style={styles.subtitle}>Recuperando tus respuestas…</Text>}
         {step === 1 && (
           <>
             <Text style={styles.title}>Tu ritmo de vida</Text>
@@ -70,7 +243,11 @@ export function PantallaEncuesta() {
                 <OpcionesPregunta
                   key={question.id}
                   pregunta={question}
-                  seleccionada={answers[question.id]}
+                  seleccionada={
+                    answers[question.id] === undefined
+                      ? ''
+                      : question.options[(answers[question.id] ?? 1) - 1]
+                  }
                   alSeleccionar={(answer) => setAnswer(question.id, answer)}
                 />
               ))}
@@ -81,7 +258,10 @@ export function PantallaEncuesta() {
                 Tus hábitos nos ayudan a encontrar mejores conexiones.
               </Text>
             </View>
-            <BotonPrincipal etiqueta="Continuar" alPresionar={() => setStep(2)} />
+            <BotonPrincipal
+              etiqueta="Continuar"
+              alPresionar={() => continueToStep(preguntasHabitos, 2)}
+            />
           </>
         )}
 
@@ -97,14 +277,18 @@ export function PantallaEncuesta() {
                 <OpcionesPregunta
                   key={question.id}
                   pregunta={question}
-                  seleccionada={answers[question.id]}
+                  seleccionada={
+                    answers[question.id] === undefined
+                      ? ''
+                      : question.options[(answers[question.id] ?? 1) - 1]
+                  }
                   alSeleccionar={(answer) => setAnswer(question.id, answer)}
                 />
               ))}
             </View>
             <BotonPrincipal
               etiqueta="Ver mis resultados"
-              alPresionar={() => setStep(3)}
+              alPresionar={() => continueToStep(preguntasConvivencia, 3)}
             />
             <Pressable
               accessibilityRole="button"
@@ -123,32 +307,29 @@ export function PantallaEncuesta() {
             </Text>
             <View style={styles.resultCard}>
               <Text style={styles.resultEyebrow}>Tu estilo</Text>
-              <Text style={styles.resultTitle}>Equilibrado</Text>
+              <Text style={styles.resultTitle}>Tu perfil de convivencia</Text>
               <Text style={styles.resultDescription}>
-                Orden, tranquilidad y respeto por el espacio personal.
+                Resumen basado en las respuestas de tu test.
               </Text>
             </View>
             <View style={styles.meters}>
-              <MedidorResultado etiqueta="Limpieza" valor={90} />
-              <MedidorResultado etiqueta="Horarios regulares" valor={80} />
-              <MedidorResultado etiqueta="Vida social" valor={55} />
+              {(savedResult ?? calculateSummary(answers)).map((item) => (
+                <MedidorResultado
+                  key={item.dimension}
+                  etiqueta={dimensionNames[item.dimension]}
+                  valor={item.percentage}
+                />
+              ))}
             </View>
             <View style={styles.noteCard}>
               <Text style={styles.noteTitle}>Tus afinidades principales</Text>
               <Text style={styles.noteText}>
-                Personas sin humo, con mascotas o con horarios similares.
+                El motor comparará estas dimensiones con las de otros perfiles.
               </Text>
             </View>
-            {profileReady && (
-              <View accessibilityRole="alert" style={styles.confirmation}>
-                <Text style={styles.confirmationText}>
-                  ¡Listo! Guardamos tus preferencias de convivencia.
-                </Text>
-              </View>
-            )}
             <BotonPrincipal
-              etiqueta="Encontrar roomies"
-              alPresionar={() => setProfileReady(true)}
+              etiqueta={saving ? 'Guardando…' : 'Guardar y encontrar roomies'}
+              alPresionar={saveAndExplore}
             />
             <Pressable
               accessibilityRole="button"
@@ -157,6 +338,11 @@ export function PantallaEncuesta() {
               <Text style={styles.backButtonText}>Editar respuestas</Text>
             </Pressable>
           </>
+        )}
+        {error && (
+          <View accessibilityRole="alert" style={styles.error}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -314,6 +500,18 @@ const styles = StyleSheet.create({
     color: colors.plum,
     fontSize: 11,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  error: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#FCE8E8',
+    marginTop: 10,
+  },
+  errorText: {
+    color: '#8A3030',
+    fontSize: 11,
     textAlign: 'center',
   },
   resultCard: {

@@ -205,7 +205,7 @@ describe("Domain Entities & Business Rules", () => {
         pets: 1,
         smoking: 1,
         visits: 1,
-        genderPref: 3,
+        genderPref: 1,
         completedAt: new Date(),
         updatedAt: new Date(),
       });
@@ -218,7 +218,7 @@ describe("Domain Entities & Business Rules", () => {
         pets: 5,
         smoking: 5,
         visits: 5,
-        genderPref: 3,
+        genderPref: 5,
         completedAt: new Date(),
         updatedAt: new Date(),
       });

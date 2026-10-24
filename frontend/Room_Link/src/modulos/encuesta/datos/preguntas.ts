@@ -1,54 +1,48 @@
+import type { DimensionCompatibilidad } from '../../compatibilidad/api';
+
 export type Pregunta = {
-  id: string;
+  id: DimensionCompatibilidad;
   prompt: string;
   options: readonly string[];
-  initial: string;
 };
 
 export const preguntasHabitos: readonly Pregunta[] = [
   {
-    id: 'wake-up',
-    prompt: '¿Cuándo empieza tu día?',
-    options: ['Temprano', 'Más tarde', 'Variable'],
-    initial: 'Temprano',
+    id: 'schedule',
+    prompt: '¿Qué tan compatible es tu horario con una rutina compartida?',
+    options: ['Muy temprano', 'Temprano', 'Intermedio', 'Tarde', 'Nocturno'],
   },
   {
-    id: 'tidiness',
-    prompt: '¿Qué tan ordenado eres?',
-    options: ['Muy ordenado', 'Flexible', 'Relajado'],
-    initial: 'Muy ordenado',
+    id: 'cleanliness',
+    prompt: '¿Qué importancia tiene para ti mantener todo limpio?',
+    options: ['Poca', 'Algo', 'Moderada', 'Mucha', 'Esencial'],
   },
   {
-    id: 'atmosphere',
-    prompt: '¿Qué ambiente prefieres?',
-    options: ['Tranquilo', 'Con música', 'Social'],
-    initial: 'Tranquilo',
+    id: 'noise',
+    prompt: '¿Qué nivel de ruido prefieres en casa?',
+    options: ['Silencio', 'Muy bajo', 'Moderado', 'Con música', 'Social'],
+  },
+  {
+    id: 'smoking',
+    prompt: '¿Qué tan cómodo estás conviviendo con el tabaco?',
+    options: ['Nada cómodo', 'Poco', 'Neutral', 'Cómodo', 'Fumo o tolero'],
   },
 ];
 
 export const preguntasConvivencia: readonly Pregunta[] = [
   {
     id: 'pets',
-    prompt: '¿Vivirías con mascotas?',
-    options: ['Sí', 'No', 'Depende'],
-    initial: 'Sí',
-  },
-  {
-    id: 'smoking',
-    prompt: '¿Cómo te sientes con el tabaco?',
-    options: ['Sin humo', 'Exterior', 'Sin problema'],
-    initial: 'Sin humo',
-  },
-  {
-    id: 'roommates',
-    prompt: '¿Con quién prefieres compartir?',
-    options: ['Cualquier género', 'Mujeres', 'Hombres'],
-    initial: 'Cualquier género',
+    prompt: '¿Qué tanto te gustan las mascotas en casa?',
+    options: ['No las tolero', 'Poco', 'Me da igual', 'Me gustan', 'Las amo'],
   },
   {
     id: 'visits',
-    prompt: '¿Qué visitas te resultan cómodas?',
-    options: ['Ocasionales', 'Frecuentes', 'Acordadas'],
-    initial: 'Ocasionales',
+    prompt: '¿Qué tan frecuentes te gustaría que fueran las visitas?',
+    options: ['Nunca', 'Rara vez', 'Ocasionalmente', 'Frecuentemente', 'Muy frecuentes'],
+  },
+  {
+    id: 'genderPref',
+    prompt: '¿Qué preferencia tienes sobre el género de tus roomies?',
+    options: ['Solo mi género', 'Mayormente mi género', 'Sin preferencia fuerte', 'Me da igual', 'Sin preferencia'],
   },
 ];

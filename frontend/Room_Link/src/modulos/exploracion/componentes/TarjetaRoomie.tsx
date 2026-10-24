@@ -1,15 +1,15 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PerfilRoomie } from '../datos/perfilesRoomies';
 
 export function TarjetaRoomie({
   perfil,
-  mostrarHabitacion = false,
+  mostrarPreferencias = false,
   alAbrir,
   alVerRapido,
 }: {
   perfil: PerfilRoomie;
-  mostrarHabitacion?: boolean;
+  mostrarPreferencias?: boolean;
   alAbrir: () => void;
   alVerRapido: () => void;
 }) {
@@ -17,7 +17,11 @@ export function TarjetaRoomie({
     <View style={styles.tarjeta}>
       <View style={styles.encabezado}>
         <View style={styles.avatar}>
-          <Text style={styles.iniciales}>{perfil.iniciales}</Text>
+          {perfil.fotoUrl ? (
+            <Image source={{ uri: perfil.fotoUrl }} style={styles.foto} />
+          ) : (
+            <Text style={styles.iniciales}>{perfil.iniciales}</Text>
+          )}
         </View>
         <Pressable
           accessibilityLabel={`Vista rápida de ${perfil.nombre}`}
@@ -39,16 +43,17 @@ export function TarjetaRoomie({
         <Text numberOfLines={1} style={styles.nombre}>
           {perfil.nombre}, {perfil.edad}
         </Text>
-        <Text style={styles.compatibilidad}>{perfil.compatibilidad}% compatibles</Text>
+        <Text style={styles.compatibilidad}>
+          {perfil.compatibilidad === null
+            ? 'Afinidad por descubrir'
+            : `${perfil.compatibilidad}% compatibles`}
+        </Text>
         <Text numberOfLines={1} style={styles.detalle}>
           {perfil.ciudad} · {perfil.zona}
         </Text>
         <Text numberOfLines={1} style={styles.detalle}>
-          {mostrarHabitacion ? perfil.habitacion : perfil.estilo}
+          {mostrarPreferencias ? perfil.presupuesto : perfil.estilo}
         </Text>
-        {mostrarHabitacion && (
-          <Text numberOfLines={1} style={styles.detalle}>{perfil.presupuesto}</Text>
-        )}
       </Pressable>
     </View>
   );
@@ -88,6 +93,11 @@ const styles = StyleSheet.create({
     color: '#84658D',
     fontSize: 12,
     fontWeight: '600',
+  },
+  foto: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 18,
   },
   botonRapido: {
     width: 28,

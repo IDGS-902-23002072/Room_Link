@@ -36,6 +36,13 @@
       "when": 1792523835906,
       "tag": "0004_rapid_grey_gargoyle",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1792523835907,
+      "tag": "0005_compatibility_weights",
+      "breakpoints": true
     }
   ]
 }

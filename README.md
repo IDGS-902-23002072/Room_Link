@@ -1,14 +1,14 @@
 # Room_Link
 
-Aplicación móvil (Expo + React Native, JavaScript) con backend propio (Bun + TypeScript).
+Aplicación móvil (Expo + React Native, TypeScript) con backend propio (Hono + TypeScript).
 
-> Estado: **infraestructura backend inicializada**. MySQL, Drizzle, Hono y TypeScript están listos; el frontend y los módulos de dominio todavía están pendientes.
+> Estado: la app móvil y el backend están en desarrollo. Los módulos de test de compatibilidad y motor de afinidades ya consumen endpoints del backend.
 
 ## Estructura
 
 ```
 .
-├── frontend/         # Proyecto Expo / React Native (pendiente de inicializar)
+├── frontend/         # Proyecto Expo / React Native
 ├── backend/          # API Hono + Drizzle + TypeScript (Node.js o Bun)
 ├── compose.yaml      # MySQL 8.4 y ejecución automática de migraciones
 ├── docs/             # Documentación del proyecto
@@ -41,6 +41,10 @@ cd backend
 DB_PORT=3307 npm run dev
 ```
 
+Para conectar el frontend, copia `frontend/Room_Link/.env.example` a `.env` y define `EXPO_PUBLIC_USER_ID` con el UUID de un usuario activo con perfil. Este identificador es solo una configuración de desarrollo: la API aún no autentica las solicitudes, así que no debe usarse en producción. Si pruebas en un dispositivo físico, configura `EXPO_PUBLIC_API_URL` con la IP local de tu equipo en lugar de `localhost`.
+
+Los módulos 3 y 4 usan `PUT /api/v1/compatibility/:userId` para guardar el test, `GET /api/v1/compatibility/:userId/feed?page=1` para el feed paginado, `GET /api/v1/compatibility/:userId/candidates/:candidateId` para el detalle y `POST /api/v1/compatibility/:userId/connections` para enviar solicitudes. Consulta [backend/README.md](backend/README.md) para el contrato completo.
+
 La documentación detallada del backend, su arquitectura de monolito modular con DDD y la guía de Drizzle ORM se encuentran en:
 - [backend/README.md](backend/README.md)
 - [docs/drizzle-guide.md](docs/drizzle-guide.md)
@@ -62,13 +66,11 @@ Cuatro workflows en `.github/workflows/`:
 | `release.yml`       | Tag `v*.*.*`, manual                    | Build EAS del frontend (perfil `preview` o `production`).          |
 | `pr-labeler.yml`    | PR abierto/editado                      | Etiqueta automática por prefijo de rama.                           |
 
-> Cada job frontend/backend se saltea solo hasta que exista el `package.json` correspondiente. Si ambos faltan, corre `bootstrap-notice` como placeholder.
+> Los workflows pueden requerir configuración adicional local para ejecutar integración con MySQL o Expo.
 
 ## Próximos pasos
 
-1. Inicializar la app en `frontend/` cuando lleguen los requerimientos (`npx create-expo-app@latest .`).
-2. Definir el contrato de API y construir los módulos de dominio sobre Hono y Drizzle.
-3. Crear el GitHub Project (`Room_Link`) y las labels (`scripts/setup-labels.ps1`).
-4. Cargar las primeras tarjetas desde los requerimientos.
-5. Configurar branch protection para `main` y `develop` en Settings → Branches.
-6. (Opcional) Agregar `EXPO_TOKEN` como secret del repo para `release.yml`.
+1. Completar y validar los módulos restantes conforme a los requerimientos.
+2. Crear el GitHub Project (`Room_Link`) y las labels (`scripts/setup-labels.ps1`).
+3. Configurar branch protection para `main` y `develop` en Settings → Branches.
+4. (Opcional) Agregar `EXPO_TOKEN` como secret del repo para `release.yml`.

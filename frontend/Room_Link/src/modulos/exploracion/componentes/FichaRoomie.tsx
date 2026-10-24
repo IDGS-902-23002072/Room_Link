@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PestanaExploracion } from './BuscadorRoomies';
 import type { PerfilRoomie } from '../datos/perfilesRoomies';
@@ -33,25 +33,31 @@ export function FichaRoomie({
       {vistaRapida && (
         <View style={styles.cinta}>
           <Text style={styles.cintaTexto}>VISTA RÁPIDA</Text>
-          <Text style={styles.recomendacion}>PERFIL RECOMENDADO</Text>
+          <Text style={styles.recomendacion}>PERFIL DEL FEED</Text>
         </View>
       )}
       <View style={styles.encabezadoPerfil}>
         <View style={styles.avatar}>
-          <Text style={styles.iniciales}>{perfil.iniciales}</Text>
+          {perfil.fotoUrl ? (
+            <Image source={{ uri: perfil.fotoUrl }} style={styles.foto} />
+          ) : (
+            <Text style={styles.iniciales}>{perfil.iniciales}</Text>
+          )}
         </View>
         <View style={styles.infoEncabezado}>
           <Text style={styles.nombre}>{perfil.nombre}, {perfil.edad}</Text>
           <Text style={styles.ciudad}>{perfil.ciudad} · {perfil.zona}</Text>
           <Text style={styles.coincidencia}>
-            {perfil.compatibilidad}% compatibles · Identidad verificada
+            {perfil.compatibilidad === null
+              ? 'Afinidad por descubrir'
+              : `${perfil.compatibilidad}% compatibles`}
           </Text>
         </View>
       </View>
 
       {!vistaRapida && (
         <View style={styles.pestanas}>
-          {(['Perfil', 'Habitaciones', 'Filtros'] as const).map((pestana) => {
+          {(['Perfil', 'Preferencias', 'Filtros'] as const).map((pestana) => {
             const activa = pestanaActiva === pestana;
             return (
               <Pressable
@@ -90,12 +96,16 @@ export function FichaRoomie({
         </>
       )}
 
-      {!vistaRapida && pestanaActiva === 'Habitaciones' && (
+      {!vistaRapida && pestanaActiva === 'Preferencias' && (
         <View style={styles.bloque}>
-          <Text style={styles.tituloBloque}>Habitación disponible</Text>
-          <Text style={styles.cuerpo}>{perfil.habitacion}</Text>
-          <Text style={styles.cuerpo}>{perfil.presupuesto} al mes</Text>
+          <Text style={styles.tituloBloque}>Preferencias de vivienda</Text>
+          <Text style={styles.cuerpo}>Presupuesto mensual: {perfil.presupuesto}</Text>
           <Text style={styles.cuerpo}>Zona {perfil.zona}, {perfil.ciudad}</Text>
+          <View style={styles.etiquetas}>
+            {perfil.preferencias.map((preferencia) => (
+              <Text key={preferencia} style={styles.etiqueta}>{preferencia}</Text>
+            ))}
+          </View>
         </View>
       )}
 
@@ -115,9 +125,15 @@ export function FichaRoomie({
         <View accessibilityRole="summary" style={styles.comparacion}>
           <Text style={styles.tituloBloque}>Compatibilidad contigo</Text>
           <Text style={styles.cuerpo}>
-            Coinciden en limpieza, horarios y preferencias para compartir.
+            {perfil.preferencias.length > 0
+              ? `Dimensiones del perfil: ${perfil.preferencias.slice(0, 3).join(' · ')}.`
+              : 'Aún no hay un resumen de sus preferencias.'}
           </Text>
-          <Text style={styles.coincidencia}>{perfil.compatibilidad}% de compatibilidad</Text>
+          <Text style={styles.coincidencia}>
+            {perfil.compatibilidad === null
+              ? 'Afinidad por descubrir'
+              : `${perfil.compatibilidad}% de compatibilidad`}
+          </Text>
         </View>
       )}
 
@@ -221,6 +237,11 @@ const styles = StyleSheet.create({
     color: '#84658D',
     fontSize: 15,
     fontWeight: '600',
+  },
+  foto: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
   },
   infoEncabezado: {
     flex: 1,

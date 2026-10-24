@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -15,30 +15,107 @@ import {
 } from './componentes/BuscadorRoomies';
 import { FichaRoomie } from './componentes/FichaRoomie';
 import { TarjetaRoomie } from './componentes/TarjetaRoomie';
-import { perfilesRoomies, type PerfilRoomie } from './datos/perfilesRoomies';
+import type { PerfilRoomie } from './datos/perfilesRoomies';
+import {
+  enviarSolicitudConexion,
+  obtenerFeedAfinidad,
+  obtenerPerfilAfinidad,
+  type FeedAfinidad,
+  type PerfilAfinidad,
+} from '../compatibilidad/api';
 
 type VistaExploracion = 'resultados' | 'perfil' | 'rapida';
 
-const filtrosDisponibles = ['Todas', 'Mascotas', 'Sin humo', 'Orden diario'];
+const filtrosDisponibles = ['Todas', 'Mascotas', 'Tabaco', 'Limpieza'];
+
+const nombresDimension: Record<string, string> = {
+  schedule: 'Horarios',
+  cleanliness: 'Limpieza',
+  noise: 'Ruido',
+  pets: 'Mascotas',
+  smoking: 'Tabaco',
+  visits: 'Visitas',
+  genderPref: 'Género',
+};
+
+function adaptarPerfil(perfil: PerfilAfinidad): PerfilRoomie {
+  const nombre = perfil.fullName.trim() || 'Roomie';
+  const preferencias =
+    perfil.compatibilitySummary?.map(
+      ({ dimension, percentage }) => `${nombresDimension[dimension]} ${percentage}%`,
+    ) ?? [];
+  const presupuesto =
+    perfil.budgetMin || perfil.budgetMax
+      ? `$${perfil.budgetMin ?? '0'} – $${perfil.budgetMax ?? 'sin límite'} MXN`
+      : 'Sin presupuesto indicado';
+
+  return {
+    id: perfil.userId,
+    iniciales: nombre
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((parte) => parte[0]?.toLocaleUpperCase('es') ?? '')
+      .join(''),
+    nombre,
+    edad: perfil.age,
+    compatibilidad: perfil.compatibilityScore,
+    ciudad: perfil.city ?? 'Ubicación no indicada',
+    zona: perfil.zone ?? 'Zona no indicada',
+    estilo: perfil.occupation ?? 'Ocupación no indicada',
+    ocupacion: perfil.occupation ?? 'Ocupación no indicada',
+    preferencias,
+    presupuesto,
+    bio: perfil.bio ?? 'Este perfil aún no tiene una descripción.',
+    fotoUrl: perfil.photoUrl,
+  };
+}
 
 export function PantallaExploracion() {
   const [vista, setVista] = useState<VistaExploracion>('resultados');
-  const [perfilActivo, setPerfilActivo] = useState<PerfilRoomie>(perfilesRoomies[0]);
+  const [perfilActivo, setPerfilActivo] = useState<PerfilRoomie | null>(null);
+  const [perfiles, setPerfiles] = useState<PerfilRoomie[]>([]);
+  const [feed, setFeed] = useState<FeedAfinidad | null>(null);
+  const [pagina, setPagina] = useState(1);
+  const [cargando, setCargando] = useState(true);
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [pestanaActiva, setPestanaActiva] = useState<PestanaExploracion>('Perfil');
   const [filtroActivo, setFiltroActivo] = useState('Todas');
-  const [mostrarTodos, setMostrarTodos] = useState(false);
   const [solicitudEnviada, setSolicitudEnviada] = useState(false);
   const [comparando, setComparando] = useState(false);
   const { width } = useWindowDimensions();
   const anchoContenido = Math.min(width, 460);
 
+  useEffect(() => {
+    let activo = true;
+    obtenerFeedAfinidad(1)
+      .then((resultado) => {
+        if (!activo) return;
+        setFeed(resultado);
+        setPerfiles(resultado.profiles.map(adaptarPerfil));
+        setPagina(1);
+        setError(null);
+      })
+      .catch((cause: unknown) => {
+        if (activo) {
+          setError(cause instanceof Error ? cause.message : 'No se pudo cargar el feed.');
+        }
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+    return () => {
+      activo = false;
+    };
+  }, []);
+
   const perfilesVisibles = useMemo(() => {
     const consulta = busqueda.trim().toLocaleLowerCase('es');
-    return perfilesRoomies.filter((perfil) => {
+    return perfiles.filter((perfil) => {
       const coincideBusqueda =
         consulta.length === 0 ||
-        `${perfil.nombre} ${perfil.ciudad} ${perfil.zona} ${perfil.estilo} ${perfil.habitacion} ${perfil.preferencias.join(' ')}`
+        `${perfil.nombre} ${perfil.ciudad} ${perfil.zona} ${perfil.estilo} ${perfil.preferencias.join(' ')}`
           .toLocaleLowerCase('es')
           .includes(consulta);
       const coincideFiltro =
@@ -48,14 +125,51 @@ export function PantallaExploracion() {
         );
       return coincideBusqueda && coincideFiltro;
     });
-  }, [busqueda, filtroActivo]);
-  const perfilesAMostrar = mostrarTodos ? perfilesVisibles : perfilesVisibles.slice(0, 4);
+  }, [busqueda, filtroActivo, perfiles]);
 
-  const abrirPerfil = (perfil: PerfilRoomie, vistaSeleccionada: VistaExploracion) => {
+  const abrirPerfil = async (perfil: PerfilRoomie, vistaSeleccionada: VistaExploracion) => {
     setPerfilActivo(perfil);
     setSolicitudEnviada(false);
     setComparando(false);
     setVista(vistaSeleccionada);
+    setError(null);
+    try {
+      const detalle = await obtenerPerfilAfinidad(perfil.id);
+      setPerfilActivo(adaptarPerfil(detalle));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo cargar el perfil.');
+    }
+  };
+
+  const cargarMas = async () => {
+    if (!feed?.hasMore || cargandoMas) return;
+    const siguientePagina = pagina + 1;
+    setCargandoMas(true);
+    setError(null);
+    try {
+      const resultado = await obtenerFeedAfinidad(siguientePagina);
+      setFeed(resultado);
+      setPerfiles((actuales) => [
+        ...actuales,
+        ...resultado.profiles.map(adaptarPerfil),
+      ]);
+      setPagina(siguientePagina);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudieron cargar más perfiles.');
+    } finally {
+      setCargandoMas(false);
+    }
+  };
+
+  const solicitarConexion = async () => {
+    if (!perfilActivo || solicitudEnviada) return;
+    setError(null);
+    try {
+      await enviarSolicitudConexion(perfilActivo.id);
+      setSolicitudEnviada(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo enviar la solicitud.');
+    }
   };
 
   return (
@@ -70,9 +184,7 @@ export function PantallaExploracion() {
           <>
             <Text style={styles.titulo}>Encuentra tu gente</Text>
             <Text style={styles.subtitulo}>
-              {pestanaActiva === 'Habitaciones'
-                ? 'Habitaciones disponibles · León, Guanajuato'
-                : 'León, Guanajuato · Cerca de ti'}
+              Perfiles ordenados por afinidad
             </Text>
             <BuscadorRoomies
               busqueda={busqueda}
@@ -101,19 +213,25 @@ export function PantallaExploracion() {
             )}
             <View style={styles.resumen}>
               <Text style={styles.textoResumen}>
-                {perfilesVisibles.length}{' '}
-                {pestanaActiva === 'Habitaciones'
-                  ? 'habitaciones compatibles cerca de ti'
-                  : 'perfiles que podrían encajar contigo'}
+                {perfilesVisibles.length} perfiles cargados
               </Text>
             </View>
-            {perfilesVisibles.length > 0 ? (
+            {!feed?.hasTest && (
+              <View style={styles.aviso}>
+                <Text style={styles.textoAviso}>
+                  Completa el test de compatibilidad para ordenar los perfiles por afinidad.
+                </Text>
+              </View>
+            )}
+            {cargando ? (
+              <Text style={styles.estado}>Cargando perfiles…</Text>
+            ) : perfilesVisibles.length > 0 ? (
               <View style={styles.cuadricula}>
-                {perfilesAMostrar.map((perfil) => (
+                {perfilesVisibles.map((perfil) => (
                   <TarjetaRoomie
                     key={perfil.id}
                     perfil={perfil}
-                    mostrarHabitacion={pestanaActiva === 'Habitaciones'}
+                    mostrarPreferencias={pestanaActiva === 'Preferencias'}
                     alAbrir={() => abrirPerfil(perfil, 'perfil')}
                     alVerRapido={() => abrirPerfil(perfil, 'rapida')}
                   />
@@ -131,18 +249,18 @@ export function PantallaExploracion() {
                 </Pressable>
               </View>
             )}
-            {perfilesVisibles.length > 4 && (
+            {feed?.hasMore && (
               <Pressable
                 accessibilityRole="button"
-                onPress={() => setMostrarTodos((actual) => !actual)}
+                onPress={cargarMas}
                 style={styles.botonTodos}>
                 <Text style={styles.textoBotonTodos}>
-                  {mostrarTodos ? 'Mostrando todos los perfiles' : 'Ver todos los perfiles'}
+                  {cargandoMas ? 'Cargando…' : 'Ver más perfiles'}
                 </Text>
               </Pressable>
             )}
           </>
-        ) : (
+        ) : perfilActivo ? (
           <>
             <Pressable
               accessibilityRole="button"
@@ -156,7 +274,7 @@ export function PantallaExploracion() {
             </Text>
             <Text style={styles.subtitulo}>
               {vista === 'rapida'
-                ? 'Vista rápida · Perfil recomendado'
+                ? 'Vista rápida del perfil'
                 : 'Un estilo de vida parecido al tuyo'}
             </Text>
             <View style={styles.ficha}>
@@ -168,13 +286,18 @@ export function PantallaExploracion() {
                 comparando={comparando}
                 alCambiarPestana={setPestanaActiva}
                 alAbrirVistaRapida={() => setVista('rapida')}
-                alEnviarSolicitud={() => setSolicitudEnviada(true)}
+                alEnviarSolicitud={solicitarConexion}
                 alComparar={() => setComparando((actual) => !actual)}
                 alVerPerfilCompleto={() => setVista('perfil')}
                 alCerrar={() => setVista('resultados')}
               />
             </View>
           </>
+        ) : <Text style={styles.estado}>Cargando perfil…</Text>}
+        {error && (
+          <View accessibilityRole="alert" style={styles.error}>
+            <Text style={styles.textoError}>{error}</Text>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -241,6 +364,32 @@ const styles = StyleSheet.create({
   resumen: {
     marginTop: 10,
     marginBottom: 7,
+  },
+  aviso: {
+    padding: 11,
+    borderRadius: 12,
+    backgroundColor: '#E9DAEC',
+    marginTop: 10,
+  },
+  textoAviso: {
+    color: '#6F5B76',
+    fontSize: 11,
+  },
+  estado: {
+    color: '#817987',
+    fontSize: 12,
+    textAlign: 'center',
+    padding: 18,
+  },
+  error: {
+    padding: 11,
+    borderRadius: 10,
+    backgroundColor: '#FCE8E8',
+    marginTop: 10,
+  },
+  textoError: {
+    color: '#8A3030',
+    fontSize: 11,
   },
   textoResumen: {
     color: '#817987',
