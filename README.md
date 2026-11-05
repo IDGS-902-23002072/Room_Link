@@ -2,7 +2,7 @@
 
 Aplicación móvil (Expo + React Native, JavaScript) con backend propio (Bun + TypeScript).
 
-> Estado: **infraestructura backend inicializada**. MySQL, Drizzle, Hono y TypeScript están listos; el frontend y los módulos de dominio todavía están pendientes.
+> Estado: **módulos de César implementados en la rama `feature/cesar`**. Incluye autenticación, mensajería y moderación de publicaciones en backend, además de sus nueve vistas Expo/React Native.
 
 ## Estructura
 
@@ -66,9 +66,7 @@ Cuatro workflows en `.github/workflows/`:
 
 ## Próximos pasos
 
-1. Inicializar la app en `frontend/` cuando lleguen los requerimientos (`npx create-expo-app@latest .`).
-2. Definir el contrato de API y construir los módulos de dominio sobre Hono y Drizzle.
-3. Crear el GitHub Project (`Room_Link`) y las labels (`scripts/setup-labels.ps1`).
-4. Cargar las primeras tarjetas desde los requerimientos.
-5. Configurar branch protection para `main` y `develop` en Settings → Branches.
-6. (Opcional) Agregar `EXPO_TOKEN` como secret del repo para `release.yml`.
+1. Levantar MySQL y ejecutar las pruebas de integración con las credenciales documentadas.
+2. Integrar los módulos de los demás integrantes mediante los puertos existentes.
+3. Configurar branch protection para `main` y `develop` en Settings → Branches.
+4. (Opcional) Agregar `EXPO_TOKEN` como secret del repo para `release.yml`.
