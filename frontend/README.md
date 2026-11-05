@@ -1,7 +1,22 @@
-# frontend
+# Frontend Room Link
 
-Aplicación móvil Expo (JavaScript / React Native).
+Aplicación Expo/React Native (móvil y web) con los módulos asignados a César:
 
-Pendiente: inicializar con `npx create-expo-app@latest .` cuando lleguen los requerimientos y se defina el template base (blank / tabs / navigation).
+- autenticación: inicio de sesión, registro y recuperación/restablecimiento;
+- mensajería: bandeja, sala e información contextual;
+- moderación de publicaciones: cola, denuncias e historial.
 
-Hasta que eso ocurra, esta carpeta está intencionalmente vacía.
+## Desarrollo
+
+```bash
+npm install
+npm run web
+```
+
+La API se obtiene de `EXPO_PUBLIC_API_URL` y usa por defecto `http://localhost:3000/api/v1`.
+
+## Verificación
+
+```bash
+npm run check
+```
