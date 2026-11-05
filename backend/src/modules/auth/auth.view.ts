@@ -12,6 +12,7 @@ export interface UserPublicDto {
 export interface AuthSuccessDto {
   user: UserPublicDto;
   token?: string | undefined;
+  expiresAt?: string | undefined;
   message?: string | undefined;
 }
 
@@ -30,11 +31,17 @@ export class AuthView {
     };
   }
 
-  public static toAuthResponse(user: User, token?: string, message?: string): AuthSuccessDto {
+  public static toAuthResponse(
+    user: User,
+    token?: string,
+    expiresAt?: Date,
+    message?: string,
+  ): AuthSuccessDto {
     const res: AuthSuccessDto = {
       user: this.toPublicUser(user),
     };
     if (token !== undefined) res.token = token;
+    if (expiresAt !== undefined) res.expiresAt = expiresAt.toISOString();
     if (message !== undefined) res.message = message;
     return res;
   }
