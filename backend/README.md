@@ -9,7 +9,7 @@ API construida con **Hono**, **TypeScript**, **Drizzle ORM** y **MySQL 8**. Impl
 Para mantener alta cohesión y bajo acoplamiento:
 1. **Un solo Dominio (`src/domain/`)**: Las entidades del negocio (`User`, `Profile`, `RoomListing`, `Application`, `CompatibilityProfile`) y las interfaces de los repositorios (`IUserRepository`, etc.) viven aquí. Son clases puras de TypeScript: **no tocan la base de datos, no usan Drizzle y no conocen HTTP**.
 2. **Módulos con MVC independiente (`src/modules/`)**:
-   - Cada módulo (`auth`, `profile`, `rooms`, `applications`) tiene:
+   - Cada módulo (`auth`, `profile`, `rooms`, `applications`, `messaging`, `moderation`) tiene:
      - `*.controller.ts` (Controlador HTTP): Lee la petición, valida la entrada y delega al servicio.
      - `*.service.ts` (Servicio de Aplicación): Coordina los casos de uso y lógica del negocio llamando a los repositorios. **Nunca hace consultas SQL ni importa `db` directamente**.
      - `*.view.ts` (Vista / Serializador DTO): Decide qué datos salen al cliente, protegiendo campos privados (como hashes de contraseña).
@@ -61,7 +61,9 @@ backend/
 │   │   ├── auth/                      # Controller, Service, View, Routes
 │   │   ├── profile/                   # Controller, Service, View, Routes
 │   │   ├── rooms/                     # Controller, Service, View, Routes
-│   │   └── applications/              # Controller, Service, View, Routes
+│   │   ├── applications/              # Controller, Service, View, Routes
+│   │   ├── messaging/                 # Bandeja, historial, envío, lectura y SSE
+│   │   └── moderation/                # Denuncias y revisión de anuncios
 │   ├── infrastructure/
 │   │   └── repositories/              # Implementaciones con Drizzle ORM
 │   └── db/
@@ -120,6 +122,16 @@ npm run dev
 ```
 
 La API estará disponible en `http://localhost:3000`.
+
+### Rutas de los módulos de César
+
+| Prefijo | Capacidades |
+|---|---|
+| `/api/v1/auth` | Registro, login, Google OAuth, recuperación, sesión y logout. |
+| `/api/v1/messages` | Bandeja, sala, historial paginado, entrega, lectura, contexto y eventos SSE. |
+| `/api/v1/moderation` | Denuncia de anuncios y, con rol `admin`, cola, decisión e historial. |
+
+Las rutas privadas aceptan la cookie HTTP-only `roomlink_session` o `Authorization: Bearer <token>`.
 
 ---
 
