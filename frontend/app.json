@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "Room Link",
+    "slug": "room-link",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "web": { "bundler": "metro" }
+  }
+}
