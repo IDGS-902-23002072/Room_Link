@@ -10,6 +10,7 @@ import {
   type IRoomListingRepository,
   type IApplicationRepository,
 } from "../../src/domain/index.js";
+import { createAuthFakes } from "../helpers/auth-fakes.js";
 
 class InMemoryUserRepository implements IUserRepository {
   public users: Map<string, User> = new Map();
@@ -103,6 +104,7 @@ describe("Modular Monolith MVC API", () => {
   const profileRepo = new InMemoryProfileRepository();
   const roomRepo = new InMemoryRoomRepository();
   const appRepo = new InMemoryApplicationRepository();
+  const authFakes = createAuthFakes();
 
   const app = createApp({
     checkDatabase: async () => {},
@@ -110,6 +112,7 @@ describe("Modular Monolith MVC API", () => {
     profileRepo,
     roomRepo,
     appRepo,
+    authDependencies: authFakes.dependencies,
   });
 
   describe("Auth Module", () => {
@@ -120,6 +123,7 @@ describe("Modular Monolith MVC API", () => {
         body: JSON.stringify({
           email: "nuevo_estudiante@uni.edu",
           password: "password123",
+          termsAccepted: true,
           role: "seeker",
         }),
       });
