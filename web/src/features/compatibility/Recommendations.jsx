@@ -64,8 +64,8 @@ function CandidateCard({ profile, showScore, onOpen }) {
         <p className="candidate-budget">
           {formatBudget(profile.budgetMin, profile.budgetMax)}
         </p>
-        <button className="candidate-open" onClick={onOpen} type="button">
-          Ver perfil completo <span aria-hidden="true">→</span>
+        <button aria-label={`Ver perfil de ${profile.fullName}`} className="candidate-open" onClick={onOpen} type="button">
+          Ver perfil <span aria-hidden="true">→</span>
         </button>
       </div>
     </article>
@@ -154,38 +154,57 @@ function CandidateDetail({ candidateId }) {
           ) : (
             <span aria-hidden="true" className="candidate-placeholder detail-placeholder">{initials}</span>
           )}
+          <div className="candidate-detail-identity">
+            <h1>{profile.fullName}</h1>
+            <p>{profile.age} años · {profile.zone || 'Zona no indicada'}{profile.city ? `, ${profile.city}` : ''}</p>
+            {profile.compatibilityScore !== null && (
+              <div className="detail-score-block">
+                <span>Compatibilidad contigo</span>
+                <strong>{Math.round(profile.compatibilityScore)}%</strong>
+              </div>
+            )}
+            {requestError && <p className="form-error" role="alert">{requestError}</p>}
+            {requestSent && <p className="inline-notice" role="status">Solicitud de conexión enviada.</p>}
+            <button
+              className="button button-primary button-wide"
+              disabled={sending || requestSent}
+              onClick={requestConnection}
+              type="button"
+            >
+              {requestSent ? 'Solicitud enviada' : sending ? 'Enviando…' : 'Enviar solicitud'}
+            </button>
+            <button className="button button-secondary button-wide" onClick={() => navigate('/recomendados')} type="button">
+              Volver a roomies
+            </button>
+          </div>
         </div>
         <div className="candidate-detail-content">
-          <p className="eyebrow">PERFIL DE ROOMIE</p>
-          <div className="candidate-detail-heading">
-            <div>
-              <h1>{profile.fullName}</h1>
-              <p className="muted">
-                {profile.age} años · {profile.zone || 'Zona no indicada'}
-                {profile.city ? `, ${profile.city}` : ''}
-              </p>
-            </div>
-            {profile.compatibilityScore !== null && (
-              <span className="detail-score">{Math.round(profile.compatibilityScore)}%</span>
-            )}
-          </div>
-          <div className="detail-facts">
-            <div><span>Presupuesto mensual</span><strong>{formatBudget(profile.budgetMin, profile.budgetMax)}</strong></div>
-            <div><span>Ocupación</span><strong>{profile.occupation || 'No indicada'}</strong></div>
-          </div>
           <section className="detail-section">
             <h2>Sobre mí</h2>
             <p>{profile.bio || 'Este perfil aún no tiene una descripción.'}</p>
           </section>
           <section className="detail-section">
-            <h2>Resumen de convivencia</h2>
+            <h2>Estilo de vida</h2>
+            <div className="lifestyle-tags">
+              <span>{formatBudget(profile.budgetMin, profile.budgetMax)}</span>
+              {profile.occupation && <span>{profile.occupation}</span>}
+              {profile.compatibilitySummary?.slice(0, 4).map(({ dimension, level }) => (
+                <span key={dimension}>{DIMENSIONS[dimension] || dimension}: {level}</span>
+              ))}
+            </div>
+          </section>
+          <section className="detail-section">
+            <h2>Respuestas del test</h2>
             {profile.compatibilitySummary?.length ? (
-              <div className="dimension-grid">
-                {profile.compatibilitySummary.map(({ dimension, percentage, level }) => (
-                  <div className="dimension-item" key={dimension}>
-                    <span>{DIMENSIONS[dimension] || dimension}</span>
-                    <strong>{percentage}%</strong>
-                    <small>{level}</small>
+              <div className="detail-answer-list">
+                {profile.compatibilitySummary.map(({ dimension, percentage }) => (
+                  <div className="detail-answer" key={dimension}>
+                    <strong>{DIMENSIONS[dimension] || dimension}</strong>
+                    <span className="detail-answer-value">1</span>
+                    <div aria-label={`${DIMENSIONS[dimension] || dimension}: ${percentage}%`} className="meter-track" role="img">
+                      <span style={{ width: `${percentage}%` }} />
+                    </div>
+                    <span className="detail-answer-value">5</span>
                   </div>
                 ))}
               </div>
@@ -193,16 +212,6 @@ function CandidateDetail({ candidateId }) {
               <p className="muted">Este perfil aún no tiene un resumen de test.</p>
             )}
           </section>
-          {requestError && <p className="form-error" role="alert">{requestError}</p>}
-          {requestSent && <p className="inline-notice" role="status">Solicitud de conexión enviada.</p>}
-          <button
-            className="button button-primary"
-            disabled={sending || requestSent}
-            onClick={requestConnection}
-            type="button"
-          >
-            {requestSent ? 'Solicitud enviada' : sending ? 'Enviando…' : 'Enviar solicitud de conexión'}
-          </button>
         </div>
       </article>
     </section>
@@ -219,6 +228,7 @@ export default function Recommendations({ candidateId }) {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('Todas')
+  const [sort, setSort] = useState('compatibility')
 
   useEffect(() => {
     if (candidateId) return undefined
@@ -247,7 +257,7 @@ export default function Recommendations({ candidateId }) {
   const filteredProfiles = useMemo(() => {
     const profiles = feed?.profiles ?? []
     const query = search.trim().toLocaleLowerCase('es')
-    return profiles.filter((profile) => {
+    const filtered = profiles.filter((profile) => {
       const matchesSearch =
         !query ||
         `${profile.fullName} ${profile.city ?? ''} ${profile.zone ?? ''} ${profile.occupation ?? ''}`
@@ -259,7 +269,16 @@ export default function Recommendations({ candidateId }) {
         (filter === 'Con presupuesto' && Boolean(profile.budgetMin || profile.budgetMax))
       return matchesSearch && matchesFilter
     })
-  }, [feed, filter, search])
+    if (sort === 'name') {
+      return filtered.sort((first, second) => first.fullName.localeCompare(second.fullName, 'es'))
+    }
+    if (sort === 'budget') {
+      return filtered.sort((first, second) => (second.budgetMax || 0) - (first.budgetMax || 0))
+    }
+    return filtered.sort(
+      (first, second) => (second.compatibilityScore ?? -1) - (first.compatibilityScore ?? -1),
+    )
+  }, [feed, filter, search, sort])
 
   function changePage(nextPage) {
     setPage(nextPage)
@@ -308,9 +327,14 @@ export default function Recommendations({ candidateId }) {
             <option>Con presupuesto</option>
           </select>
         </label>
-        {feed?.hasTest && (
-          <span className="sort-label">Ordenados por compatibilidad ↓</span>
-        )}
+        <label className="feed-sort-label">
+          <span>Ordenar por</span>
+          <select onChange={(event) => setSort(event.target.value)} value={sort}>
+            <option value="compatibility">Compatibilidad</option>
+            <option value="name">Nombre</option>
+            <option value="budget">Presupuesto</option>
+          </select>
+        </label>
       </div>
 
       {error && <div className="notice notice-error" role="alert">{error}</div>}

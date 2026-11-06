@@ -475,3 +475,301 @@
     max-height: 380px;
   }
 }
+
+.recommendations-page {
+  max-width: 1280px;
+}
+
+.recommendations-heading {
+  margin-bottom: 24px;
+}
+
+.recommendations-heading h1 {
+  font-size: clamp(30px, 4vw, 40px);
+  letter-spacing: -1px;
+}
+
+.feed-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(210px, auto);
+  gap: 16px;
+  margin: 22px 0 25px;
+}
+
+.feed-search,
+.feed-filter-label,
+.feed-sort-label {
+  min-height: 43px;
+  border-radius: 5px;
+}
+
+.feed-filter-label,
+.feed-sort-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 11px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.feed-filter-label select,
+.feed-sort-label select {
+  max-width: 165px;
+  min-height: 34px;
+  color: var(--ink);
+}
+
+.candidate-grid {
+  gap: 15px;
+}
+
+.candidate-card {
+  display: flex;
+  min-height: 148px;
+  align-items: center;
+  gap: 13px;
+  padding: 12px;
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.candidate-photo-button {
+  width: 94px;
+  height: 94px;
+  flex: 0 0 94px;
+  border-radius: 50%;
+}
+
+.candidate-placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+.candidate-card-body {
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+}
+
+.candidate-title-row {
+  align-items: flex-start;
+}
+
+.candidate-title-row h2 {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+}
+
+.compatibility-badge {
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: #f0ede5;
+  color: #716850;
+  font-size: 12px;
+}
+
+.candidate-location,
+.candidate-budget {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.candidate-open {
+  margin-top: 9px;
+  padding-top: 8px;
+  font-size: 10px;
+}
+
+.recommendation-cta {
+  border-radius: 6px;
+}
+
+.candidate-detail {
+  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.candidate-detail-hero {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 17px;
+  padding: 20px;
+  background: white;
+}
+
+.candidate-detail-hero img {
+  height: 250px;
+  min-height: 0;
+  border-radius: 3px;
+}
+
+.candidate-detail-hero .detail-placeholder {
+  width: 100%;
+  height: 250px;
+  flex: 0 0 250px;
+  border-radius: 3px;
+  font-size: 46px;
+}
+
+.candidate-detail-identity h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 25px;
+  letter-spacing: -0.5px;
+}
+
+.candidate-detail-identity > p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detail-score-block {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  margin: 18px 0 13px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fcfbfc;
+}
+
+.detail-score-block span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.detail-score-block strong {
+  color: var(--ink);
+  font-size: 36px;
+  letter-spacing: -1px;
+}
+
+.candidate-detail-identity .button {
+  min-height: 40px;
+  margin-top: 8px;
+  border-radius: 4px;
+}
+
+.candidate-detail-content {
+  padding: clamp(22px, 3vw, 36px);
+}
+
+.candidate-detail-content h1 {
+  font-size: 25px;
+}
+
+.detail-section {
+  margin: 0 0 17px;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.detail-section p {
+  margin: 0;
+}
+
+.lifestyle-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lifestyle-tags span {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.detail-answer-list {
+  display: grid;
+  gap: 15px;
+}
+
+.detail-answer {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) 14px minmax(80px, 2fr) 14px;
+  align-items: center;
+  gap: 9px;
+}
+
+.detail-answer strong {
+  color: var(--ink);
+  font-size: 10px;
+}
+
+.detail-answer-value {
+  color: var(--muted);
+  font-size: 9px;
+  text-align: center;
+}
+
+.detail-answer .meter-track {
+  height: 5px;
+}
+
+@media (max-width: 900px) {
+  .feed-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .feed-sort-label {
+    grid-column: 1 / -1;
+  }
+
+  .candidate-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .candidate-photo-button {
+    width: 74px;
+    height: 74px;
+    flex-basis: 74px;
+  }
+}
+
+@media (max-width: 640px) {
+  .feed-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .feed-sort-label {
+    grid-column: auto;
+  }
+
+  .candidate-card {
+    min-height: 124px;
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .candidate-photo-button {
+    width: 78px;
+    height: 78px;
+    flex-basis: 78px;
+  }
+
+  .candidate-detail-hero,
+  .candidate-detail-hero img {
+    min-height: 0;
+  }
+
+  .candidate-detail {
+    grid-template-columns: 1fr;
+  }
+}

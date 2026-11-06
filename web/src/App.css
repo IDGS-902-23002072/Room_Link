@@ -17,7 +17,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 28px;
-  padding: 0 max(5vw, calc((100vw - 1200px) / 2));
+  padding: 0 max(5vw, calc((100vw - 1380px) / 2));
   border-bottom: 1px solid var(--line);
   background: rgb(255 255 255 / 92%);
   backdrop-filter: blur(14px);
@@ -35,14 +35,7 @@
 }
 
 .brand-mark {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border-radius: 12px;
-  background: var(--plum);
-  color: white;
-  font-size: 16px;
+  display: none;
 }
 
 .main-nav,
@@ -53,10 +46,16 @@
 }
 
 .main-nav a,
+.main-nav span,
 .button-quiet {
   color: var(--muted);
   font-size: 13px;
   text-decoration: none;
+}
+
+.main-nav span[aria-disabled='true'] {
+  color: #aaa4ad;
+  cursor: default;
 }
 
 .main-nav a:hover,
@@ -66,6 +65,19 @@
 
 .account-menu {
   gap: 12px;
+}
+
+.account-avatar {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--pale-plum);
+  color: var(--plum);
+  font-size: 14px;
+  font-weight: 750;
 }
 
 .account-name {
@@ -125,17 +137,17 @@
 }
 
 .page-container {
-  width: min(1120px, calc(100% - 48px));
+  width: min(1380px, calc(100% - 48px));
   flex: 1;
   margin: 0 auto;
-  padding: 48px 0 72px;
+  padding: 34px 0 56px;
 }
 
 .site-footer {
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  padding: 22px max(5vw, calc((100vw - 1200px) / 2));
+  padding: 22px max(5vw, calc((100vw - 1380px) / 2));
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 11px;
@@ -268,6 +280,10 @@
   }
 
   .account-name {
+    display: none;
+  }
+
+  .account-avatar {
     display: none;
   }
 

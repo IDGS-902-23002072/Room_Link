@@ -13,6 +13,95 @@ import {
 } from './compatibility.js'
 import './compatibility.css'
 
+function QuestionnaireSteps({ step, answers }) {
+  return (
+    <aside aria-label="Pasos del cuestionario" className="questionnaire-sidebar">
+      <h2>Cuestionario de convivencia</h2>
+      <p>Paso {step + 1} de {QUESTIONS.length}</p>
+      <ol>
+        {QUESTIONS.map(({ id, category }, index) => {
+          const answered = answers[id] !== undefined
+          const current = step === index
+          return (
+            <li className={current ? 'current' : answered ? 'answered' : ''} key={id}>
+              <span aria-hidden="true">{answered ? '✓' : index + 1}</span>
+              <span>{category}</span>
+            </li>
+          )
+        })}
+      </ol>
+    </aside>
+  )
+}
+
+function QuestionStepper({ step, answers }) {
+  return (
+    <ol aria-label="Progreso del cuestionario" className="question-stepper">
+      {QUESTIONS.map(({ id }, index) => (
+        <li
+          aria-current={index === step ? 'step' : undefined}
+          className={index === step ? 'current' : answers[id] !== undefined ? 'answered' : ''}
+          key={id}
+        >
+          {answers[id] !== undefined && index !== step ? '✓' : index + 1}
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+function ResultsRadar({ summary }) {
+  const center = 100
+  const radius = 68
+  const angleFor = (index) => (-Math.PI / 2) + (index * Math.PI * 2) / summary.length
+  const pointFor = (index, scale) => {
+    const angle = angleFor(index)
+    return `${center + Math.cos(angle) * radius * scale},${center + Math.sin(angle) * radius * scale}`
+  }
+  const resultPoints = summary
+    .map(({ percentage }, index) => pointFor(index, percentage / 100))
+    .join(' ')
+
+  return (
+    <section aria-label="Gráfica de preferencias por dimensión" className="results-radar">
+      <svg aria-hidden="true" viewBox="0 0 200 200">
+        {[0.25, 0.5, 0.75, 1].map((scale) => (
+          <polygon
+            className="radar-grid"
+            key={scale}
+            points={summary.map((_, index) => pointFor(index, scale)).join(' ')}
+          />
+        ))}
+        {summary.map(({ category }, index) => (
+          <line
+            className="radar-axis"
+            key={category}
+            x1={center}
+            x2={center + Math.cos(angleFor(index)) * radius}
+            y1={center}
+            y2={center + Math.sin(angleFor(index)) * radius}
+          />
+        ))}
+        <polygon className="radar-result" points={resultPoints} />
+        {summary.map(({ percentage }, index) => (
+          <circle
+            className="radar-point"
+            key={index}
+            cx={center + Math.cos(angleFor(index)) * radius * percentage / 100}
+            cy={center + Math.sin(angleFor(index)) * radius * percentage / 100}
+            r="3"
+          />
+        ))}
+      </svg>
+      <div className="radar-labels">
+        {summary.map(({ category, percentage }) => (
+          <span key={category}>{category}<strong>{percentage}%</strong></span>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function firstUnanswered(answers) {
   const index = QUESTIONS.findIndex(({ id }) => answers[id] === undefined)
   return index < 0 ? QUESTIONS.length - 1 : index
@@ -153,44 +242,41 @@ export default function Questionnaire() {
 
   if (showResults) {
     return (
-      <section className="compatibility-page">
-        <div className="module-topline">
-          <AppLink className="back-link" href="/explorar">← Volver a explorar</AppLink>
-          <span className="eyebrow">MÓDULO 03 · TU TEST</span>
-        </div>
-        <div className="module-heading">
-          <p className="eyebrow">ASÍ ES TU ESTILO</p>
+      <section className="compatibility-page results-page">
+        <header className="results-heading">
+          <p className="eyebrow">MÓDULO 03 · RESULTADOS</p>
           <h1>Tu perfil de convivencia</h1>
-          <p className="muted">
-            Estos porcentajes describen cada dimensión de tus respuestas.
-          </p>
-        </div>
-        <div className="summary-grid">
-          {summary.map((item) => (
-            <article className="summary-card" key={item.dimension}>
-              <div className="summary-heading">
-                <h2>{item.category}</h2>
-                <span className={`level-pill level-${item.level}`}>{item.level}</span>
-              </div>
-              <div className="summary-value">{item.percentage}<span>%</span></div>
-              <div
-                aria-label={`${item.category}: ${item.percentage}%`}
-                className="meter-track"
-                role="img"
-              >
-                <span style={{ width: `${item.percentage}%` }} />
-              </div>
-            </article>
-          ))}
+          <p className="muted">Así se distribuyen tus preferencias en cada dimensión.</p>
+        </header>
+        <div className="results-layout">
+          <ResultsRadar summary={summary} />
+          <div className="results-dimensions">
+            {summary.map((item) => (
+              <article className="result-dimension" key={item.dimension}>
+                <span className="dimension-mark" aria-hidden="true">{item.category.slice(0, 1)}</span>
+                <div className="result-dimension-copy">
+                  <div className="summary-heading">
+                    <h2>{item.category}</h2>
+                    <span className={`level-pill level-${item.level}`}>{item.level}</span>
+                  </div>
+                  <div
+                    aria-label={`${item.category}: ${item.percentage}%`}
+                    className="meter-track"
+                    role="img"
+                  >
+                    <span style={{ width: `${item.percentage}%` }} />
+                  </div>
+                </div>
+                <strong className="result-dimension-value">{item.percentage}%</strong>
+              </article>
+            ))}
+          </div>
         </div>
         {error && <div className="form-error notice" role="alert">{error}</div>}
         {notice && <div className="inline-notice" role="status">{notice}</div>}
-        <div className="result-actions">
+        <div className="result-actions wireframe-result-actions">
           <button className="button button-secondary" onClick={editTest} type="button">
             Editar respuestas
-          </button>
-          <button className="button button-secondary" onClick={repeatTest} type="button">
-            Repetir test
           </button>
           <button
             className="button button-primary"
@@ -203,96 +289,92 @@ export default function Questionnaire() {
           <AppLink className="button button-primary" href="/recomendados">
             Ver roomies compatibles
           </AppLink>
+          <button className="button button-secondary" onClick={repeatTest} type="button">
+            Repetir test
+          </button>
         </div>
       </section>
     )
   }
 
   return (
-    <section className="compatibility-page">
-      <div className="module-topline">
-        <AppLink className="back-link" href="/explorar">← Volver a explorar</AppLink>
-        <span className="eyebrow">MÓDULO 03 · TEST DE CONVIVENCIA</span>
-      </div>
-      <div className="module-heading">
-        <p className="eyebrow">PREGUNTA {step + 1} DE {QUESTIONS.length}</p>
-        <h1>Cuestionario de compatibilidad</h1>
-        <p className="muted">Elige la opción que mejor te describa.</p>
-      </div>
-      <div
-        aria-label={`Progreso: ${Math.round(((step + 1) / QUESTIONS.length) * 100)}%`}
-        className="question-progress"
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={QUESTIONS.length}
-        aria-valuenow={step + 1}
-      >
-        <span style={{ width: `${((step + 1) / QUESTIONS.length) * 100}%` }} />
-      </div>
-      <form
-        className="question-card"
-        onSubmit={(event) => {
-          event.preventDefault()
-          goNext()
-        }}
-      >
-        <div className="question-count">0{step + 1}</div>
-        <fieldset>
-          <legend>{question.prompt}</legend>
-          <div className="answer-options">
-            {question.options.map((option, index) => {
-              const value = index + 1
-              const selected = answers[question.id] === value
-              return (
-                <label className={`answer-option${selected ? ' selected' : ''}`} key={option}>
-                  <input
-                    checked={selected}
-                    name={question.id}
-                    onChange={() => answerQuestion(value)}
-                    type="radio"
-                    value={value}
-                  />
-                  <span className="answer-scale">{value}</span>
-                  <span>{option}</span>
-                </label>
-              )
-            })}
+    <section className="compatibility-page questionnaire-layout">
+      <QuestionnaireSteps step={step} answers={answers} />
+      <div className="questionnaire-main">
+        <div className="questionnaire-topline">
+          <AppLink className="back-link" href="/explorar">← Volver a explorar</AppLink>
+          <span className="eyebrow">TEST DE CONVIVENCIA</span>
+        </div>
+        <QuestionStepper step={step} answers={answers} />
+        <header className="questionnaire-heading">
+          <p className="eyebrow">PREGUNTA {step + 1} DE {QUESTIONS.length} · {question.category}</p>
+          <h1>{question.prompt}</h1>
+          <p className="muted">Elige la opción que mejor te describa.</p>
+        </header>
+        <form
+          className="question-card"
+          onSubmit={(event) => {
+            event.preventDefault()
+            goNext()
+          }}
+        >
+          <fieldset>
+            <legend>Selecciona una respuesta</legend>
+            <div className="answer-options">
+              {question.options.map((option, index) => {
+                const value = index + 1
+                const selected = answers[question.id] === value
+                return (
+                  <label className={`answer-option${selected ? ' selected' : ''}`} key={option}>
+                    <input
+                      checked={selected}
+                      name={question.id}
+                      onChange={() => answerQuestion(value)}
+                      type="radio"
+                      value={value}
+                    />
+                    <span className="answer-scale">{value}</span>
+                    <span>{option}</span>
+                  </label>
+                )
+              })}
+            </div>
+          </fieldset>
+          <div aria-live="polite" className="answer-hint">
+            Escala de 1 a 5 · Tus respuestas se guardan automáticamente
           </div>
-        </fieldset>
-        <div aria-live="polite" className="answer-hint">
-          Escala de 1 a 5 · Selecciona una opción para continuar
-        </div>
-        {error && <p className="form-error" role="alert">{error}</p>}
-        {notice && <p className="inline-notice" role="status">{notice}</p>}
-        <div className="question-actions">
-          <button
-            className="button button-secondary"
-            disabled={step === 0}
-            onClick={() => {
-              setError('')
-              setStep((current) => current - 1)
-            }}
-            type="button"
-          >
-            Anterior
-          </button>
-          <button
-            className="button button-primary"
-            disabled={answers[question.id] === undefined}
-            type="submit"
-          >
-            {step === QUESTIONS.length - 1 ? 'Ver resultados' : 'Siguiente'}
-          </button>
-        </div>
-      </form>
-      <button
-        className="finish-link"
-        disabled={!complete || saving}
-        onClick={finishTest}
-        type="button"
-      >
-        {saving ? 'Guardando respuestas…' : 'Finalizar y guardar test'}
-      </button>
+          {error && <p className="form-error" role="alert">{error}</p>}
+          {notice && <p className="inline-notice" role="status">{notice}</p>}
+          <div className="question-actions">
+            <button
+              className="button button-secondary"
+              disabled={step === 0}
+              onClick={() => {
+                setError('')
+                setStep((current) => current - 1)
+              }}
+              type="button"
+            >
+              Anterior
+            </button>
+            <button
+              className="button button-primary"
+              disabled={answers[question.id] === undefined}
+              type="submit"
+            >
+              {step === QUESTIONS.length - 1 ? 'Ver resultados' : 'Siguiente'}
+            </button>
+          </div>
+        </form>
+        <button
+          className="finish-link"
+          disabled={!complete || saving}
+          onClick={finishTest}
+          type="button"
+        >
+          {saving ? 'Guardando respuestas…' : 'Finalizar y guardar test'}
+        </button>
+      </div>
     </section>
   )
 }

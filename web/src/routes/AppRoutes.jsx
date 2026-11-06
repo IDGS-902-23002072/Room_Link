@@ -10,20 +10,23 @@ import Recommendations from '../features/compatibility/Recommendations.jsx'
 function Shell({ children }) {
   const { session, logout } = useAuth()
   const isAdmin = session?.user.roles?.includes('admin')
+  const accountInitial = session?.user.email?.[0]?.toUpperCase() ?? 'U'
 
   return (
     <div className="app-shell">
       <header className="topbar">
         <AppLink className="brand" href="/explorar">
-          <span className="brand-mark">R</span>
-          <span>roomlink</span>
+          <span>RoomLink</span>
         </AppLink>
         <nav aria-label="Navegación principal" className="main-nav">
           <AppLink href="/explorar">Explorar</AppLink>
+          <span aria-disabled="true">Mensajes</span>
+          <span aria-disabled="true">Solicitudes</span>
           <AppLink href="/cuestionario">Mi test</AppLink>
-          {isAdmin && <AppLink href="/admin/dashboard">Administración</AppLink>}
+          {isAdmin && <AppLink href="/admin/dashboard">Dashboard</AppLink>}
         </nav>
         <div className="account-menu">
+          <span aria-hidden="true" className="account-avatar">{accountInitial}</span>
           <span className="account-name">{session?.user.email}</span>
           <button
             className="button button-quiet"
@@ -38,10 +41,6 @@ function Shell({ children }) {
         </div>
       </header>
       <main className="page-container">{children}</main>
-      <footer className="site-footer">
-        <span>ROOMLINK</span>
-        <span>Encuentra un espacio que se sienta como hogar.</span>
-      </footer>
     </div>
   )
 }
