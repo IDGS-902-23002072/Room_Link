@@ -4,6 +4,7 @@ import Login from '../pages/Login/Login.jsx'
 import { useAuth } from '../hooks/useAuth.js'
 import { AppLink } from '../components/AppLink.jsx'
 import { navigate } from './navigation.js'
+import Questionnaire from '../features/compatibility/Questionnaire.jsx'
 
 function Shell({ children }) {
   const { session, logout } = useAuth()
@@ -70,11 +71,13 @@ function AppRoutes() {
   }
   if (!session || pathname === '/login') return <Login />
 
-  const page = pathname.startsWith('/admin/')
-    ? session.user.roles?.includes('admin')
-      ? <Dashboard />
-      : <section className="notice notice-error">Esta sección es solo para administradores.</section>
-    : <section className="page-heading"><p className="eyebrow">ROOMLINK</p><h1>Tu próximo hogar empieza aquí</h1><p className="muted">Estamos preparando esta sección.</p></section>
+  const page = pathname === '/cuestionario' || pathname === '/resultados/test'
+    ? <Questionnaire />
+    : pathname.startsWith('/admin/')
+      ? session.user.roles?.includes('admin')
+        ? <Dashboard />
+        : <section className="notice notice-error">Esta sección es solo para administradores.</section>
+      : <section className="page-heading"><p className="eyebrow">ROOMLINK</p><h1>Tu próximo hogar empieza aquí</h1><p className="muted">Estamos preparando esta sección.</p></section>
 
   return <Shell>{page}</Shell>
 }
