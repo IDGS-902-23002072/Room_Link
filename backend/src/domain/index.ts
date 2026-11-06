@@ -9,3 +9,4 @@ export * from "./repositories/IProfileRepository.js";
 export * from "./repositories/IRoomListingRepository.js";
 export * from "./repositories/IApplicationRepository.js";
 export * from "./repositories/ICompatibilityRepository.js";
+export * from "./repositories/IAnalyticsRepository.js";

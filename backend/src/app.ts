@@ -6,6 +6,7 @@ import {
   type IRoomListingRepository,
   type IApplicationRepository,
   type ICompatibilityRepository,
+  type IAnalyticsRepository,
 } from "./domain/index.js";
 import {
   DrizzleUserRepository,
@@ -39,6 +40,12 @@ import {
   CompatibilityController,
   createCompatibilityRoutes,
 } from "./modules/compatibility/index.js";
+import {
+  AnalyticsController,
+  AnalyticsService,
+  createAnalyticsRoutes,
+} from "./modules/analytics/index.js";
+import { DrizzleAnalyticsRepository } from "./infrastructure/repositories/DrizzleAnalyticsRepository.js";
 import { cors } from "hono/cors";
 
 export interface AppDependencies {
@@ -48,6 +55,7 @@ export interface AppDependencies {
   roomRepo?: IRoomListingRepository;
   appRepo?: IApplicationRepository;
   compatibilityRepo?: ICompatibilityRepository;
+  analyticsRepo?: IAnalyticsRepository;
 }
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
@@ -63,7 +71,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     cors({
       origin: (origin) =>
         allowedOrigins.has(origin) ? origin : null,
-      allowHeaders: ["Content-Type"],
+      allowHeaders: ["Content-Type", "Authorization"],
       allowMethods: ["GET", "POST", "PUT", "OPTIONS"],
       maxAge: 600,
     }),
@@ -77,6 +85,8 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const appRepo = dependencies.appRepo ?? new DrizzleApplicationRepository(db);
   const compatibilityRepo =
     dependencies.compatibilityRepo ?? new DrizzleCompatibilityRepository(db);
+  const analyticsRepo =
+    dependencies.analyticsRepo ?? new DrizzleAnalyticsRepository(db);
 
   // Módulos (Monolito Modular con MVC)
   // 1. Auth Module
@@ -106,6 +116,10 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     "/api/v1/compatibility",
     createCompatibilityRoutes(compatibilityController),
   );
+
+  const analyticsService = new AnalyticsService(userRepo, analyticsRepo);
+  const analyticsController = new AnalyticsController(analyticsService, authService);
+  app.route("/api/v1/admin", createAnalyticsRoutes(analyticsController));
 
   // System endpoints
   app.get("/health", (context) =>

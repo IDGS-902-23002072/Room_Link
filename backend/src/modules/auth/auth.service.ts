@@ -13,6 +13,8 @@ export interface LoginUserInput {
 }
 
 export class AuthService {
+  private readonly tokens = new Map<string, string>();
+
   constructor(private userRepo: IUserRepository) {}
 
   async register(input: RegisterUserInput): Promise<User> {
@@ -57,9 +59,13 @@ export class AuthService {
       throw new Error("Credenciales inválidas: contraseña incorrecta.");
     }
 
-    // Simulación de token JWT para el monolito educativo
-    const token = `token_${user.id}_${Date.now()}`;
+    const token = randomUUID();
+    this.tokens.set(token, user.id);
     return { user, token };
+  }
+
+  getUserIdForToken(token: string): string | null {
+    return this.tokens.get(token) ?? null;
   }
 
   async getById(id: string): Promise<User> {
