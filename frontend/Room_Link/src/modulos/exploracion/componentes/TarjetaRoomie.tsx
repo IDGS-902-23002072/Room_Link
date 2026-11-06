@@ -4,12 +4,12 @@ import type { PerfilRoomie } from '../datos/perfilesRoomies';
 
 export function TarjetaRoomie({
   perfil,
-  mostrarPreferencias = false,
+  mostrarCompatibilidad = true,
   alAbrir,
   alVerRapido,
 }: {
   perfil: PerfilRoomie;
-  mostrarPreferencias?: boolean;
+  mostrarCompatibilidad?: boolean;
   alAbrir: () => void;
   alVerRapido: () => void;
 }) {
@@ -43,16 +43,16 @@ export function TarjetaRoomie({
         <Text numberOfLines={1} style={styles.nombre}>
           {perfil.nombre}, {perfil.edad}
         </Text>
-        <Text style={styles.compatibilidad}>
-          {perfil.compatibilidad === null
-            ? 'Afinidad por descubrir'
-            : `${perfil.compatibilidad}% compatibles`}
-        </Text>
+        {mostrarCompatibilidad && perfil.compatibilidad !== null && (
+          <Text style={styles.compatibilidad}>
+            {perfil.compatibilidad}% compatibles
+          </Text>
+        )}
         <Text numberOfLines={1} style={styles.detalle}>
           {perfil.ciudad} · {perfil.zona}
         </Text>
         <Text numberOfLines={1} style={styles.detalle}>
-          {mostrarPreferencias ? perfil.presupuesto : perfil.estilo}
+          {perfil.presupuesto}
         </Text>
       </Pressable>
     </View>

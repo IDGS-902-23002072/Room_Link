@@ -145,6 +145,34 @@ describe("Compatibility module", () => {
     expect(secondPage.hasMore).toBe(false);
   });
 
+  it("returns an explicit incomplete-test state for the recommendation feed", async () => {
+    const repository = new InMemoryCompatibilityRepository();
+    repository.feed = [
+      {
+        userId: "candidate",
+        fullName: "Candidate Name",
+        age: 24,
+        city: null,
+        zone: null,
+        budgetMin: null,
+        budgetMax: null,
+        photoUrl: null,
+        bio: null,
+        occupation: null,
+        compatibilityScore: null,
+        compatibilitySummary: null,
+      },
+    ];
+    const result = await new CompatibilityService(repository).getFeed(
+      "viewer",
+      1,
+    );
+
+    expect(result.hasTest).toBe(false);
+    expect(result.profiles[0]?.compatibilityScore).toBeNull();
+    expect(result.profiles[0]?.compatibilitySummary).toBeNull();
+  });
+
   it("validates connection targets and returns created requests", async () => {
     const repository = new InMemoryCompatibilityRepository();
     const service = new CompatibilityService(repository);

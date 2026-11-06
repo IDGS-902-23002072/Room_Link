@@ -226,5 +226,34 @@ describe("Domain Entities & Business Rules", () => {
       const score = morningPerson.calculateAffinityWith(nightOwlParty);
       expect(score).toBe(0);
     });
+
+    it("calculates a weighted intermediate compatibility score", () => {
+      const baseline = new CompatibilityProfile({
+        userId: "u-1",
+        schedule: 1,
+        cleanliness: 1,
+        noise: 1,
+        pets: 1,
+        smoking: 1,
+        visits: 1,
+        genderPref: 1,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const oneStepDifferent = new CompatibilityProfile({
+        userId: "u-2",
+        schedule: 2,
+        cleanliness: 1,
+        noise: 1,
+        pets: 1,
+        smoking: 1,
+        visits: 1,
+        genderPref: 1,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(baseline.calculateAffinityWith(oneStepDifferent)).toBe(97);
+    });
   });
 });

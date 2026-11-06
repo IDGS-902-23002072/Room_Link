@@ -7,6 +7,7 @@ export function FichaRoomie({
   perfil,
   pestanaActiva,
   vistaRapida,
+  mostrarCompatibilidad = true,
   solicitudEnviada,
   comparando,
   alCambiarPestana,
@@ -19,6 +20,7 @@ export function FichaRoomie({
   perfil: PerfilRoomie;
   pestanaActiva: PestanaExploracion;
   vistaRapida: boolean;
+  mostrarCompatibilidad?: boolean;
   solicitudEnviada: boolean;
   comparando: boolean;
   alCambiarPestana: (pestana: PestanaExploracion) => void;
@@ -47,11 +49,11 @@ export function FichaRoomie({
         <View style={styles.infoEncabezado}>
           <Text style={styles.nombre}>{perfil.nombre}, {perfil.edad}</Text>
           <Text style={styles.ciudad}>{perfil.ciudad} · {perfil.zona}</Text>
-          <Text style={styles.coincidencia}>
-            {perfil.compatibilidad === null
-              ? 'Afinidad por descubrir'
-              : `${perfil.compatibilidad}% compatibles`}
-          </Text>
+          {mostrarCompatibilidad && perfil.compatibilidad !== null && (
+            <Text style={styles.coincidencia}>
+              {perfil.compatibilidad}% compatibles
+            </Text>
+          )}
         </View>
       </View>
 
@@ -85,10 +87,12 @@ export function FichaRoomie({
             <Text style={styles.tituloBloque}>Mi día a día</Text>
             <Text style={styles.cuerpo}>{perfil.ocupacion}</Text>
           </View>
-          <View style={styles.bloque}>
-            <Text style={styles.tituloBloque}>Para compartir</Text>
-            <Text style={styles.cuerpo}>{perfil.preferencias.join(' · ')}</Text>
-          </View>
+          {mostrarCompatibilidad && (
+            <View style={styles.bloque}>
+              <Text style={styles.tituloBloque}>Para compartir</Text>
+              <Text style={styles.cuerpo}>{perfil.preferencias.join(' · ')}</Text>
+            </View>
+          )}
           <View style={styles.bloque}>
             <Text style={styles.tituloBloque}>Presupuesto mensual</Text>
             <Text style={styles.cuerpo}>{perfil.presupuesto} · {perfil.ciudad}</Text>
@@ -121,7 +125,7 @@ export function FichaRoomie({
         </View>
       )}
 
-      {comparando && (
+      {comparando && mostrarCompatibilidad && (
         <View accessibilityRole="summary" style={styles.comparacion}>
           <Text style={styles.tituloBloque}>Compatibilidad contigo</Text>
           <Text style={styles.cuerpo}>

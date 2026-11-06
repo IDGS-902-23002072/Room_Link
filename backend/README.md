@@ -136,7 +136,31 @@ El frontend consume estas rutas bajo `/api/v1/compatibility`:
 | `GET` | `/:userId/candidates/:candidateId` | Recupera el detalle del perfil y su afinidad. |
 | `POST` | `/:userId/connections` | Crea una solicitud de conexión. Cuerpo: `{"candidateId":"<uuid>","introMessage":null}`. |
 
-Las dimensiones son `schedule`, `cleanliness`, `noise`, `pets`, `smoking`, `visits` y `genderPref`. La afinidad aplica los pesos iniciales `2, 3, 3, 2, 3, 2, 1`; la migración `0005_compatibility_weights.sql` actualiza los pesos instalados sin modificar migraciones previas. Las respuestas del test se guardan en MySQL y el borrador del frontend en AsyncStorage.
+Las dimensiones son `schedule`, `cleanliness`, `noise`, `pets`, `smoking`, `visits` y `genderPref`. La afinidad aplica los pesos `2, 3, 3, 2, 3, 2, 1` respectivamente:
+
+```text
+afinidad = round((1 - sum(peso_i * abs(respuestaA_i - respuestaB_i)) / (4 * sum(pesos))) * 100)
+```
+
+La migración `0005_compatibility_weights.sql` actualiza los pesos instalados sin modificar migraciones previas. Las respuestas del test se guardan en MySQL y el borrador del frontend en AsyncStorage. El feed excluye al usuario actual y cuentas inactivas, requiere perfiles públicos y pagina de 12 en 12. Sin test propio, no calcula ni muestra porcentajes y ofrece el botón **Hacer mi test**.
+
+### Usuarios y datos de demostración de HU-04
+
+Con MySQL migrado y el backend configurado en `backend/.env`, desde `backend/` ejecuta:
+
+```bash
+npm run db:seed:compatibility
+```
+
+El comando crea perfiles ficticios, fotos remotas, preferencias y respuestas para 12 candidatos, además de dos usuarios para visualizar el feed con y sin test. Configura `frontend/Room_Link/.env` con el UUID que imprime el comando como `EXPO_PUBLIC_USER_ID`; usa el usuario con test para ver porcentajes y el usuario sin test para verificar el aviso. Estas cuentas no tienen credenciales de inicio de sesión.
+
+Para comprobar el P95 del feed con 10,000 candidatos, vuelve a crear solo las cuentas identificadas por el correo `hu04-demo-*@roomlink.invalid` y corre:
+
+```bash
+npm run db:benchmark:compatibility
+```
+
+El comando mide 50 consultas después de calentar la caché y falla si el P95 supera 350 ms. Requiere que el backend y MySQL de desarrollo estén disponibles y puede tardar varios minutos. Las fotos remotas de demostración requieren conexión a internet.
 
 ### Configuración local del frontend
 

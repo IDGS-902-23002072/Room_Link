@@ -39,11 +39,15 @@ const nombresDimension: Record<string, string> = {
   genderPref: 'Género',
 };
 
-function adaptarPerfil(perfil: PerfilAfinidad): PerfilRoomie {
+function adaptarPerfil(
+  perfil: PerfilAfinidad,
+  mostrarCompatibilidad: boolean,
+): PerfilRoomie {
   const nombre = perfil.fullName.trim() || 'Roomie';
   const preferencias =
-    perfil.compatibilitySummary?.map(
-      ({ dimension, percentage }) => `${nombresDimension[dimension]} ${percentage}%`,
+    (mostrarCompatibilidad ? perfil.compatibilitySummary : null)?.map(
+      ({ dimension, percentage }) =>
+        `${nombresDimension[dimension]} ${percentage}%`,
     ) ?? [];
   const presupuesto =
     perfil.budgetMin || perfil.budgetMax
@@ -59,7 +63,7 @@ function adaptarPerfil(perfil: PerfilAfinidad): PerfilRoomie {
       .join(''),
     nombre,
     edad: perfil.age,
-    compatibilidad: perfil.compatibilityScore,
+    compatibilidad: mostrarCompatibilidad ? perfil.compatibilityScore : null,
     ciudad: perfil.city ?? 'Ubicación no indicada',
     zona: perfil.zone ?? 'Zona no indicada',
     estilo: perfil.occupation ?? 'Ocupación no indicada',
@@ -94,7 +98,11 @@ export function PantallaExploracion() {
       .then((resultado) => {
         if (!activo) return;
         setFeed(resultado);
-        setPerfiles(resultado.profiles.map(adaptarPerfil));
+        setPerfiles(
+          resultado.profiles.map((perfil) =>
+            adaptarPerfil(perfil, resultado.hasTest),
+          ),
+        );
         setPagina(1);
         setError(null);
       })
@@ -136,7 +144,7 @@ export function PantallaExploracion() {
     setError(null);
     try {
       const detalle = await obtenerPerfilAfinidad(perfil.id);
-      setPerfilActivo(adaptarPerfil(detalle));
+      setPerfilActivo(adaptarPerfil(detalle, feed?.hasTest === true));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo cargar el perfil.');
     }
@@ -152,7 +160,9 @@ export function PantallaExploracion() {
       setFeed(resultado);
       setPerfiles((actuales) => [
         ...actuales,
-        ...resultado.profiles.map(adaptarPerfil),
+        ...resultado.profiles.map((perfil) =>
+          adaptarPerfil(perfil, resultado.hasTest),
+        ),
       ]);
       setPagina(siguientePagina);
     } catch (cause) {
@@ -217,30 +227,26 @@ export function PantallaExploracion() {
                 {perfilesVisibles.length} perfiles cargados
               </Text>
             </View>
-            <View style={styles.aviso}>
-              <View style={styles.contenidoAviso}>
-                <Text style={styles.tituloAviso}>
-                  {feed?.hasTest ? 'Tu test de convivencia' : 'Mejora tus recomendaciones'}
-                </Text>
-                <Text style={styles.textoAviso}>
-                  {feed?.hasTest
-                    ? 'Revisa o actualiza tus respuestas para encontrar roomies compatibles.'
-                    : 'Completa el test para ordenar los perfiles por afinidad.'}
-                </Text>
-              </View>
-              <Link href="/encuesta" asChild>
-                <Pressable
-                  accessibilityRole="button"
-                  style={({ pressed }) => [
-                    styles.botonTest,
-                    pressed && styles.botonTestPresionado,
-                  ]}>
-                  <Text style={styles.textoBotonTest}>
-                    {feed?.hasTest ? 'Ver mi test' : 'Completar test'}
+            {feed && !feed.hasTest && (
+              <View style={styles.aviso}>
+                <View style={styles.contenidoAviso}>
+                  <Text style={styles.tituloAviso}>Haz tu test de convivencia</Text>
+                  <Text style={styles.textoAviso}>
+                    Responde el test para ver perfiles recomendados por afinidad.
                   </Text>
-                </Pressable>
-              </Link>
-            </View>
+                </View>
+                <Link href="/encuesta" asChild>
+                  <Pressable
+                    accessibilityRole="button"
+                    style={({ pressed }) => [
+                      styles.botonTest,
+                      pressed && styles.botonTestPresionado,
+                    ]}>
+                    <Text style={styles.textoBotonTest}>Hacer mi test</Text>
+                  </Pressable>
+                </Link>
+              </View>
+            )}
             {cargando ? (
               <Text style={styles.estado}>Cargando perfiles…</Text>
             ) : perfilesVisibles.length > 0 ? (
@@ -249,7 +255,7 @@ export function PantallaExploracion() {
                   <TarjetaRoomie
                     key={perfil.id}
                     perfil={perfil}
-                    mostrarPreferencias={pestanaActiva === 'Preferencias'}
+                    mostrarCompatibilidad={feed?.hasTest === true}
                     alAbrir={() => abrirPerfil(perfil, 'perfil')}
                     alVerRapido={() => abrirPerfil(perfil, 'rapida')}
                   />
@@ -300,6 +306,7 @@ export function PantallaExploracion() {
                 perfil={perfilActivo}
                 pestanaActiva={pestanaActiva}
                 vistaRapida={vista === 'rapida'}
+                mostrarCompatibilidad={feed?.hasTest === true}
                 solicitudEnviada={solicitudEnviada}
                 comparando={comparando}
                 alCambiarPestana={setPestanaActiva}

@@ -16,6 +16,8 @@
     "test:integration": "vitest run tests/integration/",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed:compatibility": "tsx scripts/seed-compatibility-demo.ts",
+    "db:benchmark:compatibility": "tsx scripts/seed-compatibility-demo.ts --count=10000 --reset --benchmark",
     "db:check": "drizzle-kit check",
     "db:studio": "drizzle-kit studio",
     "check": "npm run typecheck && npm run db:check && npm run test:unit",
