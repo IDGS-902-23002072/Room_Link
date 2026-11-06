@@ -1,5 +1,7 @@
+import PropTypes from 'prop-types'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth.js'
+import { asyncEffect } from '../../hooks/asyncEffect.js'
 import { apiRequest } from '../../services/api.js'
 import './dashboard.css'
 
@@ -66,6 +68,16 @@ function MetricChart({ title, description, data, color }) {
   )
 }
 
+MetricChart.propTypes = {
+  color: PropTypes.string.isRequired,
+  data: PropTypes.arrayOf(PropTypes.shape({
+    month: PropTypes.string.isRequired,
+    total: PropTypes.number.isRequired,
+  })).isRequired,
+  description: PropTypes.string.isRequired,
+  title: PropTypes.string.isRequired,
+}
+
 function GrowthChart({ data }) {
   const maximum = Math.max(1, ...data.map(({ total }) => total))
   const points = data.map(({ total }, index) => {
@@ -124,6 +136,13 @@ function GrowthChart({ data }) {
   )
 }
 
+GrowthChart.propTypes = {
+  data: PropTypes.arrayOf(PropTypes.shape({
+    month: PropTypes.string.isRequired,
+    total: PropTypes.number.isRequired,
+  })).isRequired,
+}
+
 function Dashboard() {
   const { session } = useAuth()
   const [range, setRange] = useState(getDefaultRange)
@@ -141,28 +160,27 @@ function Dashboard() {
     return params.toString()
   }, [appliedRange])
 
-  useEffect(() => {
-    let active = true
-    apiRequest(`/api/v1/admin/analytics?${query}`, { token: session.token })
-      .then((result) => {
-        if (active) setDashboard(result)
-      })
-      .catch((requestError) => {
-        if (active) {
+  useEffect(
+    () => asyncEffect(async (isActive) => {
+      try {
+        const result = await apiRequest(`/api/v1/admin/analytics?${query}`, {
+          token: session.token,
+        })
+        if (isActive()) setDashboard(result)
+      } catch (requestError) {
+        if (isActive()) {
           setError(
             requestError instanceof Error
               ? requestError.message
               : 'No se pudieron cargar las métricas.',
           )
         }
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [query, session.token])
+      } finally {
+        if (isActive()) setLoading(false)
+      }
+    }),
+    [query, session.token],
+  )
 
   function applyRange(event) {
     event.preventDefault()

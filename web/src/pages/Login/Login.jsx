@@ -1,8 +1,8 @@
+import PropTypes from 'prop-types'
 import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth.js'
-import { navigate } from '../../routes/navigation.js'
 
-function Login() {
+function Login({ onLogin }) {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,7 +16,7 @@ function Login() {
     setSubmitting(true)
     try {
       const user = await login(email.trim(), password)
-      navigate(user.roles?.includes('admin') ? '/admin/dashboard' : '/explorar')
+      onLogin(user)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo iniciar sesión.')
     } finally {
@@ -59,6 +59,10 @@ function Login() {
       </form>
     </div>
   )
+}
+
+Login.propTypes = {
+  onLogin: PropTypes.func.isRequired,
 }
 
 export default Login

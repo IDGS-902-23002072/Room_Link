@@ -59,6 +59,7 @@
 }
 
 .main-nav a:hover,
+.main-nav a.active,
 .button-quiet:hover {
   color: var(--plum);
 }

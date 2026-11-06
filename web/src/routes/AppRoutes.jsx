@@ -1,16 +1,23 @@
-import { useEffect, useState } from 'react'
+import { Fragment } from 'react'
+import { Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
 import Dashboard from '../pages/Dashboard/Dashboard.jsx'
 import Login from '../pages/Login/Login.jsx'
 import { useAuth } from '../hooks/useAuth.js'
 import { AppLink } from '../components/AppLink.jsx'
-import { navigate } from './navigation.js'
+import { push } from './navigation.js'
 import Questionnaire from '../features/compatibility/Questionnaire.jsx'
 import Recommendations from '../features/compatibility/Recommendations.jsx'
 
-function Shell({ children }) {
+function Shell() {
   const { session, logout } = useAuth()
+  const navigate = useNavigate()
   const isAdmin = session?.user.roles?.includes('admin')
   const accountInitial = session?.user.email?.[0]?.toUpperCase() ?? 'U'
+
+  function signOut() {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="app-shell">
@@ -19,49 +26,29 @@ function Shell({ children }) {
           <span>RoomLink</span>
         </AppLink>
         <nav aria-label="Navegación principal" className="main-nav">
-          <AppLink href="/explorar">Explorar</AppLink>
+          <NavLink to="/explorar">Explorar</NavLink>
           <span aria-disabled="true">Mensajes</span>
           <span aria-disabled="true">Solicitudes</span>
-          <AppLink href="/cuestionario">Mi test</AppLink>
-          {isAdmin && <AppLink href="/admin/dashboard">Dashboard</AppLink>}
+          <NavLink to="/cuestionario">Mi test</NavLink>
+          {isAdmin && <NavLink to="/admin/dashboard">Dashboard</NavLink>}
         </nav>
         <div className="account-menu">
           <span aria-hidden="true" className="account-avatar">{accountInitial}</span>
           <span className="account-name">{session?.user.email}</span>
-          <button
-            className="button button-quiet"
-            onClick={() => {
-              logout()
-              navigate('/login')
-            }}
-            type="button"
-          >
+          <button className="button button-quiet" onClick={signOut} type="button">
             Cerrar sesión
           </button>
         </div>
       </header>
-      <main className="page-container">{children}</main>
+      <main className="page-container">
+        <Outlet />
+      </main>
     </div>
   )
 }
 
-function AppRoutes() {
+function ProtectedLayout() {
   const { session, loadingSession, sessionError } = useAuth()
-  const [pathname, setPathname] = useState(window.location.pathname)
-
-  useEffect(() => {
-    const updatePath = () => setPathname(window.location.pathname)
-    window.addEventListener('popstate', updatePath)
-    return () => window.removeEventListener('popstate', updatePath)
-  }, [])
-
-  useEffect(() => {
-    if (loadingSession) return
-    if (!session && pathname !== '/login') navigate('/login')
-    if (session && pathname === '/login') {
-      navigate(session.user.roles?.includes('admin') ? '/admin/dashboard' : '/explorar')
-    }
-  }, [loadingSession, pathname, session])
 
   if (loadingSession) {
     return <div className="loading-screen">Preparando tu espacio…</div>
@@ -69,20 +56,63 @@ function AppRoutes() {
   if (sessionError) {
     return <div className="notice notice-error" role="alert">{sessionError}</div>
   }
-  if (!session || pathname === '/login') return <Login />
+  if (!session) return <Navigate replace to="/login" />
 
-  const candidateMatch = pathname.match(/^\/perfil\/candidato\/([^/]+)$/)
-  const page = pathname === '/cuestionario' || pathname === '/resultados/test'
-    ? <Questionnaire />
-    : pathname === '/explorar' || pathname === '/recomendados' || candidateMatch
-      ? <Recommendations candidateId={candidateMatch?.[1]} />
-      : pathname.startsWith('/admin/')
-      ? session.user.roles?.includes('admin')
-        ? <Dashboard />
-        : <section className="notice notice-error">Esta sección es solo para administradores.</section>
-      : <section className="page-heading"><p className="eyebrow">ROOMLINK</p><h1>Tu próximo hogar empieza aquí</h1><p className="muted">Estamos preparando esta sección.</p></section>
-
-  return <Shell>{page}</Shell>
+  return <Shell />
 }
 
-export default AppRoutes
+function AdminLayout() {
+  const { session } = useAuth()
+  if (!session?.user.roles?.includes('admin')) {
+    return <Navigate replace to="/explorar" />
+  }
+  return <Outlet />
+}
+
+function LoginRoute() {
+  const { session } = useAuth()
+  const navigate = useNavigate()
+
+  if (session) {
+    return (
+      <Navigate
+        replace
+        to={session.user.roles?.includes('admin') ? '/admin/dashboard' : '/explorar'}
+      />
+    )
+  }
+  return <Login onLogin={(user) => push(navigate, user.roles?.includes('admin') ? '/admin/dashboard' : '/explorar')} />
+}
+
+function NotFound() {
+  return (
+    <section className="page-heading">
+      <p className="eyebrow">ROOMLINK</p>
+      <h1>No encontramos esta página</h1>
+      <p className="muted">Vuelve a explorar los perfiles disponibles.</p>
+      <AppLink className="button button-primary" href="/explorar">Ir a explorar</AppLink>
+    </section>
+  )
+}
+
+export default function AppRoutes() {
+  return (
+    <Fragment>
+      <Routes>
+        <Route element={<LoginRoute />} path="/login" />
+        <Route element={<ProtectedLayout />}>
+          <Route element={<Recommendations />} path="/" />
+          <Route element={<Recommendations />} path="/explorar" />
+          <Route element={<Recommendations />} path="/recomendados" />
+          <Route element={<Recommendations />} path="/perfil/candidato/:candidateId" />
+          <Route element={<Questionnaire />} path="/cuestionario" />
+          <Route element={<Questionnaire />} path="/resultados/test" />
+          <Route element={<AdminLayout />} path="/admin">
+            <Route element={<Dashboard />} path="dashboard" />
+          </Route>
+        </Route>
+        <Route element={<NotFound />} path="*" />
+      </Routes>
+    </Fragment>
+  )
+}

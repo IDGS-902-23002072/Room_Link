@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import PropTypes from 'prop-types'
+import { useMemo, useReducer } from 'react'
 import { AuthContext } from './auth-context.js'
 import {
   clearSession,
@@ -7,8 +8,21 @@ import {
   saveSession,
 } from '../services/authService.js'
 
+function authReducer(state, action) {
+  switch (action.type) {
+    case 'login':
+      return { session: action.session, error: '' }
+    case 'logout':
+      return { session: null, error: '' }
+    case 'error':
+      return { ...state, error: action.message }
+    default:
+      return state
+  }
+}
+
 export function AuthProvider({ children }) {
-  const [initialSession] = useState(() => {
+  const [state, dispatch] = useReducer(authReducer, null, () => {
     try {
       return { session: readSession(), error: '' }
     } catch (error) {
@@ -21,28 +35,29 @@ export function AuthProvider({ children }) {
       }
     }
   })
-  const [session, setSession] = useState(initialSession.session)
-  const [sessionError, setSessionError] = useState(initialSession.error)
 
   const value = useMemo(
     () => ({
-      session,
+      session: state.session,
       loadingSession: false,
-      sessionError,
+      sessionError: state.error,
       async login(email, password) {
         const nextSession = await iniciarSesion(email, password)
         saveSession(nextSession)
-        setSession(nextSession)
-        setSessionError('')
+        dispatch({ type: 'login', session: nextSession })
         return nextSession.user
       },
       logout() {
         clearSession()
-        setSession(null)
+        dispatch({ type: 'logout' })
       },
     }),
-    [session, sessionError],
+    [state],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+AuthProvider.propTypes = {
+  children: PropTypes.node.isRequired,
 }

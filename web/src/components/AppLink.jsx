@@ -1,27 +1,16 @@
-import { navigate } from '../routes/navigation.js'
+import PropTypes from 'prop-types'
+import { Link } from 'react-router-dom'
 
 export function AppLink({ href, onClick, children, ...props }) {
   return (
-    <a
-      href={href}
-      onClick={(event) => {
-        onClick?.(event)
-        if (
-          event.defaultPrevented ||
-          event.button !== 0 ||
-          event.metaKey ||
-          event.ctrlKey ||
-          event.shiftKey ||
-          event.altKey
-        ) {
-          return
-        }
-        event.preventDefault()
-        navigate(href)
-      }}
-      {...props}
-    >
+    <Link to={href} onClick={onClick} {...props}>
       {children}
-    </a>
+    </Link>
   )
+}
+
+AppLink.propTypes = {
+  children: PropTypes.node.isRequired,
+  href: PropTypes.string.isRequired,
+  onClick: PropTypes.func,
 }

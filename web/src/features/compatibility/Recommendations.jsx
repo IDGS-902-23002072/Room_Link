@@ -1,7 +1,10 @@
+import PropTypes from 'prop-types'
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { AppLink } from '../../components/AppLink.jsx'
-import { navigate } from '../../routes/navigation.js'
+import { goBack, push } from '../../routes/navigation.js'
 import { useAuth } from '../../hooks/useAuth.js'
+import { asyncEffect } from '../../hooks/asyncEffect.js'
 import {
   getCandidate,
   getRecommendationFeed,
@@ -72,8 +75,25 @@ function CandidateCard({ profile, showScore, onOpen }) {
   )
 }
 
+CandidateCard.propTypes = {
+  onOpen: PropTypes.func.isRequired,
+  profile: PropTypes.shape({
+    age: PropTypes.number,
+    budgetMax: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    budgetMin: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    city: PropTypes.string,
+    compatibilityScore: PropTypes.number,
+    fullName: PropTypes.string.isRequired,
+    photoUrl: PropTypes.string,
+    userId: PropTypes.string.isRequired,
+    zone: PropTypes.string,
+  }).isRequired,
+  showScore: PropTypes.bool.isRequired,
+}
+
 function CandidateDetail({ candidateId }) {
   const { session } = useAuth()
+  const navigate = useNavigate()
   const [detail, setDetail] = useState({
     candidateId: null,
     profile: null,
@@ -83,25 +103,23 @@ function CandidateDetail({ candidateId }) {
   const [sending, setSending] = useState(false)
   const [requestSent, setRequestSent] = useState(false)
 
-  useEffect(() => {
-    let active = true
-    getCandidate(session.user.id, candidateId, session.token)
-      .then((result) => {
-        if (active) setDetail({ candidateId, profile: result, error: '' })
-      })
-      .catch((cause) => {
-        if (active) {
+  useEffect(
+    () => asyncEffect(async (isActive) => {
+      try {
+        const result = await getCandidate(session.user.id, candidateId, session.token)
+        if (isActive()) setDetail({ candidateId, profile: result, error: '' })
+      } catch (cause) {
+        if (isActive()) {
           setDetail({
             candidateId,
             profile: null,
             error: cause instanceof Error ? cause.message : 'No se pudo cargar el perfil.',
           })
         }
-      })
-    return () => {
-      active = false
-    }
-  }, [candidateId, session.token, session.user.id])
+      }
+    }),
+    [candidateId, session.token, session.user.id],
+  )
 
   async function requestConnection() {
     if (sending || requestSent) return
@@ -125,7 +143,7 @@ function CandidateDetail({ candidateId }) {
   if (detail.error) {
     return (
       <section className="recommendations-page">
-        <button className="back-link back-button" onClick={() => navigate('/recomendados')} type="button">
+        <button className="back-link back-button" onClick={() => goBack(navigate, '/recomendados')} type="button">
           ← Volver a roomies
         </button>
         <div className="notice notice-error" role="alert">{detail.error}</div>
@@ -144,7 +162,7 @@ function CandidateDetail({ candidateId }) {
 
   return (
     <section className="recommendations-page">
-      <button className="back-link back-button" onClick={() => navigate('/recomendados')} type="button">
+      <button className="back-link back-button" onClick={() => goBack(navigate, '/recomendados')} type="button">
         ← Volver a roomies
       </button>
       <article className="candidate-detail">
@@ -173,7 +191,7 @@ function CandidateDetail({ candidateId }) {
             >
               {requestSent ? 'Solicitud enviada' : sending ? 'Enviando…' : 'Enviar solicitud'}
             </button>
-            <button className="button button-secondary button-wide" onClick={() => navigate('/recomendados')} type="button">
+            <button className="button button-secondary button-wide" onClick={() => goBack(navigate, '/recomendados')} type="button">
               Volver a roomies
             </button>
           </div>
@@ -218,8 +236,14 @@ function CandidateDetail({ candidateId }) {
   )
 }
 
-export default function Recommendations({ candidateId }) {
+CandidateDetail.propTypes = {
+  candidateId: PropTypes.string.isRequired,
+}
+
+export default function Recommendations() {
   const { session } = useAuth()
+  const navigate = useNavigate()
+  const { candidateId } = useParams()
   const [feedState, setFeedState] = useState({
     page: 0,
     result: null,
@@ -230,26 +254,24 @@ export default function Recommendations({ candidateId }) {
   const [filter, setFilter] = useState('Todas')
   const [sort, setSort] = useState('compatibility')
 
-  useEffect(() => {
-    if (candidateId) return undefined
-    let active = true
-    getRecommendationFeed(session.user.id, page, session.token)
-      .then((result) => {
-        if (active) setFeedState({ page, result, error: '' })
-      })
-      .catch((cause) => {
-        if (active) {
+  useEffect(
+    () => asyncEffect(async (isActive) => {
+      if (candidateId) return
+      try {
+        const result = await getRecommendationFeed(session.user.id, page, session.token)
+        if (isActive()) setFeedState({ page, result, error: '' })
+      } catch (cause) {
+        if (isActive()) {
           setFeedState({
             page,
             result: null,
             error: cause instanceof Error ? cause.message : 'No se pudo cargar el feed.',
           })
         }
-      })
-    return () => {
-      active = false
-    }
-  }, [candidateId, page, session.token, session.user.id])
+      }
+    }),
+    [candidateId, page, session.token, session.user.id],
+  )
 
   const loading = feedState.page !== page
   const feed = loading ? null : feedState.result
@@ -345,7 +367,7 @@ export default function Recommendations({ candidateId }) {
           {filteredProfiles.map((profile) => (
             <CandidateCard
               key={profile.userId}
-              onOpen={() => navigate(`/perfil/candidato/${encodeURIComponent(profile.userId)}`)}
+              onOpen={() => push(navigate, `/perfil/candidato/${encodeURIComponent(profile.userId)}`)}
               profile={profile}
               showScore={feed?.hasTest === true}
             />

@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types'
 import { useEffect, useMemo, useState } from 'react'
 import { AppLink } from '../../components/AppLink.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
@@ -34,6 +35,11 @@ function QuestionnaireSteps({ step, answers }) {
   )
 }
 
+QuestionnaireSteps.propTypes = {
+  answers: PropTypes.objectOf(PropTypes.number).isRequired,
+  step: PropTypes.number.isRequired,
+}
+
 function QuestionStepper({ step, answers }) {
   return (
     <ol aria-label="Progreso del cuestionario" className="question-stepper">
@@ -48,6 +54,11 @@ function QuestionStepper({ step, answers }) {
       ))}
     </ol>
   )
+}
+
+QuestionStepper.propTypes = {
+  answers: PropTypes.objectOf(PropTypes.number).isRequired,
+  step: PropTypes.number.isRequired,
 }
 
 function ResultsRadar({ summary }) {
@@ -100,6 +111,13 @@ function ResultsRadar({ summary }) {
       </div>
     </section>
   )
+}
+
+ResultsRadar.propTypes = {
+  summary: PropTypes.arrayOf(PropTypes.shape({
+    category: PropTypes.string.isRequired,
+    percentage: PropTypes.number.isRequired,
+  })).isRequired,
 }
 
 function firstUnanswered(answers) {
