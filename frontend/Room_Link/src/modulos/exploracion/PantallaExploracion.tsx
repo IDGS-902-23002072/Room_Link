@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'expo-router';
 import {
   Pressable,
   ScrollView,
@@ -216,13 +217,30 @@ export function PantallaExploracion() {
                 {perfilesVisibles.length} perfiles cargados
               </Text>
             </View>
-            {!feed?.hasTest && (
-              <View style={styles.aviso}>
+            <View style={styles.aviso}>
+              <View style={styles.contenidoAviso}>
+                <Text style={styles.tituloAviso}>
+                  {feed?.hasTest ? 'Tu test de convivencia' : 'Mejora tus recomendaciones'}
+                </Text>
                 <Text style={styles.textoAviso}>
-                  Completa el test de compatibilidad para ordenar los perfiles por afinidad.
+                  {feed?.hasTest
+                    ? 'Revisa o actualiza tus respuestas para encontrar roomies compatibles.'
+                    : 'Completa el test para ordenar los perfiles por afinidad.'}
                 </Text>
               </View>
-            )}
+              <Link href="/encuesta" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonTest,
+                    pressed && styles.botonTestPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonTest}>
+                    {feed?.hasTest ? 'Ver mi test' : 'Completar test'}
+                  </Text>
+                </Pressable>
+              </Link>
+            </View>
             {cargando ? (
               <Text style={styles.estado}>Cargando perfiles…</Text>
             ) : perfilesVisibles.length > 0 ? (
@@ -366,14 +384,42 @@ const styles = StyleSheet.create({
     marginBottom: 7,
   },
   aviso: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
     padding: 11,
     borderRadius: 12,
     backgroundColor: '#E9DAEC',
     marginTop: 10,
   },
+  contenidoAviso: {
+    flex: 1,
+    gap: 3,
+  },
+  tituloAviso: {
+    color: '#6F5B76',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   textoAviso: {
     color: '#6F5B76',
     fontSize: 11,
+  },
+  botonTest: {
+    minHeight: 34,
+    justifyContent: 'center',
+    paddingHorizontal: 11,
+    borderRadius: 9,
+    backgroundColor: '#84658D',
+  },
+  botonTestPresionado: {
+    opacity: 0.75,
+  },
+  textoBotonTest: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
   },
   estado: {
     color: '#817987',

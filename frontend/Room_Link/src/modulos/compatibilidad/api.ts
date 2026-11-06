@@ -45,6 +45,8 @@ export interface FeedAfinidad {
   profiles: PerfilAfinidad[];
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+
 function configuracionApi() {
   const baseUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
   const userId = process.env.EXPO_PUBLIC_USER_ID?.trim();
@@ -52,6 +54,11 @@ function configuracionApi() {
   if (!baseUrl || !userId) {
     throw new Error(
       'Configura EXPO_PUBLIC_API_URL y EXPO_PUBLIC_USER_ID en frontend/Room_Link/.env.',
+    );
+  }
+  if (!UUID_PATTERN.test(userId)) {
+    throw new Error(
+      'EXPO_PUBLIC_USER_ID debe ser el UUID de un usuario existente en la base de datos.',
     );
   }
 
@@ -81,6 +88,11 @@ async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
     | (T & { error?: string })
     | null;
   if (!response.ok) {
+    if (response.status >= 500) {
+      throw new Error(
+        `La API respondió con un error interno (${response.status}). Comprueba que MySQL esté iniciado y que /ready responda con estado "ready".`,
+      );
+    }
     throw new Error(body?.error ?? `La API respondió con estado ${response.status}.`);
   }
   if (body === null) {
