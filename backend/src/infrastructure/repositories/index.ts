@@ -5,3 +5,5 @@ export * from "./DrizzleModerationRepository.js";
 export * from "./DrizzleProfileRepository.js";
 export * from "./DrizzleRoomListingRepository.js";
 export * from "./DrizzleApplicationRepository.js";
+export * from "./DrizzleSearchRepository.js";
+export * from "./DrizzleAgreementRepository.js";

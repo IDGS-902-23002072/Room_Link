@@ -6,6 +6,8 @@ import {
   type IProfileRepository,
   type IRoomListingRepository,
   type IApplicationRepository,
+  type ISearchRepository,
+  type IAgreementRepository,
 } from "./domain/index.js";
 import {
   DrizzleUserRepository,
@@ -18,6 +20,8 @@ import {
   DrizzlePasswordResetRepository,
   DrizzleMessagingRepository,
   DrizzleModerationRepository,
+  DrizzleSearchRepository,
+  DrizzleAgreementRepository,
 } from "./infrastructure/repositories/index.js";
 import {
   AuthService,
@@ -59,6 +63,16 @@ import {
   ApplicationsController,
   createApplicationsRoutes,
 } from "./modules/applications/index.js";
+import {
+  SearchService,
+  SearchController,
+  createSearchRoutes,
+} from "./modules/search/index.js";
+import {
+  AgreementsService,
+  AgreementsController,
+  createAgreementsRoutes,
+} from "./modules/agreements/index.js";
 
 export interface AppDependencies {
   checkDatabase?: () => Promise<void>;
@@ -70,6 +84,8 @@ export interface AppDependencies {
   messagingRepo?: MessagingRepository;
   messageEvents?: MessageEventPublisher;
   moderationRepo?: ModerationRepository;
+  searchRepo?: ISearchRepository;
+  agreementsRepo?: IAgreementRepository;
 }
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
@@ -134,6 +150,19 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     "/api/v1/moderation",
     createModerationRoutes(moderationController, authService),
   );
+
+  // 7. Search Module (HU-05)
+  const searchRepo = dependencies.searchRepo ?? new DrizzleSearchRepository(db);
+  const searchService = new SearchService(searchRepo);
+  const searchController = new SearchController(searchService);
+  app.route("/api/v1/search", createSearchRoutes(searchController));
+
+  // 8. Agreements Module (HU-12)
+  const agreementsRepo =
+    dependencies.agreementsRepo ?? new DrizzleAgreementRepository(db);
+  const agreementsService = new AgreementsService(agreementsRepo);
+  const agreementsController = new AgreementsController(agreementsService);
+  app.route("/api/v1/agreements", createAgreementsRoutes(agreementsController));
 
   // Endpoints del sistema / orquestación
   app.get("/health", (context) =>
