@@ -6,12 +6,14 @@ import {
   type IProfileRepository,
   type IRoomListingRepository,
   type IApplicationRepository,
+  type ICompatibilityRepository,
 } from "./domain/index.js";
 import {
   DrizzleUserRepository,
   DrizzleProfileRepository,
   DrizzleRoomListingRepository,
   DrizzleApplicationRepository,
+  DrizzleCompatibilityRepository,
   DrizzleAuthSessionRepository,
   DrizzleOAuthIdentityRepository,
   DrizzleOutboxEventPublisher,
@@ -59,6 +61,12 @@ import {
   ApplicationsController,
   createApplicationsRoutes,
 } from "./modules/applications/index.js";
+import {
+  CompatibilityService,
+  CompatibilityController,
+  createCompatibilityRoutes,
+} from "./modules/compatibility/index.js";
+import { cors } from "hono/cors";
 
 export interface AppDependencies {
   checkDatabase?: () => Promise<void>;
@@ -66,6 +74,7 @@ export interface AppDependencies {
   profileRepo?: IProfileRepository;
   roomRepo?: IRoomListingRepository;
   appRepo?: IApplicationRepository;
+  compatibilityRepo?: ICompatibilityRepository;
   authDependencies?: AuthServiceDependencies;
   messagingRepo?: MessagingRepository;
   messageEvents?: MessageEventPublisher;
@@ -74,6 +83,19 @@ export interface AppDependencies {
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const app = new Hono();
+  const allowedOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:8081";
+  app.use(
+    "/api/*",
+    cors({
+      origin: (origin) =>
+        origin === allowedOrigin || origin === "http://127.0.0.1:8081"
+          ? origin
+          : null,
+      allowHeaders: ["Content-Type"],
+      allowMethods: ["GET", "POST", "PUT", "OPTIONS"],
+      maxAge: 600,
+    }),
+  );
 
   // Dependencias e Infraestructura (Inyección de dependencias)
   const checkDb = dependencies.checkDatabase ?? defaultCheckDatabase;
@@ -81,6 +103,8 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const profileRepo = dependencies.profileRepo ?? new DrizzleProfileRepository(db);
   const roomRepo = dependencies.roomRepo ?? new DrizzleRoomListingRepository(db);
   const appRepo = dependencies.appRepo ?? new DrizzleApplicationRepository(db);
+  const compatibilityRepo =
+    dependencies.compatibilityRepo ?? new DrizzleCompatibilityRepository(db);
 
   // Módulos (Monolito Modular con MVC)
   // 1. Auth Module
@@ -115,7 +139,15 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const applicationsController = new ApplicationsController(applicationsService);
   app.route("/api/v1/applications", createApplicationsRoutes(applicationsController));
 
-  // 5. Messaging Module
+  // 5. Compatibility and affinity modules
+  const compatibilityService = new CompatibilityService(compatibilityRepo);
+  const compatibilityController = new CompatibilityController(compatibilityService);
+  app.route(
+    "/api/v1/compatibility",
+    createCompatibilityRoutes(compatibilityController),
+  );
+
+  // 6. Messaging Module
   const messageEvents = dependencies.messageEvents ?? new InMemoryMessageEventPublisher();
   const messagingService = new MessagingService(
     dependencies.messagingRepo ?? new DrizzleMessagingRepository(db),
@@ -124,7 +156,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const messagingController = new MessagingController(messagingService, messageEvents);
   app.route("/api/v1/messages", createMessagingRoutes(messagingController, authService));
 
-  // 6. Listing Moderation Module
+  // 7. Listing Moderation Module
   const moderationService = new ModerationService(
     dependencies.moderationRepo ?? new DrizzleModerationRepository(db),
     authDependencies.eventPublisher,

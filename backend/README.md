@@ -9,7 +9,7 @@ API construida con **Hono**, **TypeScript**, **Drizzle ORM** y **MySQL 8**. Impl
 Para mantener alta cohesión y bajo acoplamiento:
 1. **Un solo Dominio (`src/domain/`)**: Las entidades del negocio (`User`, `Profile`, `RoomListing`, `Application`, `CompatibilityProfile`) y las interfaces de los repositorios (`IUserRepository`, etc.) viven aquí. Son clases puras de TypeScript: **no tocan la base de datos, no usan Drizzle y no conocen HTTP**.
 2. **Módulos con MVC independiente (`src/modules/`)**:
-   - Cada módulo (`auth`, `profile`, `rooms`, `applications`, `messaging`, `moderation`) tiene:
+   - Cada módulo (`auth`, `profile`, `rooms`, `applications`, `compatibility`, `messaging`, `moderation`) tiene:
      - `*.controller.ts` (Controlador HTTP): Lee la petición, valida la entrada y delega al servicio.
      - `*.service.ts` (Servicio de Aplicación): Coordina los casos de uso y lógica del negocio llamando a los repositorios. **Nunca hace consultas SQL ni importa `db` directamente**.
      - `*.view.ts` (Vista / Serializador DTO): Decide qué datos salen al cliente, protegiendo campos privados (como hashes de contraseña).
@@ -62,6 +62,7 @@ backend/
 │   │   ├── profile/                   # Controller, Service, View, Routes
 │   │   ├── rooms/                     # Controller, Service, View, Routes
 │   │   ├── applications/              # Controller, Service, View, Routes
+│   │   ├── compatibility/             # Test y motor de afinidades
 │   │   ├── messaging/                 # Bandeja, historial, envío, lectura y SSE
 │   │   └── moderation/                # Denuncias y revisión de anuncios
 │   ├── infrastructure/
@@ -135,7 +136,32 @@ Las rutas privadas aceptan la cookie HTTP-only `roomlink_session` o `Authorizati
 
 ---
 
-## 4. Comandos de la Aplicación
+## 4. Test de compatibilidad y motor de afinidades
+
+El frontend consume estas rutas bajo `/api/v1/compatibility`:
+
+| Método | Ruta | Función |
+|---|---|---|
+| `GET` | `/:userId` | Recupera respuestas y resumen del test; devuelve `completed: false` si aún no existe. |
+| `PUT` | `/:userId` | Guarda las siete dimensiones como enteros de 1 a 5 y devuelve su resumen porcentual. |
+| `GET` | `/:userId/feed?page=1` | Devuelve hasta 12 perfiles activos, excluye al usuario actual y ordena por afinidad cuando ya completó el test. |
+| `GET` | `/:userId/candidates/:candidateId` | Recupera el detalle del perfil y su afinidad. |
+| `POST` | `/:userId/connections` | Crea una solicitud de conexión. Cuerpo: `{"candidateId":"<uuid>","introMessage":null}`. |
+
+Las dimensiones son `schedule`, `cleanliness`, `noise`, `pets`, `smoking`, `visits` y `genderPref`. La afinidad aplica los pesos iniciales `2, 3, 3, 2, 3, 2, 1`; la migración `0005_compatibility_weights.sql` actualiza los pesos instalados sin modificar migraciones previas. Las respuestas del test se guardan en MySQL y el borrador del frontend en AsyncStorage.
+
+### Configuración local del frontend
+
+1. Copia `frontend/Room_Link/.env.example` como `frontend/Room_Link/.env`.
+2. Define `EXPO_PUBLIC_API_URL` y `EXPO_PUBLIC_USER_ID` con la URL del backend y el UUID de un usuario activo con perfil.
+3. Para Expo Web se permite por defecto el origen `http://localhost:8081` (también `http://127.0.0.1:8081`). Si usas otro origen web, configúralo en `FRONTEND_ORIGIN`.
+4. En un emulador o dispositivo físico, usa como URL la dirección de red alcanzable del backend; `localhost` apunta al propio dispositivo.
+
+**Importante:** `EXPO_PUBLIC_USER_ID` es solo un mecanismo temporal de desarrollo. La API no autentica ni autoriza ese identificador; no se debe exponer en producción.
+
+---
+
+## 5. Comandos de la Aplicación
 
 | Comando | Acción |
 |---|---|
@@ -152,7 +178,7 @@ Las rutas privadas aceptan la cookie HTTP-only `roomlink_session` o `Authorizati
 
 ---
 
-## 5. Documentación de Drizzle ORM
+## 6. Documentación de Drizzle ORM
 
 Para aprender a realizar consultas (`select`), inserciones (`insert`), actualizaciones (`update`), joins y transacciones con Drizzle ORM, consulta:
 👉 **[Guía Completa de Drizzle ORM](../docs/drizzle-guide.md)**.

@@ -11,6 +11,46 @@ export interface CompatibilityProfileProps {
   updatedAt: Date;
 }
 
+export type CompatibilityDimension =
+  | "schedule"
+  | "cleanliness"
+  | "noise"
+  | "pets"
+  | "smoking"
+  | "visits"
+  | "genderPref";
+
+export type CompatibilityAnswers = Pick<
+  CompatibilityProfileProps,
+  CompatibilityDimension
+>;
+
+export const compatibilityDimensions: readonly CompatibilityDimension[] = [
+  "schedule",
+  "cleanliness",
+  "noise",
+  "pets",
+  "smoking",
+  "visits",
+  "genderPref",
+];
+
+export const defaultCompatibilityWeights: Record<CompatibilityDimension, number> = {
+  schedule: 2,
+  cleanliness: 3,
+  noise: 3,
+  pets: 2,
+  smoking: 3,
+  visits: 2,
+  genderPref: 1,
+};
+
+export interface CompatibilitySummary {
+  dimension: CompatibilityDimension;
+  percentage: number;
+  level: "bajo" | "medio" | "alto";
+}
+
 /**
  * Entidad de Dominio: CompatibilityProfile
  * Hábitos de convivencia y estilo de vida para cálculo de afinidad.
@@ -55,26 +95,56 @@ export class CompatibilityProfile {
     return this.props.genderPref;
   }
 
+  get completedAt(): Date {
+    return this.props.completedAt;
+  }
+
+  get updatedAt(): Date {
+    return this.props.updatedAt;
+  }
+
+  get answers(): CompatibilityAnswers {
+    return {
+      schedule: this.schedule,
+      cleanliness: this.cleanliness,
+      noise: this.noise,
+      pets: this.pets,
+      smoking: this.smoking,
+      visits: this.visits,
+      genderPref: this.genderPref,
+    };
+  }
+
+  public calculateSummary(): CompatibilitySummary[] {
+    return compatibilityDimensions.map((dimension) => {
+      const percentage = Math.round(((this.props[dimension] - 1) / 4) * 100);
+      return {
+        dimension,
+        percentage,
+        level: percentage <= 33 ? "bajo" : percentage <= 66 ? "medio" : "alto",
+      };
+    });
+  }
+
   /**
    * Calcula el porcentaje de afinidad con otro perfil de compatibilidad
    * Retorna un valor entre 0 y 100.
    */
-  public calculateAffinityWith(other: CompatibilityProfile): number {
-    const dimensions: (keyof Pick<
-      CompatibilityProfileProps,
-      "schedule" | "cleanliness" | "noise" | "pets" | "smoking" | "visits"
-    >)[] = ["schedule", "cleanliness", "noise", "pets", "smoking", "visits"];
+  public calculateAffinityWith(
+    other: CompatibilityProfile,
+    weights: Partial<Record<CompatibilityDimension, number>> = defaultCompatibilityWeights,
+  ): number {
+    let weightedDifference = 0;
+    let totalWeight = 0;
 
-    let totalDiff = 0;
-    const maxDiffPerDimension = 4; // Entre 1 y 5 la dif máx es 4
-
-    for (const dim of dimensions) {
-      totalDiff += Math.abs(this.props[dim] - other.props[dim]);
+    for (const dimension of compatibilityDimensions) {
+      const weight = weights[dimension] ?? defaultCompatibilityWeights[dimension];
+      weightedDifference +=
+        weight * Math.abs(this.props[dimension] - other.props[dimension]);
+      totalWeight += weight;
     }
 
-    const maxTotalDiff = dimensions.length * maxDiffPerDimension; // 6 * 4 = 24
-    const score = (1 - totalDiff / maxTotalDiff) * 100;
-    return Math.round(score * 100) / 100;
+    return Math.round((1 - weightedDifference / (4 * totalWeight)) * 100);
   }
 
   public toJSON(): Record<string, unknown> {
@@ -91,20 +161,7 @@ export class CompatibilityProfile {
   }
 
   private validateDimensions(props: CompatibilityProfileProps): void {
-    const fields: (keyof Pick<
-      CompatibilityProfileProps,
-      "schedule" | "cleanliness" | "noise" | "pets" | "smoking" | "visits" | "genderPref"
-    >)[] = [
-      "schedule",
-      "cleanliness",
-      "noise",
-      "pets",
-      "smoking",
-      "visits",
-      "genderPref",
-    ];
-
-    for (const field of fields) {
+    for (const field of compatibilityDimensions) {
       const val = props[field];
       if (!Number.isInteger(val) || val < 1 || val > 5) {
         throw new Error(
