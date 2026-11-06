@@ -1,16 +1,15 @@
 import { Hono } from "hono";
 import { db, checkDatabase as defaultCheckDatabase } from "./db/client.js";
-<<<<<<< HEAD
 import { config } from "./config.js";
-=======
 import { serveStatic } from "@hono/node-server/serve-static";
->>>>>>> 6882d88 (Actualiza modulo de anunios, ya se crea una publicacion)
 import {
   type IUserRepository,
   type IProfileRepository,
   type IRoomListingRepository,
   type IApplicationRepository,
   type ICompatibilityRepository,
+  type ISearchRepository,
+  type IAgreementRepository,
 } from "./domain/index.js";
 import {
   DrizzleUserRepository,
@@ -24,6 +23,8 @@ import {
   DrizzlePasswordResetRepository,
   DrizzleMessagingRepository,
   DrizzleModerationRepository,
+  DrizzleSearchRepository,
+  DrizzleAgreementRepository,
 } from "./infrastructure/repositories/index.js";
 import {
   AuthService,
@@ -70,6 +71,16 @@ import {
   CompatibilityController,
   createCompatibilityRoutes,
 } from "./modules/compatibility/index.js";
+import {
+  SearchService,
+  SearchController,
+  createSearchRoutes,
+} from "./modules/search/index.js";
+import {
+  AgreementsService,
+  AgreementsController,
+  createAgreementsRoutes,
+} from "./modules/agreements/index.js";
 import { cors } from "hono/cors";
 
 export interface AppDependencies {
@@ -83,6 +94,8 @@ export interface AppDependencies {
   messagingRepo?: MessagingRepository;
   messageEvents?: MessageEventPublisher;
   moderationRepo?: ModerationRepository;
+  searchRepo?: ISearchRepository;
+  agreementsRepo?: IAgreementRepository;
 }
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
@@ -175,6 +188,19 @@ app.use(
     "/api/v1/moderation",
     createModerationRoutes(moderationController, authService),
   );
+
+  // 8. Search Module (HU-05)
+  const searchRepo = dependencies.searchRepo ?? new DrizzleSearchRepository(db);
+  const searchService = new SearchService(searchRepo);
+  const searchController = new SearchController(searchService);
+  app.route("/api/v1/search", createSearchRoutes(searchController));
+
+  // 9. Agreements Module (HU-12)
+  const agreementsRepo =
+    dependencies.agreementsRepo ?? new DrizzleAgreementRepository(db);
+  const agreementsService = new AgreementsService(agreementsRepo);
+  const agreementsController = new AgreementsController(agreementsService);
+  app.route("/api/v1/agreements", createAgreementsRoutes(agreementsController));
 
   // Endpoints del sistema / orquestación
   app.get("/health", (context) =>
