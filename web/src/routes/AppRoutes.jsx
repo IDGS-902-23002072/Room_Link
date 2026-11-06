@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth.js'
 import { AppLink } from '../components/AppLink.jsx'
 import { navigate } from './navigation.js'
 import Questionnaire from '../features/compatibility/Questionnaire.jsx'
+import Recommendations from '../features/compatibility/Recommendations.jsx'
 
 function Shell({ children }) {
   const { session, logout } = useAuth()
@@ -71,9 +72,12 @@ function AppRoutes() {
   }
   if (!session || pathname === '/login') return <Login />
 
+  const candidateMatch = pathname.match(/^\/perfil\/candidato\/([^/]+)$/)
   const page = pathname === '/cuestionario' || pathname === '/resultados/test'
     ? <Questionnaire />
-    : pathname.startsWith('/admin/')
+    : pathname === '/explorar' || pathname === '/recomendados' || candidateMatch
+      ? <Recommendations candidateId={candidateMatch?.[1]} />
+      : pathname.startsWith('/admin/')
       ? session.user.roles?.includes('admin')
         ? <Dashboard />
         : <section className="notice notice-error">Esta sección es solo para administradores.</section>

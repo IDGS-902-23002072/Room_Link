@@ -163,3 +163,28 @@ export function saveCompatibilityTest(userId, answers, token) {
     body: JSON.stringify(answers),
   })
 }
+
+export function getRecommendationFeed(userId, page, token) {
+  return apiRequest(
+    `/api/v1/compatibility/${encodeURIComponent(userId)}/feed?page=${page}`,
+    { token },
+  )
+}
+
+export function getCandidate(userId, candidateId, token) {
+  return apiRequest(
+    `/api/v1/compatibility/${encodeURIComponent(userId)}/candidates/${encodeURIComponent(candidateId)}`,
+    { token },
+  )
+}
+
+export function sendConnectionRequest(userId, candidateId, token) {
+  return apiRequest(
+    `/api/v1/compatibility/${encodeURIComponent(userId)}/connections`,
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ candidateId, introMessage: null }),
+    },
+  )
+}
