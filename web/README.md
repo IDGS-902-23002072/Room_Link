@@ -1,4 +1,13 @@
-# React + Vite
+# RoomLink Web
+
+## Desarrollo local
+
+1. Copia `.env.example` como `.env` y configura `VITE_API_URL` con la dirección alcanzable del backend.
+2. Desde esta carpeta, ejecuta `npm install` si aún no están instaladas las dependencias.
+3. Inicia el sitio con `npm run dev`. Vite usa `http://localhost:5173` por defecto.
+4. Inicia sesión con una cuenta de la API. El cuestionario y las recomendaciones requieren un usuario activo; el dashboard requiere el rol `admin`.
+
+El backend permite por defecto el origen local de Vite. Si usas otro host/origen web, configura `FRONTEND_ORIGIN` en el backend. No guardes credenciales en variables `VITE_*`; son públicas en el navegador.
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

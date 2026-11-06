@@ -44,4 +44,21 @@ describe("Room_Link API health", () => {
       database: "disconnected",
     });
   });
+
+  it("allows the Vite web development origin for API requests", async () => {
+    const app = createApp();
+
+    const response = await app.request("/api/v1/auth/login", {
+      method: "OPTIONS",
+      headers: {
+        Origin: "http://localhost:5173",
+        "Access-Control-Request-Method": "POST",
+      },
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe(
+      "http://localhost:5173",
+    );
+  });
 });

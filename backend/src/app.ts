@@ -52,14 +52,17 @@ export interface AppDependencies {
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const app = new Hono();
-  const allowedOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:8081";
+  const allowedOrigins = new Set([
+    process.env.FRONTEND_ORIGIN ?? "http://localhost:8081",
+    "http://127.0.0.1:8081",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ]);
   app.use(
     "/api/*",
     cors({
       origin: (origin) =>
-        origin === allowedOrigin || origin === "http://127.0.0.1:8081"
-          ? origin
-          : null,
+        allowedOrigins.has(origin) ? origin : null,
       allowHeaders: ["Content-Type"],
       allowMethods: ["GET", "POST", "PUT", "OPTIONS"],
       maxAge: 600,
