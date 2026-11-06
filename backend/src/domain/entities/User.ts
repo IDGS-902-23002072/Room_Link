@@ -64,6 +64,22 @@ export class User {
     return this.props.createdAt;
   }
 
+  get failedLoginAttempts(): number {
+    return this.props.failedLoginAttempts ?? 0;
+  }
+
+  get lockedUntil(): Date | null | undefined {
+    return this.props.lockedUntil;
+  }
+
+  get lastLoginAt(): Date | null | undefined {
+    return this.props.lastLoginAt;
+  }
+
+  get updatedAt(): Date {
+    return this.props.updatedAt;
+  }
+
   public isActive(): boolean {
     return this.props.status === "active";
   }
@@ -74,6 +90,35 @@ export class User {
 
   public hasRole(role: UserRole): boolean {
     return this.props.roles?.includes(role) ?? false;
+  }
+
+  public isLocked(at: Date = new Date()): boolean {
+    return Boolean(this.props.lockedUntil && this.props.lockedUntil > at);
+  }
+
+  public recordFailedLogin(at: Date = new Date()): void {
+    this.props.failedLoginAttempts = (this.props.failedLoginAttempts ?? 0) + 1;
+    if (this.props.failedLoginAttempts >= 5) {
+      this.props.lockedUntil = new Date(at.getTime() + 15 * 60 * 1000);
+    }
+    this.props.updatedAt = at;
+  }
+
+  public recordSuccessfulLogin(at: Date = new Date()): void {
+    this.props.failedLoginAttempts = 0;
+    this.props.lockedUntil = null;
+    this.props.lastLoginAt = at;
+    this.props.updatedAt = at;
+  }
+
+  public changePassword(passwordHash: string, at: Date = new Date()): void {
+    if (!passwordHash) {
+      throw new Error("El hash de contraseña es requerido.");
+    }
+    this.props.passwordHash = passwordHash;
+    this.props.failedLoginAttempts = 0;
+    this.props.lockedUntil = null;
+    this.props.updatedAt = at;
   }
 
   public verifyEmail(date: Date = new Date()): void {
@@ -88,6 +133,7 @@ export class User {
       status: this.props.status,
       roles: this.props.roles,
       emailVerifiedAt: this.props.emailVerifiedAt,
+      lastLoginAt: this.props.lastLoginAt,
       createdAt: this.props.createdAt,
     };
   }

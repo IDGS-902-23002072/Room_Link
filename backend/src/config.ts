@@ -17,6 +17,12 @@ export const config = {
     password: process.env.DB_PASSWORD ?? "roomlink_school",
     database: process.env.DB_NAME ?? "roomlink",
   },
+  auth: {
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
+    secureCookies:
+      process.env.COOKIE_SECURE === "true" ||
+      (process.env.COOKIE_SECURE !== "false" && process.env.NODE_ENV === "production"),
+  },
 } as const;
 
 export const databaseUrl = `mysql://${encodeURIComponent(config.database.user)}:${encodeURIComponent(config.database.password)}@${config.database.host}:${config.database.port}/${config.database.database}`;

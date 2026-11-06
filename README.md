@@ -2,7 +2,7 @@
 
 Aplicación móvil (Expo + React Native, TypeScript) con backend propio (Hono + TypeScript).
 
-> Estado: la app móvil y el backend están en desarrollo. Los módulos de test de compatibilidad y motor de afinidades ya consumen endpoints del backend.
+> Estado: la app móvil y el backend están en desarrollo. Los módulos de test de compatibilidad y motor de afinidades ya consumen endpoints del backend. Los módulos de César (autenticación, mensajería y moderación de publicaciones) están implementados en backend y en las nueve vistas Expo/React Native correspondientes.
 
 ## Estructura
 
@@ -71,6 +71,8 @@ Cuatro workflows en `.github/workflows/`:
 ## Próximos pasos
 
 1. Completar y validar los módulos restantes conforme a los requerimientos.
-2. Crear el GitHub Project (`Room_Link`) y las labels (`scripts/setup-labels.ps1`).
-3. Configurar branch protection para `main` y `develop` en Settings → Branches.
-4. (Opcional) Agregar `EXPO_TOKEN` como secret del repo para `release.yml`.
+2. Levantar MySQL y ejecutar las pruebas de integración con las credenciales documentadas.
+3. Integrar los módulos de los demás integrantes mediante los puertos existentes.
+4. Crear el GitHub Project (`Room_Link`) y las labels (`scripts/setup-labels.ps1`).
+5. Configurar branch protection para `main` y `develop` en Settings → Branches.
+6. (Opcional) Agregar `EXPO_TOKEN` como secret del repo para `release.yml`.
