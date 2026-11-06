@@ -43,20 +43,27 @@ export default function NavegacionPestanas() {
 
 function BotonPestana({ children, isFocused, ...props }: TabTriggerSlotProps) {
   const etiqueta = String(children);
+
   return (
     <Pressable
       {...props}
+      ref={undefined}
       accessibilityRole="tab"
       accessibilityState={{ selected: isFocused }}
       style={({ pressed }) => [
         styles.botonPestana,
         isFocused && styles.pestanaActiva,
         pressed && styles.presionado,
-      ]}>
+      ]}
+    >
       <Text style={[styles.icono, isFocused && styles.iconoActivo]}>
         {iconos[etiqueta]}
       </Text>
-      <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
+
+      <ThemedText
+        type="small"
+        themeColor={isFocused ? 'text' : 'textSecondary'}
+      >
         {children}
       </ThemedText>
     </Pressable>

@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
 
 export default function Inicio() {
-  return <Redirect href="/explorar" />;
+  return <Redirect href="/anuncios" />;
 }

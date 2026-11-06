@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { customType } from "drizzle-orm/mysql-core";
 import {
   boolean,
   char,
@@ -19,6 +20,15 @@ import {
 import { authUsers } from "./auth.js";
 import { costKinds, listingStatuses } from "./enums.js";
 import { geoLocations } from "./geo.js";
+
+const longblob = customType<{
+  data: Buffer;
+  driverData: Buffer;
+}>({
+  dataType() {
+    return "longblob";
+  },
+});
 
 export const roomListings = mysqlTable(
   "room_listings",
@@ -72,7 +82,9 @@ export const roomPhotos = mysqlTable(
     listingId: char("listing_id", { length: 36 })
       .notNull()
       .references(() => roomListings.id, { onDelete: "cascade" }),
-    url: text("url").notNull(),
+    fileName: varchar("file_name", { length: 255 }).notNull(),
+    mimeType: varchar("mime_type", { length: 100 }).notNull(),
+    imageData: longblob("image_data").notNull(),
     position: smallint("position", { unsigned: true }).notNull(),
     createdAt: timestamp("created_at", { fsp: 6 }).notNull().defaultNow(),
   },

@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import { db, checkDatabase as defaultCheckDatabase } from "./db/client.js";
+<<<<<<< HEAD
 import { config } from "./config.js";
+=======
+import { serveStatic } from "@hono/node-server/serve-static";
+>>>>>>> 6882d88 (Actualiza modulo de anunios, ya se crea una publicacion)
 import {
   type IUserRepository,
   type IProfileRepository,
@@ -83,6 +87,11 @@ export interface AppDependencies {
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const app = new Hono();
+  // Permitir consultar las fotografías almacenadas
+app.use(
+  "/uploads/*",
+  serveStatic({ root: "./" })
+);
   const allowedOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:8081";
   app.use(
     "/api/*",
