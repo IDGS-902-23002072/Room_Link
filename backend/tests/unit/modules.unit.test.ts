@@ -179,6 +179,13 @@ describe("Modular Monolith MVC API", () => {
     authDependencies: authFakes.dependencies,
   });
 
+  // Token de sesión compartido por los tests que llegan tras el login.
+  let sessionToken = "";
+  const authHeaders = (extra: Record<string, string> = {}) => ({
+    ...extra,
+    Authorization: `Bearer ${sessionToken}`,
+  });
+
   describe("Auth Module", () => {
     it("registers a new user and returns public view (sanitized)", async () => {
       const res = await app.request("/api/v1/auth/register", {
@@ -217,16 +224,26 @@ describe("Modular Monolith MVC API", () => {
 
       expect(data.token).toBeDefined();
       expect(data.user.email).toBe("nuevo_estudiante@uni.edu");
+
+      sessionToken = data.token;
+    });
+
+    it("rejects protected routes without session", async () => {
+      const res = await app.request("/api/v1/profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName: "X", birthDate: "2000-01-01" }),
+      });
+      expect(res.status).toBe(401);
     });
   });
 
   describe("Profile Module", () => {
-    it("creates a student profile and calculates age", async () => {
+    it("creates a student profile for the authenticated user", async () => {
       const res = await app.request("/api/v1/profiles", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
-          userId: "user-123",
           fullName: "Ana García",
           birthDate: "2002-05-15",
           occupation: "Estudiante de Ingeniería",
@@ -246,58 +263,39 @@ describe("Modular Monolith MVC API", () => {
   describe("Rooms Module", () => {
     let createdRoomId = "";
 
-    it("creates a draft room listing", async () => {
-      // Recuperamos el usuario creado en la prueba de registro.
-      const host = await userRepo.findByEmail(
-        "nuevo_estudiante@uni.edu"
-      );
-
+    it("creates a draft room listing (hostId taken from session)", async () => {
+      const host = await userRepo.findByEmail("nuevo_estudiante@uni.edu");
       expect(host).not.toBeNull();
 
-      // FormData permite enviar campos y archivos en una sola petición.
       const formData = new FormData();
-
-      formData.append("hostId", host!.id);
-      formData.append(
-        "titulo",
-        "Cuarto amueblado a 5 min del campus"
-      );
+      // No se envía hostId: el backend lo toma de la sesión.
+      formData.append("titulo", "Cuarto amueblado a 5 min del campus");
       formData.append("renta", "2800");
-      formData.append(
-        "descripcion",
-        "Incluye agua e internet."
-      );
-      formData.append(
-        "ubicacion",
-        "Calle de prueba 123, León, Guanajuato"
-      );
+      formData.append("descripcion", "Incluye agua e internet.");
+      formData.append("ubicacion", "Calle de prueba 123, León, Guanajuato");
       formData.append("latitude", "21.1221");
       formData.append("longitude", "-101.683");
 
       const res = await app.request("/api/v1/rooms", {
         method: "POST",
+        headers: authHeaders(),
         body: formData,
       });
 
       const data = await res.json();
 
-      // Si falla, Vitest mostrará el mensaje del backend.
       expect(res.status, JSON.stringify(data)).toBe(201);
-      expect(data.title).toBe(
-        "Cuarto amueblado a 5 min del campus"
-      );
+      expect(data.title).toBe("Cuarto amueblado a 5 min del campus");
       expect(data.status).toBe("draft");
 
       createdRoomId = data.id;
     });
 
     it("rejects publishing room without enough photos", async () => {
-      const res = await app.request(
-        `/api/v1/rooms/${createdRoomId}/publish`,
-        {
-          method: "PATCH",
-        }
-      );
+      const res = await app.request(`/api/v1/rooms/${createdRoomId}/publish`, {
+        method: "PATCH",
+        headers: authHeaders(),
+      });
 
       expect(res.status).toBe(400);
 
@@ -305,16 +303,22 @@ describe("Modular Monolith MVC API", () => {
 
       expect(data.error).toMatch(/al menos 3 fotografías/);
     });
+
+    it("rejects publish without session", async () => {
+      const res = await app.request(`/api/v1/rooms/${createdRoomId}/publish`, {
+        method: "PATCH",
+      });
+      expect(res.status).toBe(401);
+    });
   });
 
   describe("Applications Module", () => {
-    it("submits application for a listing", async () => {
+    it("submits application for a listing (applicantId from session)", async () => {
       const res = await app.request("/api/v1/applications", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           listingId: "listing-abc",
-          applicantId: "user-456",
           message: "Hola, me interesa mucho el cuarto.",
           compatibilityScore: 92.5,
         }),
@@ -326,6 +330,15 @@ describe("Modular Monolith MVC API", () => {
 
       expect(data.status).toBe("pending");
       expect(data.compatibilityScore).toBe(92.5);
+    });
+
+    it("rejects application without session", async () => {
+      const res = await app.request("/api/v1/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId: "listing-abc" }),
+      });
+      expect(res.status).toBe(401);
     });
   });
 });
