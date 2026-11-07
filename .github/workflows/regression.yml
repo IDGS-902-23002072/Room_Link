@@ -1,0 +1,111 @@
+name: Regression
+
+# Gate de regresión obligatorio al llegar a `main`. Ejecuta:
+# typecheck → db:check → migraciones → unit → integration → smoke.
+# Un fallo en cualquier etapa rompe el merge.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: regression-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  regression-backend:
+    name: Backend · regression gate
+    runs-on: ubuntu-latest
+    if: hashFiles('backend/package.json') != ''
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: roomlink_root
+          MYSQL_DATABASE: roomlink
+          MYSQL_USER: roomlink_app
+          MYSQL_PASSWORD: roomlink_school
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proomlink_root --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Validate Drizzle migrations
+        run: bun run db:check
+
+      - name: Apply migrations
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASSWORD: roomlink_root
+          DB_NAME: roomlink
+        run: bun run db:migrate:bun
+
+      - name: Unit tests
+        run: bun run test:unit:bun
+
+      - name: Integration tests
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: roomlink_app
+          DB_PASSWORD: roomlink_school
+          DB_NAME: roomlink
+        run: bunx --bun vitest run tests/integration/
+
+      - name: Smoke / regression suite
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: roomlink_app
+          DB_PASSWORD: roomlink_school
+          DB_NAME: roomlink
+        run: bunx --bun vitest run tests/smoke/
+
+      - name: npm audit (informativo, no falla el gate)
+        continue-on-error: true
+        run: |
+          echo "::group::Advisories de dependencias"
+          bun install --frozen-lockfile >/dev/null
+          npm audit --omit=dev || true
+          echo "Nota: las vulnerabilidades moderadas en tooling de dev (esbuild transitiva por drizzle-kit) están aceptadas; ver .docs/session_state.md."
+          echo "::endgroup::"
+
+      - name: Upload coverage (si existe)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-regression-backend
+          path: backend/coverage
+          if-no-files-found: ignore
+
+  regression-bootstrap-notice:
+    name: Nothing initialized yet
+    runs-on: ubuntu-latest
+    if: hashFiles('backend/package.json') == ''
+    steps:
+      - run: echo "::notice::backend/package.json no existe. El gate de regresión pasa vacío hasta que el backend esté inicializado."
