@@ -5,6 +5,8 @@ import type { RoomsService } from "./rooms.service.js";
 
 import { RoomView } from "./rooms.view.js";
 
+import type { AuthVariables } from "../auth/index.js";
+
 import type { RoomPhotoInput } from "../../domain/index.js";
 
 import { randomUUID } from "node:crypto";
@@ -12,6 +14,8 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 
 import { resolve } from "node:path";
+
+type AuthContext = Context<{ Variables: AuthVariables }>;
 
 export class RoomsController {
   constructor(private roomsService: RoomsService) {}
@@ -134,7 +138,7 @@ export class RoomsController {
 
   // Subir fotografías al almacenamiento anterior
   // Se conserva este método para no eliminar funcionalidad existente.
-  uploadPhotos = async (c: Context) => {
+  uploadPhotos = async (c: AuthContext) => {
     try {
       const body = await c.req.parseBody({ all: true });
       const received = body["photos"];
@@ -217,7 +221,7 @@ export class RoomsController {
   };
 
   // Crear habitación y almacenar sus fotografías en MySQL
-  create = async (c: Context) => {
+  create = async (c: AuthContext) => {
     try {
       const body = await c.req.parseBody({ all: true });
 
@@ -228,7 +232,8 @@ export class RoomsController {
         return Array.isArray(value) ? value[0] : value;
       };
 
-      const hostId = getValue("hostId");
+      // El hostId siempre viene de la sesión, no del body
+      const hostId: string = c.get("auth").userId;
 
       const title =
         getValue("titulo") ?? getValue("title");
@@ -258,14 +263,6 @@ export class RoomsController {
         maxRoommatesValue != null && maxRoommatesValue !== ""
           ? Number(maxRoommatesValue)
           : null;
-
-      // Validar usuario
-      if (typeof hostId !== "string" || !hostId.trim()) {
-        return c.json(
-          { error: "El usuario es obligatorio" },
-          400
-        );
-      }
 
       // Validar título
       if (
@@ -411,7 +408,7 @@ export class RoomsController {
 
       // Crear habitación y guardar fotografías en MySQL.
       const room = await this.roomsService.createListing({
-        hostId: hostId.trim(),
+        hostId,
         title: title.trim(),
         description:
           typeof description === "string"
@@ -438,12 +435,19 @@ export class RoomsController {
   };
 
   // Publicar habitación creada
-  publish = async (c: Context) => {
+  publish = async (c: AuthContext) => {
     try {
       const id = c.req.param("id");
 
       if (!id) {
         return c.json({ error: "El ID es obligatorio" }, 400);
+      }
+
+      // Validar que el caller es el dueño del listing (o admin)
+      const existing = await this.roomsService.getById(id);
+      const principal = c.get("auth");
+      if (existing.hostId !== principal.userId && !principal.roles.includes("admin")) {
+        return c.json({ error: "Solo el anfitrión puede publicar esta habitación.", code: "FORBIDDEN" }, 403);
       }
 
       const room = await this.roomsService.publishListing(id);
