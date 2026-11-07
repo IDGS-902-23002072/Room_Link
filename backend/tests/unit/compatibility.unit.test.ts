@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../../src/app.js";
 import { CompatibilityProfile } from "../../src/domain/entities/CompatibilityProfile.js";
+import { User } from "../../src/domain/entities/User.js";
 import type {
   CompatibilityFeedCandidate,
   ConnectionRequest,
@@ -10,6 +11,10 @@ import {
   CompatibilityError,
   CompatibilityService,
 } from "../../src/modules/compatibility/compatibility.service.js";
+import {
+  InMemoryUserRepository,
+  createAuthFakes,
+} from "../helpers/auth-fakes.js";
 
 const answers = {
   schedule: 3,
@@ -182,11 +187,46 @@ describe("Compatibility module", () => {
         compatibilitySummary: null,
       },
     ];
-    const app = createApp({ compatibilityRepo: repository });
+
+    // Auth: pre-cargo un usuario con id "viewer" para que la sesión emitida
+    // coincida con el :userId esperado por estas rutas.
+    const userRepo = new InMemoryUserRepository();
+    const now = new Date("2026-11-05T12:00:00.000Z");
+    userRepo.users.set(
+      "viewer",
+      new User({
+        id: "viewer",
+        email: "viewer@roomlink.test",
+        passwordHash: "hash:password",
+        status: "active",
+        roles: ["seeker"],
+        termsAcceptedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    );
+    const authFakes = createAuthFakes();
+    const app = createApp({
+      compatibilityRepo: repository,
+      userRepo,
+      authDependencies: authFakes.dependencies,
+    });
+
+    const login = await app.request("/api/v1/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "viewer@roomlink.test",
+        password: "password",
+      }),
+    });
+    expect(login.status).toBe(200);
+    const token = (await login.json()).token as string;
+    const auth = { Authorization: `Bearer ${token}` };
 
     const saveResponse = await app.request("/api/v1/compatibility/viewer", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...auth, "Content-Type": "application/json" },
       body: JSON.stringify(answers),
     });
     const saved = await saveResponse.json();
@@ -196,6 +236,7 @@ describe("Compatibility module", () => {
 
     const feedResponse = await app.request(
       "/api/v1/compatibility/viewer/feed?page=1",
+      { headers: auth },
     );
     const feed = await feedResponse.json();
     expect(feedResponse.status).toBe(200);
@@ -204,6 +245,7 @@ describe("Compatibility module", () => {
 
     const detailResponse = await app.request(
       "/api/v1/compatibility/viewer/candidates/candidate",
+      { headers: auth },
     );
     expect(detailResponse.status).toBe(200);
     await expect(detailResponse.json()).resolves.toMatchObject({
@@ -215,7 +257,7 @@ describe("Compatibility module", () => {
       "/api/v1/compatibility/viewer/connections",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...auth, "Content-Type": "application/json" },
         body: JSON.stringify({ candidateId: "candidate", introMessage: null }),
       },
     );
@@ -228,7 +270,18 @@ describe("Compatibility module", () => {
 
     const invalidResponse = await app.request(
       "/api/v1/compatibility/viewer/feed?page=0",
+      { headers: auth },
     );
     expect(invalidResponse.status).toBe(400);
+
+    // Sin sesión: la ruta protegida devuelve 401.
+    const anon = await app.request("/api/v1/compatibility/viewer/feed?page=1");
+    expect(anon.status).toBe(401);
+
+    // Con sesión válida pero :userId distinto: forbidden.
+    const otherUser = await app.request("/api/v1/compatibility/other/feed?page=1", {
+      headers: auth,
+    });
+    expect(otherUser.status).toBe(403);
   });
 });
