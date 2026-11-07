@@ -175,6 +175,33 @@ Las dimensiones son `schedule`, `cleanliness`, `noise`, `pets`, `smoking`, `visi
 | `npm run db:migrate` | Aplica las migraciones SQL a MySQL. |
 | `npm run db:check` | Comprueba consistencia en migraciones Drizzle. |
 | `npm run db:studio` | **Drizzle Studio**: Abre el gestor visual de base de datos en `https://local.drizzle.studio`. |
+| `npm run test:smoke` | Suite de regresión end-to-end sobre fakes in-memory (11 pasos encadenados). |
+| `npm run test:regression` | Gate local completo: typecheck + db:check + unit + integration + smoke (equivalente al workflow `regression.yml`). |
+
+---
+
+## 7. Gate de regresión en CI
+
+El workflow [`.github/workflows/regression.yml`](../.github/workflows/regression.yml) corre automáticamente en:
+
+- `pull_request` contra `main`.
+- `push` a `main`.
+- `workflow_dispatch` (manual).
+
+Encadena en orden: `typecheck` → `db:check` → `db:migrate` → `test:unit` → `test:integration` → `test:smoke`. Un fallo en cualquier paso rompe el merge. Corre contra un servicio MySQL 8.4 levantado en el job (no usa una DB externa).
+
+El paso de `npm audit` queda informativo (no falla el gate); las vulnerabilidades moderadas en tooling de dev están aceptadas en `.docs/session_state.md`.
+
+### Branch protection sugerida
+
+En GitHub → **Settings → Branches → Branch protection rules** para `main`, habilitar:
+
+- **Require a pull request before merging**.
+- **Require status checks to pass before merging**, seleccionando `Backend · regression gate`.
+- **Require branches to be up to date before merging**.
+- **Do not allow bypassing the above settings**.
+
+Esto requiere permisos administrativos en el repositorio; se documenta acá para activarlo una sola vez.
 
 ---
 

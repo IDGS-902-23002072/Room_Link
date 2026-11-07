@@ -1,11 +1,14 @@
 import type { Context } from "hono";
+import type { AuthVariables } from "../auth/index.js";
 import type { ProfileService } from "./profile.service.js";
 import { ProfileView } from "./profile.view.js";
+
+type AuthContext = Context<{ Variables: AuthVariables }>;
 
 export class ProfileController {
   constructor(private profileService: ProfileService) {}
 
-  getProfile = async (c: Context) => {
+  getProfile = async (c: AuthContext) => {
     try {
       const userId = c.req.param("userId");
       if (!userId) {
@@ -18,18 +21,15 @@ export class ProfileController {
     }
   };
 
-  createProfile = async (c: Context) => {
+  createProfile = async (c: AuthContext) => {
     try {
       const body = await c.req.json();
-      if (!body.userId || !body.fullName || !body.birthDate) {
-        return c.json(
-          { error: "userId, fullName y birthDate son obligatorios" },
-          400,
-        );
+      if (!body.fullName || !body.birthDate) {
+        return c.json({ error: "fullName y birthDate son obligatorios" }, 400);
       }
 
       const profile = await this.profileService.createProfile({
-        userId: body.userId,
+        userId: c.get("auth").userId,
         fullName: body.fullName,
         birthDate: body.birthDate,
         occupation: body.occupation,
@@ -43,7 +43,7 @@ export class ProfileController {
     }
   };
 
-  updateProfile = async (c: Context) => {
+  updateProfile = async (c: AuthContext) => {
     try {
       const userId = c.req.param("userId");
       if (!userId) {

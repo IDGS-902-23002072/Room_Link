@@ -41,3 +41,15 @@ export const requireAdmin: MiddlewareHandler<{ Variables: AuthVariables }> = asy
   }
   await next();
 };
+
+export const requireSelfOrAdmin = (
+  paramName: string,
+): MiddlewareHandler<{ Variables: AuthVariables }> => async (context, next) => {
+  const principal = context.get("auth");
+  const target = context.req.param(paramName);
+  if (principal.roles.includes("admin") || principal.userId === target) {
+    await next();
+    return;
+  }
+  return context.json({ error: "No autorizado para acceder a este recurso.", code: "FORBIDDEN" }, 403);
+};

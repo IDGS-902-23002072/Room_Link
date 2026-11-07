@@ -1,23 +1,28 @@
-
 import { Hono } from "hono";
+import {
+  createAuthMiddleware,
+  type AuthService,
+  type AuthVariables,
+} from "../auth/index.js";
 import type { RoomsController } from "./rooms.controller.js";
 
 export const createRoomsRoutes = (
-  controller: RoomsController
-): Hono => {
-  const router = new Hono();
+  controller: RoomsController,
+  authService: AuthService,
+): Hono<{ Variables: AuthVariables }> => {
+  const router = new Hono<{ Variables: AuthVariables }>();
+  const authenticate = createAuthMiddleware(authService);
 
+  // Rutas públicas de consulta
   router.get("/", controller.list);
   router.get("/host/:hostId", controller.listByHost);
-
-  // Recuperar una fotografía de una habitación.
   router.get("/:id/photos/:photoId", controller.getPhoto);
-
   router.get("/:id", controller.getById);
 
-  router.post("/", controller.create);
-  router.patch("/:id/publish", controller.publish);
-  router.post("/photos", controller.uploadPhotos);
+  // Rutas que requieren sesión; el hostId viene de la sesión, no del body
+  router.post("/", authenticate, controller.create);
+  router.patch("/:id/publish", authenticate, controller.publish);
+  router.post("/photos", authenticate, controller.uploadPhotos);
 
   return router;
 };

@@ -1,0 +1,416 @@
+{
+  "info": {
+    "name": "Room_Link Backend",
+    "_postman_id": "e6f8a9c0-roomlink-full-backend",
+    "description": "Colección completa del backend Room_Link. Flujo recomendado: ejecutar primero `Auth > Login` para poblar la variable `{{token}}`; todas las demás llamadas privadas la consumen automáticamente.\n\nVariables de entorno sugeridas:\n- base: http://localhost:3000\n- token: (se setea con el test script del login)\n- listingId / connectionId / roomId / applicationId / agreementId / reportId / sanctionId: ids obtenidos tras crear recursos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base", "value": "http://localhost:3000" },
+    { "key": "token", "value": "" },
+    { "key": "listingId", "value": "" },
+    { "key": "connectionId", "value": "" },
+    { "key": "roomId", "value": "" },
+    { "key": "applicationId", "value": "" },
+    { "key": "agreementId", "value": "" },
+    { "key": "reportId", "value": "" },
+    { "key": "sanctionId", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "messageId", "value": "" },
+    { "key": "notificationId", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": { "method": "GET", "url": "{{base}}/health", "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "GET /ready",
+          "request": { "method": "GET", "url": "{{base}}/ready", "auth": { "type": "noauth" } }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /api/v1/auth/register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.token) pm.collectionVariables.set('token', body.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo@roomlink.test\",\n  \"password\": \"password123\",\n  \"termsAccepted\": true,\n  \"role\": \"seeker\"\n}"
+            },
+            "url": "{{base}}/api/v1/auth/register"
+          }
+        },
+        {
+          "name": "POST /api/v1/auth/login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.token) pm.collectionVariables.set('token', body.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo@roomlink.test\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": "{{base}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "POST /api/v1/auth/oauth/google",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"<GOOGLE_ID_TOKEN>\",\n  \"termsAccepted\": true\n}"
+            },
+            "url": "{{base}}/api/v1/auth/oauth/google"
+          }
+        },
+        {
+          "name": "POST /api/v1/auth/password/forgot",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo@roomlink.test\"\n}"
+            },
+            "url": "{{base}}/api/v1/auth/password/forgot"
+          }
+        },
+        {
+          "name": "POST /api/v1/auth/password/reset",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<RESET_TOKEN>\",\n  \"password\": \"nuevoPassword123\"\n}"
+            },
+            "url": "{{base}}/api/v1/auth/password/reset"
+          }
+        },
+        { "name": "GET /api/v1/auth/me", "request": { "method": "GET", "url": "{{base}}/api/v1/auth/me" } },
+        { "name": "POST /api/v1/auth/logout", "request": { "method": "POST", "url": "{{base}}/api/v1/auth/logout" } }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        { "name": "GET /api/v1/profiles/:userId", "request": { "method": "GET", "url": "{{base}}/api/v1/profiles/{{userId}}" } },
+        {
+          "name": "POST /api/v1/profiles",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Ana García\",\n  \"birthDate\": \"2002-05-15\",\n  \"occupation\": \"Estudiante de Ingeniería\",\n  \"bio\": \"Tranquila y ordenada.\",\n  \"phone\": null\n}"
+            },
+            "url": "{{base}}/api/v1/profiles"
+          }
+        },
+        {
+          "name": "PUT /api/v1/profiles/:userId",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"bio\": \"Nueva bio\"\n}" },
+            "url": "{{base}}/api/v1/profiles/{{userId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rooms",
+      "item": [
+        { "name": "GET /api/v1/rooms", "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{base}}/api/v1/rooms?limit=20&offset=0" } },
+        { "name": "GET /api/v1/rooms/:id", "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{base}}/api/v1/rooms/{{listingId}}" } },
+        { "name": "GET /api/v1/rooms/host/:hostId", "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{base}}/api/v1/rooms/host/{{userId}}" } },
+        {
+          "name": "POST /api/v1/rooms (multipart)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "titulo", "value": "Cuarto amueblado cerca del campus", "type": "text" },
+                { "key": "renta", "value": "2800", "type": "text" },
+                { "key": "descripcion", "value": "Incluye agua e internet.", "type": "text" },
+                { "key": "ubicacion", "value": "Calle 123, León, Guanajuato", "type": "text" },
+                { "key": "latitude", "value": "21.1221", "type": "text" },
+                { "key": "longitude", "value": "-101.683", "type": "text" },
+                { "key": "availableFrom", "value": "2026-12-01", "type": "text" },
+                { "key": "maxRoommates", "value": "2", "type": "text" },
+                { "key": "photos", "type": "file", "src": [] }
+              ]
+            },
+            "url": "{{base}}/api/v1/rooms"
+          }
+        },
+        { "name": "PATCH /api/v1/rooms/:id/publish", "request": { "method": "PATCH", "url": "{{base}}/api/v1/rooms/{{listingId}}/publish" } },
+        {
+          "name": "POST /api/v1/rooms/photos (multipart)",
+          "request": {
+            "method": "POST",
+            "body": { "mode": "formdata", "formdata": [{ "key": "photos", "type": "file", "src": [] }] },
+            "url": "{{base}}/api/v1/rooms/photos"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Applications",
+      "item": [
+        {
+          "name": "POST /api/v1/applications",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"listingId\": \"{{listingId}}\",\n  \"message\": \"Me interesa el cuarto.\",\n  \"compatibilityScore\": 92.5\n}" },
+            "url": "{{base}}/api/v1/applications"
+          }
+        },
+        { "name": "GET /api/v1/applications/listing/:listingId", "request": { "method": "GET", "url": "{{base}}/api/v1/applications/listing/{{listingId}}" } },
+        {
+          "name": "PATCH /api/v1/applications/:id/decide",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"decision\": \"accept\"\n}" },
+            "url": "{{base}}/api/v1/applications/{{applicationId}}/decide"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Compatibility",
+      "item": [
+        { "name": "GET /api/v1/compatibility/:userId", "request": { "method": "GET", "url": "{{base}}/api/v1/compatibility/{{userId}}" } },
+        {
+          "name": "PUT /api/v1/compatibility/:userId",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"schedule\": 3,\n  \"cleanliness\": 4,\n  \"noise\": 3,\n  \"pets\": 2,\n  \"smoking\": 1,\n  \"visits\": 3,\n  \"genderPref\": 3\n}" },
+            "url": "{{base}}/api/v1/compatibility/{{userId}}"
+          }
+        },
+        { "name": "GET /api/v1/compatibility/:userId/feed", "request": { "method": "GET", "url": "{{base}}/api/v1/compatibility/{{userId}}/feed?page=1" } },
+        { "name": "GET /api/v1/compatibility/:userId/candidates/:candidateId", "request": { "method": "GET", "url": "{{base}}/api/v1/compatibility/{{userId}}/candidates/{{userId}}" } },
+        {
+          "name": "POST /api/v1/compatibility/:userId/connections",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"candidateId\": \"<CANDIDATE_UUID>\",\n  \"introMessage\": null\n}" },
+            "url": "{{base}}/api/v1/compatibility/{{userId}}/connections"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Connections",
+      "item": [
+        { "name": "GET /api/v1/connections", "request": { "method": "GET", "url": "{{base}}/api/v1/connections?direction=all" } },
+        {
+          "name": "PATCH /api/v1/connections/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"decision\": \"accept\",\n  \"responseMessage\": \"Hola\"\n}" },
+            "url": "{{base}}/api/v1/connections/{{connectionId}}"
+          }
+        },
+        { "name": "DELETE /api/v1/connections/:id", "request": { "method": "DELETE", "url": "{{base}}/api/v1/connections/{{connectionId}}" } }
+      ]
+    },
+    {
+      "name": "Messaging",
+      "item": [
+        { "name": "GET /api/v1/messages (inbox)", "request": { "method": "GET", "url": "{{base}}/api/v1/messages" } },
+        {
+          "name": "POST /api/v1/messages/rooms",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"connectionId\": \"{{connectionId}}\"\n}" },
+            "url": "{{base}}/api/v1/messages/rooms"
+          }
+        },
+        { "name": "GET /api/v1/messages/rooms/:roomId/messages", "request": { "method": "GET", "url": "{{base}}/api/v1/messages/rooms/{{roomId}}/messages?limit=50" } },
+        {
+          "name": "POST /api/v1/messages/rooms/:roomId/messages",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"body\": \"Hola!\"\n}" },
+            "url": "{{base}}/api/v1/messages/rooms/{{roomId}}/messages"
+          }
+        },
+        { "name": "PATCH /api/v1/messages/rooms/:roomId/delivered", "request": { "method": "PATCH", "url": "{{base}}/api/v1/messages/rooms/{{roomId}}/delivered" } },
+        { "name": "PATCH /api/v1/messages/rooms/:roomId/read", "request": { "method": "PATCH", "url": "{{base}}/api/v1/messages/rooms/{{roomId}}/read" } },
+        { "name": "GET /api/v1/messages/rooms/:roomId/context", "request": { "method": "GET", "url": "{{base}}/api/v1/messages/rooms/{{roomId}}/context" } },
+        { "name": "GET /api/v1/messages/rooms/:roomId/events (SSE)", "request": { "method": "GET", "url": "{{base}}/api/v1/messages/rooms/{{roomId}}/events" } }
+      ]
+    },
+    {
+      "name": "Agreements",
+      "item": [
+        {
+          "name": "POST /api/v1/agreements",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"listingId\": \"{{listingId}}\",\n  \"rules\": { \"quietHours\": \"22-07\", \"smoking\": \"no\", \"pets\": \"preguntar\" }\n}" },
+            "url": "{{base}}/api/v1/agreements"
+          }
+        },
+        { "name": "GET /api/v1/agreements/:id", "request": { "method": "GET", "url": "{{base}}/api/v1/agreements/{{agreementId}}" } },
+        { "name": "POST /api/v1/agreements/:id/accept", "request": { "method": "POST", "url": "{{base}}/api/v1/agreements/{{agreementId}}/accept" } },
+        { "name": "GET /api/v1/agreements/:id/acceptances", "request": { "method": "GET", "url": "{{base}}/api/v1/agreements/{{agreementId}}/acceptances" } }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        { "name": "GET /api/v1/notifications", "request": { "method": "GET", "url": "{{base}}/api/v1/notifications?unreadOnly=false&limit=25&offset=0" } },
+        { "name": "PATCH /api/v1/notifications/:id/read", "request": { "method": "PATCH", "url": "{{base}}/api/v1/notifications/{{notificationId}}/read" } },
+        { "name": "POST /api/v1/notifications/mark-all-read", "request": { "method": "POST", "url": "{{base}}/api/v1/notifications/mark-all-read" } },
+        { "name": "GET /api/v1/notifications/preferences", "request": { "method": "GET", "url": "{{base}}/api/v1/notifications/preferences" } },
+        {
+          "name": "PUT /api/v1/notifications/preferences",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"preferences\": [\n    { \"type\": \"new_message\", \"inApp\": true, \"email\": false },\n    { \"type\": \"account_sanction\", \"inApp\": true, \"email\": true }\n  ]\n}" },
+            "url": "{{base}}/api/v1/notifications/preferences"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Moderation",
+      "item": [
+        {
+          "name": "POST /api/v1/moderation/reports/listings/:listingId",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"spam\",\n  \"description\": \"Contenido sospechoso\"\n}" },
+            "url": "{{base}}/api/v1/moderation/reports/listings/{{listingId}}"
+          }
+        },
+        {
+          "name": "POST /api/v1/moderation/reports/users/:userId",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"harassment\",\n  \"description\": \"Lenguaje inapropiado\"\n}" },
+            "url": "{{base}}/api/v1/moderation/reports/users/{{userId}}"
+          }
+        },
+        {
+          "name": "POST /api/v1/moderation/reports/messages/:messageId",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"harassment\"\n}" },
+            "url": "{{base}}/api/v1/moderation/reports/messages/{{messageId}}"
+          }
+        },
+        { "name": "GET /api/v1/moderation/admin/reports", "request": { "method": "GET", "url": "{{base}}/api/v1/moderation/admin/reports?targetType=listing" } },
+        {
+          "name": "PATCH /api/v1/moderation/admin/reports/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"dismissed\"\n}" },
+            "url": "{{base}}/api/v1/moderation/admin/reports/{{reportId}}"
+          }
+        },
+        { "name": "POST /api/v1/moderation/admin/queue/:listingId", "request": { "method": "POST", "url": "{{base}}/api/v1/moderation/admin/queue/{{listingId}}" } },
+        { "name": "GET /api/v1/moderation/admin/queue", "request": { "method": "GET", "url": "{{base}}/api/v1/moderation/admin/queue?status=pending" } },
+        {
+          "name": "PATCH /api/v1/moderation/admin/queue/:listingId",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"decision\": \"approved\"\n}" },
+            "url": "{{base}}/api/v1/moderation/admin/queue/{{listingId}}"
+          }
+        },
+        { "name": "GET /api/v1/moderation/admin/history", "request": { "method": "GET", "url": "{{base}}/api/v1/moderation/admin/history" } }
+      ]
+    },
+    {
+      "name": "Sanctions (admin)",
+      "item": [
+        {
+          "name": "POST /api/v1/sanctions",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"type\": \"warning\",\n  \"reason\": \"Comportamiento inadecuado\"\n}" },
+            "url": "{{base}}/api/v1/sanctions"
+          }
+        },
+        { "name": "GET /api/v1/sanctions?userId", "request": { "method": "GET", "url": "{{base}}/api/v1/sanctions?userId={{userId}}" } },
+        { "name": "DELETE /api/v1/sanctions/:id", "request": { "method": "DELETE", "url": "{{base}}/api/v1/sanctions/{{sanctionId}}" } }
+      ]
+    },
+    {
+      "name": "Admin · Activity log",
+      "item": [
+        { "name": "GET /api/v1/admin/activity-log", "request": { "method": "GET", "url": "{{base}}/api/v1/admin/activity-log?limit=50&offset=0" } },
+        { "name": "GET /api/v1/admin/activity-log?action=LoginFailedEvent", "request": { "method": "GET", "url": "{{base}}/api/v1/admin/activity-log?action=LoginFailedEvent" } }
+      ]
+    },
+    {
+      "name": "Admin · Analytics",
+      "item": [
+        { "name": "POST /api/v1/admin/analytics/recompute?date", "request": { "method": "POST", "url": "{{base}}/api/v1/admin/analytics/recompute?date=2026-11-06" } },
+        { "name": "GET /api/v1/admin/analytics?from&to", "request": { "method": "GET", "url": "{{base}}/api/v1/admin/analytics?from=2026-11-01&to=2026-11-07" } }
+      ]
+    }
+  ]
+}
