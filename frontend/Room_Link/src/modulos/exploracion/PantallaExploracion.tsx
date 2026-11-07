@@ -227,26 +227,30 @@ export function PantallaExploracion() {
                 {perfilesVisibles.length} perfiles cargados
               </Text>
             </View>
-            {feed && !feed.hasTest && (
-              <View style={styles.aviso}>
-                <View style={styles.contenidoAviso}>
-                  <Text style={styles.tituloAviso}>Haz tu test de convivencia</Text>
-                  <Text style={styles.textoAviso}>
-                    Responde el test para ver perfiles recomendados por afinidad.
-                  </Text>
-                </View>
-                <Link href="/encuesta" asChild>
-                  <Pressable
-                    accessibilityRole="button"
-                    style={({ pressed }) => [
-                      styles.botonTest,
-                      pressed && styles.botonTestPresionado,
-                    ]}>
-                    <Text style={styles.textoBotonTest}>Hacer mi test</Text>
-                  </Pressable>
-                </Link>
+            <View style={styles.aviso}>
+              <View style={styles.contenidoAviso}>
+                <Text style={styles.tituloAviso}>
+                  {feed?.hasTest ? 'Tu test de convivencia' : 'Mejora tus recomendaciones'}
+                </Text>
+                <Text style={styles.textoAviso}>
+                  {feed?.hasTest
+                    ? 'Revisa o actualiza tus respuestas para encontrar roomies compatibles.'
+                    : 'Completa el test para ordenar los perfiles por afinidad.'}
+                </Text>
               </View>
-            )}
+              <Link href="/encuesta" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonTest,
+                    pressed && styles.botonTestPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonTest}>
+                    {feed?.hasTest ? 'Ver mi test' : 'Completar test'}
+                  </Text>
+                </Pressable>
+              </Link>
+            </View>
             {cargando ? (
               <Text style={styles.estado}>Cargando perfiles…</Text>
             ) : perfilesVisibles.length > 0 ? (
