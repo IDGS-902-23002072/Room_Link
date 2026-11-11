@@ -8,6 +8,7 @@ export default function NavegacionPestanas() {
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
 
   return (
+
     <NativeTabs
       backgroundColor={colors.background}
       indicatorColor={colors.backgroundElement}
