@@ -25,19 +25,25 @@ export type Foto = {
 };
 
 type Props = {
+  fotosIniciales?: Foto[];
   onVolver?: () => void;
   onEnviarRevision?: (fotos: Foto[]) => void;
 };
 
+const MAX_FOTOS = 10;
+
 export default function PantallaFotos({
+  fotosIniciales,
   onVolver,
   onEnviarRevision,
 }: Props) {
-  const [fotos, setFotos] = useState<Foto[]>([]);
+  // Inicializar con las fotografías recibidas.
+  // Si es una publicación nueva, comienza con un arreglo vacío.
+  const [fotos, setFotos] = useState<Foto[]>(
+    () => fotosIniciales ?? []
+  );
 
-  const MAX_FOTOS = 10;
-
-  // Seleccionar fotografías de la galería
+  // Seleccionar fotografías de la galería.
   const agregarFotos = async () => {
     if (fotos.length >= MAX_FOTOS) {
       Alert.alert(
@@ -47,60 +53,76 @@ export default function PantallaFotos({
       return;
     }
 
-    const permiso =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    try {
+      const permiso =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!permiso.granted) {
-      Alert.alert(
-        "Permiso necesario",
-        "Permite el acceso a tus fotografías para agregarlas."
-      );
-      return;
-    }
+      if (!permiso.granted) {
+        Alert.alert(
+          "Permiso necesario",
+          "Permite el acceso a tus fotografías para agregarlas."
+        );
+        return;
+      }
 
-    const resultado =
-      await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsMultipleSelection: true,
-        quality: 0.8,
-        selectionLimit: MAX_FOTOS - fotos.length,
-      });
+      const resultado =
+        await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          allowsMultipleSelection: true,
+          quality: 0.8,
+          selectionLimit: MAX_FOTOS - fotos.length,
+        });
 
-    if (!resultado.canceled) {
-      const nuevasFotos: Foto[] =
-        resultado.assets.map((asset, index) => ({
-          id: `${Date.now()}-${index}`,
+      if (resultado.canceled) {
+        return;
+      }
+
+      const nuevasFotos: Foto[] = resultado.assets.map(
+        (asset, index) => ({
+          id: `${Date.now()}-${index}-${Math.random()}`,
           uri: asset.uri,
           fileName:
-            asset.fileName ?? `fotografia-${Date.now()}-${index}.jpg`,
+            asset.fileName ??
+            `fotografia-${Date.now()}-${index}.jpg`,
           mimeType: asset.mimeType ?? "image/jpeg",
-        }));
+        })
+      );
 
       setFotos((actuales) =>
         [...actuales, ...nuevasFotos].slice(0, MAX_FOTOS)
       );
+    } catch (error) {
+      console.error(
+        "Error al seleccionar fotografías:",
+        error
+      );
+
+      Alert.alert(
+        "Error",
+        "No se pudieron seleccionar las fotografías."
+      );
     }
   };
 
-  // Eliminar fotografía
+  // Eliminar una fotografía.
   const eliminarFoto = (id: string) => {
     setFotos((actuales) =>
       actuales.filter((foto) => foto.id !== id)
     );
   };
 
-  // Cambiar posición de una fotografía
+  // Cambiar la posición de una fotografía.
   const moverFoto = (
     indice: number,
     direccion: -1 | 1
   ) => {
-    const destino = indice + direccion;
-
-    if (destino < 0 || destino >= fotos.length) {
-      return;
-    }
-
     setFotos((actuales) => {
+      const destino = indice + direccion;
+
+      if (destino < 0 || destino >= actuales.length) {
+        return actuales;
+      }
+
       const copia = [...actuales];
 
       [copia[indice], copia[destino]] = [
@@ -112,12 +134,12 @@ export default function PantallaFotos({
     });
   };
 
-  // Enviar publicación
+  // Enviar las fotografías a la pantalla principal.
   const enviarRevision = () => {
     if (fotos.length < 3) {
       Alert.alert(
         "Fotografías insuficientes",
-        "Necesitas al menos 3 fotografías para enviar tu habitación a revisión."
+        "Necesitas al menos 3 fotografías para continuar."
       );
       return;
     }
@@ -182,6 +204,7 @@ export default function PantallaFotos({
             <Image
               source={{ uri: foto.uri }}
               style={styles.imagen}
+              resizeMode="cover"
             />
 
             <View style={styles.infoFoto}>
@@ -252,7 +275,11 @@ export default function PantallaFotos({
 
         {/* Agregar fotografías */}
         <Pressable
-          style={styles.botonSubir}
+          style={[
+            styles.botonSubir,
+            fotos.length >= MAX_FOTOS &&
+              styles.botonDesactivado,
+          ]}
           onPress={agregarFotos}
           disabled={fotos.length >= MAX_FOTOS}
         >

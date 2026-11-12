@@ -2,10 +2,15 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../../src/app.js";
 
+
 import type {
   RoomPhotoInput,
   RoomPhotoRecord,
+  RoomLocationInput,
+  RoomPhotoMetadata,
+  RoomPhotoUpdateItem,
 } from "../../src/domain/index.js";
+
 
 import {
   User,
@@ -65,8 +70,11 @@ class InMemoryProfileRepository implements IProfileRepository {
   }
 }
 
+
 class InMemoryRoomRepository implements IRoomListingRepository {
   public rooms: Map<string, RoomListing> = new Map();
+  public photos: Map<string, RoomPhotoRecord[]> = new Map();
+  public locations: Map<string, RoomLocationInput> = new Map();
 
   async findById(id: string): Promise<RoomListing | null> {
     return this.rooms.get(id) ?? null;
@@ -94,16 +102,25 @@ class InMemoryRoomRepository implements IRoomListingRepository {
 
   async createWithLocationAndPhotos(
     room: RoomListing,
-    location: {
-      address: string;
-      latitude: number;
-      longitude: number;
-    },
+    location: RoomLocationInput,
     photos: RoomPhotoInput[]
   ): Promise<RoomListing> {
     room.setPhotoCount(photos.length);
-
     this.rooms.set(room.id, room);
+
+    if (room.locationId) {
+      this.locations.set(room.locationId, location);
+    }
+
+    this.photos.set(
+      room.id,
+      photos.map((photo, index) => ({
+        id: crypto.randomUUID(),
+        listingId: room.id,
+        position: index + 1,
+        ...photo,
+      }))
+    );
 
     return room;
   }
@@ -113,24 +130,94 @@ class InMemoryRoomRepository implements IRoomListingRepository {
   }
 
   async countPhotos(listingId: string): Promise<number> {
-    const room = this.rooms.get(listingId);
-    return room ? room.photoCount : 0;
+    return this.photos.get(listingId)?.length ?? 0;
   }
 
   async findPhotoById(
     listingId: string,
     photoId: string
   ): Promise<RoomPhotoRecord | null> {
-    return null;
+    return (
+      this.photos.get(listingId)?.find((photo) => photo.id === photoId) ?? null
+    );
   }
 
-  // En este repositorio simulado todavía no almacenamos fotografías.
   async findFirstPhotoByListingId(
     listingId: string
   ): Promise<RoomPhotoRecord | null> {
-    return null;
+    return this.photos.get(listingId)?.[0] ?? null;
+  }
+
+  async findLocationById(
+    id: string
+  ): Promise<RoomLocationInput | null> {
+    return this.locations.get(id) ?? null;
+  }
+
+  async findPhotosByListingId(
+    listingId: string
+  ): Promise<RoomPhotoMetadata[]> {
+    return (this.photos.get(listingId) ?? []).map(
+      ({ id, listingId, fileName, mimeType, position }) => ({
+        id,
+        listingId,
+        fileName,
+        mimeType,
+        position,
+      })
+    );
+  }
+
+  async updateWithLocationAndPhotos(
+    room: RoomListing,
+    location: RoomLocationInput,
+    photos: RoomPhotoUpdateItem[]
+  ): Promise<void> {
+    if (!room.locationId) {
+      throw new Error("La habitación no tiene ubicación.");
+    }
+
+    if (photos.length > 10) {
+      throw new Error("Una habitación no puede tener más de 10 fotografías.");
+    }
+
+    const fotosActuales = this.photos.get(room.id) ?? [];
+    const fotosActualizadas: RoomPhotoRecord[] = [];
+
+    for (const [index, item] of photos.entries()) {
+      if (item.type === "existing") {
+        const foto = fotosActuales.find(
+          (actual) => actual.id === item.id
+        );
+
+        if (!foto) {
+          throw new Error(
+            `La fotografía ${item.id} no pertenece a esta habitación.`
+          );
+        }
+
+        fotosActualizadas.push({
+          ...foto,
+          position: index + 1,
+        });
+      } else {
+        fotosActualizadas.push({
+          id: crypto.randomUUID(),
+          listingId: room.id,
+          position: index + 1,
+          ...item.photo,
+        });
+      }
+    }
+
+    room.setPhotoCount(fotosActualizadas.length);
+
+    this.rooms.set(room.id, room);
+    this.locations.set(room.locationId, location);
+    this.photos.set(room.id, fotosActualizadas);
   }
 }
+
 
 class InMemoryApplicationRepository
   implements IApplicationRepository
