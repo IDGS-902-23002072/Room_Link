@@ -32,6 +32,9 @@ import {
   type NotificationPreference,
   type RoomPhotoInput,
   type RoomPhotoRecord,
+  type RoomLocationInput,
+  type RoomPhotoMetadata,
+  type RoomPhotoUpdateItem,
   type CompatibilityFeedCandidate,
   type ConnectionRequest,
   type ActivityLogFilter,
@@ -92,6 +95,7 @@ export class InMemoryProfileRepository implements IProfileRepository {
 export class InMemoryRoomRepository implements IRoomListingRepository {
   readonly rooms = new Map<string, RoomListing>();
   readonly photos = new Map<string, RoomPhotoRecord[]>();
+  readonly locations = new Map<string, RoomLocationInput>();
 
   async findById(id: string) {
     return this.rooms.get(id) ?? null;
@@ -135,10 +139,82 @@ export class InMemoryRoomRepository implements IRoomListingRepository {
   async findPhotoById(listingId: string, photoId: string) {
     return this.photos.get(listingId)?.find((p) => p.id === photoId) ?? null;
   }
+
   async findFirstPhotoByListingId(listingId: string) {
     return this.photos.get(listingId)?.[0] ?? null;
   }
+
+  async findLocationById(
+    id: string
+  ): Promise<RoomLocationInput | null> {
+    return this.locations.get(id) ?? null;
+  }
+
+  async findPhotosByListingId(
+    listingId: string
+  ): Promise<RoomPhotoMetadata[]> {
+    const photos = this.photos.get(listingId) ?? [];
+
+    return photos.map((photo) => ({
+      id: photo.id,
+      listingId: photo.listingId,
+      fileName: photo.fileName,
+      mimeType: photo.mimeType,
+      position: photo.position,
+    }));
+  }
+
+  async updateWithLocationAndPhotos(
+    room: RoomListing,
+    location: RoomLocationInput,
+    photos: RoomPhotoUpdateItem[]
+  ): Promise<void> {
+    if (!room.locationId) {
+      throw new Error("La habitación no tiene una ubicación asociada");
+    }
+
+    if (photos.length > 10) {
+      throw new Error("No se permiten más de 10 fotografías");
+    }
+
+    const currentPhotos = this.photos.get(room.id) ?? [];
+    const updatedPhotos: RoomPhotoRecord[] = [];
+
+    for (const [index, item] of photos.entries()) {
+      if (item.type === "existing") {
+        const existingPhoto = currentPhotos.find(
+          (photo) => photo.id === item.id
+        );
+
+        if (!existingPhoto) {
+          throw new Error("Fotografía no encontrada");
+        }
+
+        updatedPhotos.push({
+          ...existingPhoto,
+          position: index + 1,
+        });
+      } else {
+        updatedPhotos.push({
+          id: randomUUID(),
+          listingId: room.id,
+          fileName: item.photo.fileName,
+          mimeType: item.photo.mimeType,
+          imageData: item.photo.imageData,
+          position: index + 1,
+        });
+      }
+    }
+
+    room.setPhotoCount(updatedPhotos.length);
+
+    this.rooms.set(room.id, room);
+    this.locations.set(room.locationId, location);
+    this.photos.set(room.id, updatedPhotos);
+  }
 }
+
+
 
 export class InMemoryApplicationRepository implements IApplicationRepository {
   readonly items = new Map<string, Application>();

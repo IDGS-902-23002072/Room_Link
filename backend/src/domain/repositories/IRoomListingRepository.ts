@@ -13,6 +13,31 @@ export interface RoomPhotoRecord extends RoomPhotoInput {
   position: number;
 }
 
+// Datos de una fotografía sin recuperar su archivo binario.
+export interface RoomPhotoMetadata {
+  id: string;
+  listingId: string;
+  fileName: string;
+  mimeType: string;
+  position: number;
+}
+
+export type RoomPhotoUpdateItem =
+  | {
+      type: "existing";
+      id: string;
+    }
+  | {
+      type: "new";
+      photo: RoomPhotoInput;
+    };
+
+export interface RoomLocationInput {
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface IRoomListingRepository {
   findById(id: string): Promise<RoomListing | null>;
 
@@ -27,11 +52,7 @@ export interface IRoomListingRepository {
 
   createWithLocationAndPhotos(
     room: RoomListing,
-    location: {
-      address: string;
-      latitude: number;
-      longitude: number;
-    },
+    location: RoomLocationInput,
     photos: RoomPhotoInput[]
   ): Promise<RoomListing>;
 
@@ -49,4 +70,21 @@ export interface IRoomListingRepository {
   findFirstPhotoByListingId(
     listingId: string
   ): Promise<RoomPhotoRecord | null>;
+
+  // Recuperar los datos de ubicación de una habitación.
+  findLocationById(
+    id: string
+  ): Promise<RoomLocationInput | null>;
+
+  // Recuperar los metadatos de todas las fotografías.
+  findPhotosByListingId(
+    listingId: string
+  ): Promise<RoomPhotoMetadata[]>;
+
+  // Actualizar los datos, la ubicación y las fotografías.
+  updateWithLocationAndPhotos(
+    room: RoomListing,
+    location: RoomLocationInput,
+    photos: RoomPhotoUpdateItem[]
+  ): Promise<void>;
 }
