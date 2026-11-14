@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'expo-router';
 import {
   Pressable,
   ScrollView,
@@ -9,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { obtenerPerfilAfinidad } from '../compatibilidad/api';
+import { obtenerPerfilAfinidad, obtenerTestCompatibilidad } from '../compatibilidad/api';
 
 import {
   obtenerHabitacion,
@@ -24,6 +25,7 @@ import {
 import { FichaHabitacion } from './componentes/FichaHabitacion';
 import { TarjetaHabitacion } from './componentes/TarjetaHabitacion';
 import { adaptarHabitacion, type HabitacionFeed } from './datos/habitaciones';
+import { HABITACIONES_PRUEBA } from './datos/habitacionesPrueba';
 
 type VistaExploracion = 'resultados' | 'detalle' | 'rapida';
 
@@ -55,6 +57,9 @@ export function PantallaExploracion() {
   const [enviando, setEnviando] = useState(false);
   // Afinidad buscador ↔ anfitrión, por hostId (null = sin test o sin perfil).
   const [compatibilidades, setCompatibilidades] = useState<Record<string, number | null>>({});
+  const [tieneTest, setTieneTest] = useState(false);
+  const [avisoPrueba, setAvisoPrueba] = useState<string | null>(null);
+  const modoPrueba = avisoPrueba !== null;
   const { width } = useWindowDimensions();
   const anchoContenido = Math.min(width, 460);
 
@@ -73,16 +78,42 @@ export function PantallaExploracion() {
     });
   };
 
-  const conCompatibilidad = (habitacion: HabitacionFeed): HabitacionFeed => ({
-    ...habitacion,
-    compatibilidad: compatibilidades[habitacion.hostId] ?? null,
-  });
+  const conCompatibilidad = (habitacion: HabitacionFeed): HabitacionFeed =>
+    modoPrueba
+      ? habitacion
+      : { ...habitacion, compatibilidad: compatibilidades[habitacion.hostId] ?? null };
+
+  const mostrarDatosPrueba = (motivo: string) => {
+    setHabitaciones(HABITACIONES_PRUEBA);
+    setHayMas(false);
+    setPagina(1);
+    setError(null);
+    setAvisoPrueba(motivo);
+  };
+
+  useEffect(() => {
+    let activo = true;
+    obtenerTestCompatibilidad()
+      .then((resultado) => {
+        if (activo) setTieneTest(resultado.completed);
+      })
+      .catch(() => {
+        // Sin API o sin usuario configurado se ofrece completar el test.
+      });
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   useEffect(() => {
     let activo = true;
     obtenerHabitacionesPublicadas(1)
       .then((resultado) => {
         if (!activo) return;
+        if (resultado.length === 0) {
+          mostrarDatosPrueba('Aún no hay habitaciones publicadas.');
+          return;
+        }
         setHabitaciones(resultado.map(adaptarHabitacion));
         cargarCompatibilidades(
           resultado.map((habitacion) => habitacion.hostId),
@@ -94,8 +125,10 @@ export function PantallaExploracion() {
       })
       .catch((cause: unknown) => {
         if (activo) {
-          setError(
-            cause instanceof Error ? cause.message : 'No se pudo cargar el feed de habitaciones.',
+          mostrarDatosPrueba(
+            cause instanceof Error
+              ? `No se pudo conectar con la API: ${cause.message}`
+              : 'No se pudo cargar el feed de habitaciones.',
           );
         }
       })
@@ -126,6 +159,7 @@ export function PantallaExploracion() {
     setHabitacionActiva(habitacion);
     setVista(vistaSeleccionada);
     setError(null);
+    if (modoPrueba) return;
     try {
       const detalle = await obtenerHabitacion(habitacion.id);
       setHabitacionActiva(adaptarHabitacion(detalle));
@@ -161,6 +195,11 @@ export function PantallaExploracion() {
     if (!habitacionActiva || enviando || postuladas.has(habitacionActiva.id)) return;
     setEnviando(true);
     setError(null);
+    if (modoPrueba) {
+      setPostuladas((actuales) => new Set(actuales).add(habitacionActiva.id));
+      setEnviando(false);
+      return;
+    }
     try {
       await postularseAHabitacion(
         habitacionActiva.id,
@@ -197,6 +236,36 @@ export function PantallaExploracion() {
               <Text style={styles.textoResumen}>
                 {habitacionesVisibles.length} habitaciones disponibles
               </Text>
+            </View>
+            {modoPrueba && (
+              <View style={styles.avisoPrueba}>
+                <Text style={styles.tituloAvisoPrueba}>Datos de prueba</Text>
+                <Text style={styles.textoAvisoPrueba}>{avisoPrueba}</Text>
+              </View>
+            )}
+            <View style={styles.aviso}>
+              <View style={styles.contenidoAviso}>
+                <Text style={styles.tituloAviso}>
+                  {tieneTest ? 'Tu test de convivencia' : 'Mejora tus recomendaciones'}
+                </Text>
+                <Text style={styles.textoAviso}>
+                  {tieneTest
+                    ? 'Revisa o edita tus respuestas para ver qué tan compatible eres con cada anfitrión.'
+                    : 'Completa el test para ver tu compatibilidad con los anfitriones.'}
+                </Text>
+              </View>
+              <Link href="/encuesta" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonTest,
+                    pressed && styles.botonTestPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonTest}>
+                    {tieneTest ? 'Editar mi test' : 'Completar test'}
+                  </Text>
+                </Pressable>
+              </Link>
             </View>
             {cargando ? (
               <Text style={styles.estado}>Cargando habitaciones…</Text>
@@ -316,6 +385,60 @@ const styles = StyleSheet.create({
   resumen: {
     marginTop: 10,
     marginBottom: 7,
+  },
+  avisoPrueba: {
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#FFF4D6',
+    marginBottom: 8,
+  },
+  tituloAvisoPrueba: {
+    color: '#7A5B00',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  textoAvisoPrueba: {
+    color: '#7A5B00',
+    fontSize: 9,
+    marginTop: 2,
+  },
+  aviso: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: 11,
+    borderRadius: 12,
+    backgroundColor: '#E9DAEC',
+    marginBottom: 10,
+  },
+  contenidoAviso: {
+    flex: 1,
+    gap: 3,
+  },
+  tituloAviso: {
+    color: '#6F5B76',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  textoAviso: {
+    color: '#6F5B76',
+    fontSize: 11,
+  },
+  botonTest: {
+    minHeight: 34,
+    justifyContent: 'center',
+    paddingHorizontal: 11,
+    borderRadius: 9,
+    backgroundColor: '#84658D',
+  },
+  botonTestPresionado: {
+    opacity: 0.75,
+  },
+  textoBotonTest: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
   },
   textoResumen: {
     color: '#817987',
