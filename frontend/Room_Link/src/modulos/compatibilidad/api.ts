@@ -47,7 +47,7 @@ export interface FeedAfinidad {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 
-function configuracionApi() {
+export function configuracionApi() {
   const baseUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
   const userId = process.env.EXPO_PUBLIC_USER_ID?.trim();
 
@@ -65,7 +65,7 @@ function configuracionApi() {
   return { baseUrl, userId };
 }
 
-async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
+export async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
   const { baseUrl } = configuracionApi();
   let response: Response;
   try {
