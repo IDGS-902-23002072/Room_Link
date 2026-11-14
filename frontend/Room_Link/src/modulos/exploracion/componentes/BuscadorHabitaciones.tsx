@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export const filtrosHabitaciones = [
   'Todas',
@@ -34,7 +34,12 @@ export function BuscadorHabitaciones({
           value={busqueda}
         />
       </View>
-      <View style={styles.filtros}>
+      <ScrollView
+        contentContainerStyle={styles.filtros}
+        horizontal
+        keyboardShouldPersistTaps="handled"
+        showsHorizontalScrollIndicator={false}
+        style={styles.filtrosContenedor}>
         {filtrosHabitaciones.map((filtro) => {
           const activo = filtroActivo === filtro;
           return (
@@ -50,59 +55,64 @@ export function BuscadorHabitaciones({
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
   campoBusqueda: {
-    height: 42,
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: '#EEE8F0',
-    borderRadius: 13,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
-    marginTop: 16,
+    marginTop: 18,
   },
   iconoBusqueda: {
     color: '#9C80A4',
-    fontSize: 23,
-    lineHeight: 25,
-    marginRight: 8,
+    fontSize: 26,
+    lineHeight: 28,
+    marginRight: 10,
   },
   entrada: {
     flex: 1,
     color: '#28232D',
-    fontSize: 12,
+    fontSize: 15,
     paddingVertical: 0,
+  },
+  filtrosContenedor: {
+    flexGrow: 0,
+    marginTop: 12,
   },
   filtros: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 9,
+    gap: 8,
+    paddingRight: 4,
   },
   filtro: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 18,
     paddingVertical: 6,
-    borderRadius: 14,
+    borderRadius: 22,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#EEE8F0',
+    height: 44,
+    justifyContent: 'center',
   },
   filtroActivo: {
-    backgroundColor: '#E9DAEC',
-    borderColor: '#E9DAEC',
+    backgroundColor: '#84658D',
+    borderColor: '#84658D',
   },
   textoFiltro: {
-    color: '#6F5B76',
-    fontSize: 9,
+    color: '#4A4350',
+    fontSize: 14,
   },
   textoFiltroActivo: {
-    color: '#84658D',
+    color: '#FFFFFF',
     fontWeight: '600',
   },
 });

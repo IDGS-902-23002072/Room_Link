@@ -27,7 +27,7 @@ import { TarjetaHabitacion } from './componentes/TarjetaHabitacion';
 import { adaptarHabitacion, type HabitacionFeed } from './datos/habitaciones';
 import { HABITACIONES_PRUEBA } from './datos/habitacionesPrueba';
 
-type VistaExploracion = 'resultados' | 'detalle' | 'rapida';
+type VistaExploracion = 'resultados' | 'detalle';
 
 function coincideFiltro(habitacion: HabitacionFeed, filtro: FiltroHabitacion) {
   switch (filtro) {
@@ -54,7 +54,8 @@ export function PantallaExploracion() {
   const [busqueda, setBusqueda] = useState('');
   const [filtroActivo, setFiltroActivo] = useState<FiltroHabitacion>('Todas');
   const [postuladas, setPostuladas] = useState<Set<string>>(new Set());
-  const [enviando, setEnviando] = useState(false);
+  const [enviandoId, setEnviandoId] = useState<string | null>(null);
+  const [guardadas, setGuardadas] = useState<Set<string>>(new Set());
   // Afinidad buscador ↔ anfitrión, por hostId (null = sin test o sin perfil).
   const [compatibilidades, setCompatibilidades] = useState<Record<string, number | null>>({});
   const [tieneTest, setTieneTest] = useState(false);
@@ -152,12 +153,9 @@ export function PantallaExploracion() {
     });
   }, [busqueda, filtroActivo, habitaciones]);
 
-  const abrirHabitacion = async (
-    habitacion: HabitacionFeed,
-    vistaSeleccionada: VistaExploracion,
-  ) => {
+  const abrirHabitacion = async (habitacion: HabitacionFeed) => {
     setHabitacionActiva(habitacion);
-    setVista(vistaSeleccionada);
+    setVista('detalle');
     setError(null);
     if (modoPrueba) return;
     try {
@@ -191,26 +189,34 @@ export function PantallaExploracion() {
     }
   };
 
-  const postularse = async (mensaje: string | null) => {
-    if (!habitacionActiva || enviando || postuladas.has(habitacionActiva.id)) return;
-    setEnviando(true);
+  const alternarGuardada = (id: string) => {
+    setGuardadas((actuales) => {
+      const siguientes = new Set(actuales);
+      if (!siguientes.delete(id)) siguientes.add(id);
+      return siguientes;
+    });
+  };
+
+  const postularse = async (habitacion: HabitacionFeed, mensaje: string | null) => {
+    if (enviandoId !== null || postuladas.has(habitacion.id)) return;
+    setEnviandoId(habitacion.id);
     setError(null);
     if (modoPrueba) {
-      setPostuladas((actuales) => new Set(actuales).add(habitacionActiva.id));
-      setEnviando(false);
+      setPostuladas((actuales) => new Set(actuales).add(habitacion.id));
+      setEnviandoId(null);
       return;
     }
     try {
       await postularseAHabitacion(
-        habitacionActiva.id,
+        habitacion.id,
         mensaje,
-        compatibilidades[habitacionActiva.hostId] ?? null,
+        compatibilidades[habitacion.hostId] ?? null,
       );
-      setPostuladas((actuales) => new Set(actuales).add(habitacionActiva.id));
+      setPostuladas((actuales) => new Set(actuales).add(habitacion.id));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo enviar la postulación.');
     } finally {
-      setEnviando(false);
+      setEnviandoId(null);
     }
   };
 
@@ -276,8 +282,11 @@ export function PantallaExploracion() {
                     key={habitacion.id}
                     habitacion={conCompatibilidad(habitacion)}
                     postulada={postuladas.has(habitacion.id)}
-                    alAbrir={() => abrirHabitacion(habitacion, 'detalle')}
-                    alVerRapido={() => abrirHabitacion(habitacion, 'rapida')}
+                    enviando={enviandoId === habitacion.id}
+                    guardada={guardadas.has(habitacion.id)}
+                    alAbrir={() => abrirHabitacion(habitacion)}
+                    alAlternarGuardada={() => alternarGuardada(habitacion.id)}
+                    alPostularme={() => postularse(habitacion, null)}
                   />
                 ))}
               </View>
@@ -319,21 +328,17 @@ export function PantallaExploracion() {
               <Text style={styles.textoVolver}>‹  Explorar habitaciones</Text>
             </Pressable>
             <Text style={styles.titulo}>
-              {vista === 'rapida' ? 'Un vistazo a la habitación' : 'Detalle de la habitación'}
+              Detalle de la habitación
             </Text>
             <Text style={styles.subtitulo}>
-              {vista === 'rapida'
-                ? 'Vista rápida del anuncio'
-                : 'Revisa la información y postúlate'}
+              Revisa la información y postúlate
             </Text>
             <View style={styles.ficha}>
               <FichaHabitacion
                 habitacion={conCompatibilidad(habitacionActiva)}
-                vistaRapida={vista === 'rapida'}
                 postulada={postuladas.has(habitacionActiva.id)}
-                enviando={enviando}
-                alPostularse={postularse}
-                alVerDetalle={() => setVista('detalle')}
+                enviando={enviandoId === habitacionActiva.id}
+                alPostularse={(mensaje) => postularse(habitacionActiva, mensaje)}
                 alCerrar={() => setVista('resultados')}
               />
             </View>
@@ -360,46 +365,47 @@ const styles = StyleSheet.create({
   contenido: {
     flexGrow: 1,
     alignSelf: 'center',
-    paddingHorizontal: 22,
-    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 92,
   },
   marca: {
     color: '#817987',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.6,
-    marginBottom: 5,
+    letterSpacing: 1.2,
+    marginBottom: 4,
   },
   titulo: {
     color: '#28232D',
-    fontSize: 23,
+    fontSize: 28,
     fontWeight: '700',
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
+    lineHeight: 34,
   },
   subtitulo: {
-    color: '#817987',
-    fontSize: 10,
-    marginTop: 3,
+    color: '#6B6372',
+    fontSize: 14,
+    marginTop: 4,
   },
   resumen: {
-    marginTop: 10,
-    marginBottom: 7,
+    marginTop: 16,
+    marginBottom: 10,
   },
   avisoPrueba: {
-    padding: 10,
-    borderRadius: 10,
+    padding: 12,
+    borderRadius: 14,
     backgroundColor: '#FFF4D6',
     marginBottom: 8,
   },
   tituloAvisoPrueba: {
     color: '#7A5B00',
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '700',
   },
   textoAvisoPrueba: {
     color: '#7A5B00',
-    fontSize: 9,
+    fontSize: 12,
     marginTop: 2,
   },
   aviso: {
@@ -407,10 +413,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    padding: 11,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 18,
     backgroundColor: '#E9DAEC',
-    marginBottom: 10,
+    marginBottom: 4,
+    paddingLeft: 16,
+    marginTop: 14,
   },
   contenidoAviso: {
     flex: 1,
@@ -418,18 +426,19 @@ const styles = StyleSheet.create({
   },
   tituloAviso: {
     color: '#6F5B76',
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '700',
   },
   textoAviso: {
-    color: '#6F5B76',
-    fontSize: 11,
+    color: '#5E4466',
+    fontSize: 12,
+    lineHeight: 16,
   },
   botonTest: {
-    minHeight: 34,
+    minHeight: 44,
     justifyContent: 'center',
-    paddingHorizontal: 11,
-    borderRadius: 9,
+    paddingHorizontal: 14,
+    borderRadius: 14,
     backgroundColor: '#84658D',
   },
   botonTestPresionado: {
@@ -437,16 +446,16 @@ const styles = StyleSheet.create({
   },
   textoBotonTest: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '600',
   },
   textoResumen: {
-    color: '#817987',
-    fontSize: 9,
+    color: '#6B6372',
+    fontSize: 13,
   },
   estado: {
-    color: '#817987',
-    fontSize: 12,
+    color: '#6B6372',
+    fontSize: 14,
     textAlign: 'center',
     padding: 18,
   },
@@ -458,24 +467,22 @@ const styles = StyleSheet.create({
   },
   textoError: {
     color: '#8A3030',
-    fontSize: 11,
+    fontSize: 13,
   },
   cuadricula: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 20,
   },
   botonTodos: {
-    minHeight: 39,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
+    borderRadius: 16,
     backgroundColor: '#84658D',
-    marginTop: 12,
+    marginTop: 16,
   },
   textoBotonTodos: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '600',
   },
   vacio: {
@@ -486,28 +493,28 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   textoVacio: {
-    color: '#817987',
-    fontSize: 11,
+    color: '#6B6372',
+    fontSize: 14,
     textAlign: 'center',
   },
   limpiarFiltros: {
     color: '#84658D',
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '600',
-    marginTop: 10,
+    marginTop: 12,
   },
   volver: {
     alignSelf: 'flex-start',
-    paddingVertical: 7,
+    paddingVertical: 10,
   },
   textoVolver: {
     color: '#84658D',
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '600',
   },
   ficha: {
-    padding: 10,
-    borderRadius: 15,
+    padding: 14,
+    borderRadius: 22,
     backgroundColor: '#F6F1F7',
     marginTop: 13,
   },

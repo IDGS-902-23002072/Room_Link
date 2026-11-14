@@ -8,6 +8,7 @@ export const HABITACIONES_PRUEBA: HabitacionFeed[] = [
   {
     id: 'prueba-1',
     hostId: 'prueba-anfitrion-1',
+    anfitrion: 'Mariana R.',
     titulo: 'Habitación luminosa cerca de la UTL',
     renta: 2800,
     rentaTexto: '$2,800 MXN/mes',
@@ -22,6 +23,7 @@ export const HABITACIONES_PRUEBA: HabitacionFeed[] = [
   {
     id: 'prueba-2',
     hostId: 'prueba-anfitrion-2',
+    anfitrion: 'Carlos M.',
     titulo: 'Cuarto en departamento del centro',
     renta: 3500,
     rentaTexto: '$3,500 MXN/mes',
@@ -36,6 +38,7 @@ export const HABITACIONES_PRUEBA: HabitacionFeed[] = [
   {
     id: 'prueba-3',
     hostId: 'prueba-anfitrion-3',
+    anfitrion: 'Valeria S.',
     titulo: 'Recámara con baño propio',
     renta: 4800,
     rentaTexto: '$4,800 MXN/mes',
@@ -50,6 +53,7 @@ export const HABITACIONES_PRUEBA: HabitacionFeed[] = [
   {
     id: 'prueba-4',
     hostId: 'prueba-anfitrion-4',
+    anfitrion: 'Diego H.',
     titulo: 'Habitación económica para estudiantes',
     renta: 2200,
     rentaTexto: '$2,200 MXN/mes',
@@ -64,6 +68,7 @@ export const HABITACIONES_PRUEBA: HabitacionFeed[] = [
   {
     id: 'prueba-5',
     hostId: 'prueba-anfitrion-5',
+    anfitrion: 'Andrea L.',
     titulo: 'Loft compartido con terraza',
     renta: 6200,
     rentaTexto: '$6,200 MXN/mes',
@@ -78,6 +83,7 @@ export const HABITACIONES_PRUEBA: HabitacionFeed[] = [
   {
     id: 'prueba-6',
     hostId: 'prueba-anfitrion-6',
+    anfitrion: 'Luis P.',
     titulo: 'Cuarto amueblado zona norte',
     renta: 3000,
     rentaTexto: '$3,000 MXN/mes',
