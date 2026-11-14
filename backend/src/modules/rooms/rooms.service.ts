@@ -7,6 +7,8 @@ import {
   type RoomPhotoInput,
   type RoomPhotoRecord,
   type RoomPhotoUpdateItem,
+  type RoomFeedFilters,
+  type RoomFeedItem,
 } from "../../domain/index.js";
 
 export interface CreateRoomInput {
@@ -112,6 +114,39 @@ export class RoomsService {
     offset = 0
   ): Promise<RoomListing[]> {
     return await this.roomRepo.findPublished(limit, offset);
+  }
+
+  // Feed de habitaciones publicadas para quien busca cuarto
+  async listFeed(
+    filters: RoomFeedFilters,
+    page = 1,
+    pageSize = 12
+  ): Promise<{ items: RoomFeedItem[]; hasMore: boolean }> {
+    if (!Number.isInteger(page) || page < 1) {
+      throw new Error("La página debe ser un entero mayor o igual a 1.");
+    }
+    if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 50) {
+      throw new Error("El tamaño de página debe estar entre 1 y 50.");
+    }
+    if (
+      filters.minRent !== undefined &&
+      filters.maxRent !== undefined &&
+      filters.minRent > filters.maxRent
+    ) {
+      throw new Error("La renta mínima no puede ser mayor que la máxima.");
+    }
+
+    // Se pide un elemento extra para saber si existe otra página.
+    const rows = await this.roomRepo.findPublishedFeed(
+      filters,
+      pageSize + 1,
+      (page - 1) * pageSize
+    );
+
+    return {
+      items: rows.slice(0, pageSize),
+      hasMore: rows.length > pageSize,
+    };
   }
 
   // Obtener habitaciones de un anfitrión

@@ -1,5 +1,5 @@
 
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, like, lte, ne, or, sql } from "drizzle-orm";
 import type { MySql2Database } from "drizzle-orm/mysql2";
 import { randomUUID } from "node:crypto";
 
@@ -11,6 +11,8 @@ import {
   type RoomPhotoMetadata,
   type RoomPhotoUpdateItem,
   type RoomLocationInput,
+  type RoomFeedFilters,
+  type RoomFeedItem,
 } from "../../domain/index.js";
 
 import {
@@ -20,7 +22,8 @@ import {
   type NewRoomListing,
 } from "../../db/schema/rooms.js";
 
-import { geoLocations } from "../../db/schema/geo.js";
+import { geoLocations, geoZones } from "../../db/schema/geo.js";
+import { profileProfiles } from "../../db/schema/profile.js";
 
 export class DrizzleRoomListingRepository
   implements IRoomListingRepository {
@@ -104,6 +107,78 @@ export class DrizzleRoomListingRepository
       imageData: photo.imageData,
       position: photo.position,
     };
+  }
+
+  // Feed de habitaciones publicadas con ubicacion, zona y nombre del anfitrion
+  async findPublishedFeed(
+    filters: RoomFeedFilters,
+    limit: number,
+    offset: number
+  ): Promise<RoomFeedItem[]> {
+    const conditions = [eq(roomListings.status, "published")];
+
+    if (filters.minRent !== undefined) {
+      conditions.push(gte(roomListings.monthlyRent, String(filters.minRent)));
+    }
+    if (filters.maxRent !== undefined) {
+      conditions.push(lte(roomListings.monthlyRent, String(filters.maxRent)));
+    }
+    if (filters.excludeHostId) {
+      conditions.push(ne(roomListings.hostId, filters.excludeHostId));
+    }
+    if (filters.search) {
+      const term = `%${filters.search.replace(/[\\%_]/g, "\\$&")}%`;
+      const match = or(
+        like(roomListings.title, term),
+        like(roomListings.description, term),
+        like(geoLocations.address, term),
+        like(geoZones.name, term)
+      );
+      if (match) conditions.push(match);
+    }
+
+    const rows = await this.db
+      .select({
+        id: roomListings.id,
+        hostId: roomListings.hostId,
+        hostName: profileProfiles.fullName,
+        title: roomListings.title,
+        description: roomListings.description,
+        monthlyRent: roomListings.monthlyRent,
+        availableFrom: roomListings.availableFrom,
+        maxRoommates: roomListings.maxRoommates,
+        publishedAt: roomListings.publishedAt,
+        address: geoLocations.address,
+        zone: geoZones.name,
+        city: geoZones.city,
+        photoCount: sql<number>`(SELECT COUNT(*) FROM ${roomPhotos} WHERE ${roomPhotos.listingId} = ${roomListings.id})`,
+      })
+      .from(roomListings)
+      .leftJoin(geoLocations, eq(geoLocations.id, roomListings.locationId))
+      .leftJoin(geoZones, eq(geoZones.id, geoLocations.zoneId))
+      .leftJoin(profileProfiles, eq(profileProfiles.userId, roomListings.hostId))
+      .where(and(...conditions))
+      .orderBy(desc(roomListings.publishedAt), desc(roomListings.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return rows.map((row) => ({
+      id: row.id,
+      hostId: row.hostId,
+      hostName: row.hostName ?? null,
+      title: row.title,
+      description: row.description ?? null,
+      monthlyRent: Number(row.monthlyRent),
+      availableFrom: row.availableFrom
+        ? new Date(`${row.availableFrom}T00:00:00`)
+        : null,
+      maxRoommates: row.maxRoommates ?? null,
+      photoCount: Number(row.photoCount),
+      address: row.address ?? null,
+      zone: row.zone ?? null,
+      city: row.city ?? null,
+      publishedAt: row.publishedAt ? new Date(row.publishedAt) : null,
+    }));
   }
 
   // Obtener habitaciones publicadas

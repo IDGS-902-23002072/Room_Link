@@ -26,6 +26,8 @@ import {
   type INotificationRepository,
   type IProfileRepository,
   type IRoomListingRepository,
+  type RoomFeedFilters,
+  type RoomFeedItem,
   type ISanctionRepository,
   type IUserRepository,
   type ListNotificationsFilter,
@@ -100,6 +102,47 @@ export class InMemoryRoomRepository implements IRoomListingRepository {
   async findById(id: string) {
     return this.rooms.get(id) ?? null;
   }
+  async findPublishedFeed(
+    filters: RoomFeedFilters,
+    limit: number,
+    offset: number,
+  ): Promise<RoomFeedItem[]> {
+    const term = filters.search?.toLocaleLowerCase("es");
+    return Array.from(this.rooms.values())
+      .filter((room) => room.status === "published")
+      .filter((room) => filters.minRent === undefined || room.monthlyRent >= filters.minRent)
+      .filter((room) => filters.maxRent === undefined || room.monthlyRent <= filters.maxRent)
+      .filter((room) => !filters.excludeHostId || room.hostId !== filters.excludeHostId)
+      .filter((room) => {
+        if (!term) return true;
+        const address = room.locationId ? this.locations.get(room.locationId)?.address : "";
+        return `${room.title} ${room.description ?? ""} ${address ?? ""}`
+          .toLocaleLowerCase("es")
+          .includes(term);
+      })
+      .sort(
+        (a, b) =>
+          (b.publishedAt?.getTime() ?? b.createdAt.getTime()) -
+          (a.publishedAt?.getTime() ?? a.createdAt.getTime()),
+      )
+      .slice(offset, offset + limit)
+      .map((room) => ({
+        id: room.id,
+        hostId: room.hostId,
+        hostName: null,
+        title: room.title,
+        description: room.description ?? null,
+        monthlyRent: room.monthlyRent,
+        availableFrom: room.availableFrom ?? null,
+        maxRoommates: room.maxRoommates ?? null,
+        photoCount: room.photoCount,
+        address: room.locationId ? (this.locations.get(room.locationId)?.address ?? null) : null,
+        zone: null,
+        city: null,
+        publishedAt: room.publishedAt ?? null,
+      }));
+  }
+
   async findPublished(limit = 20, offset = 0) {
     return [...this.rooms.values()]
       .filter((r) => r.status === "published")

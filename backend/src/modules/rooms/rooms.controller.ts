@@ -100,6 +100,52 @@ export class RoomsController {
     }
   };
 
+  // Feed de habitaciones publicadas (HU-04)
+  feed = async (c: Context) => {
+    const numero = (nombre: string): number | undefined | null => {
+      const valor = c.req.query(nombre);
+      if (valor === undefined || valor === "") return undefined;
+      const n = Number(valor);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    const page = numero("page") ?? 1;
+    const pageSize = numero("pageSize") ?? 12;
+    const minRent = numero("minRent");
+    const maxRent = numero("maxRent");
+
+    if (page === null || pageSize === null || minRent === null || maxRent === null) {
+      return c.json({ error: "Los parámetros numéricos son inválidos" }, 400);
+    }
+
+    try {
+      const resultado = await this.roomsService.listFeed(
+        {
+          search: c.req.query("q")?.trim() || undefined,
+          minRent,
+          maxRent,
+          excludeHostId: c.req.query("excludeHostId")?.trim() || undefined,
+        },
+        page,
+        pageSize
+      );
+
+      return c.json(
+        {
+          page,
+          pageSize,
+          hasMore: resultado.hasMore,
+          items: resultado.items.map((item) => RoomView.toFeedItem(item)),
+        },
+        200
+      );
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Error al obtener el feed";
+      return c.json({ error: message }, 400);
+    }
+  };
+
   // Obtener publicaciones de un anfitrión
   listByHost = async (c: Context) => {
     try {
