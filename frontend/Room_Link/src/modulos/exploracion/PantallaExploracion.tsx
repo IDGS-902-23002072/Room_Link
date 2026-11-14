@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,166 +11,91 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-  BuscadorRoomies,
-  type PestanaExploracion,
-} from './componentes/BuscadorRoomies';
-import { FichaRoomie } from './componentes/FichaRoomie';
-import { TarjetaRoomie } from './componentes/TarjetaRoomie';
-import type { PerfilRoomie } from './datos/perfilesRoomies';
-import {
-  enviarSolicitudConexion,
-  obtenerFeedAfinidad,
-  obtenerPerfilAfinidad,
-  type FeedAfinidad,
-  type PerfilAfinidad,
-} from '../compatibilidad/api';
+  obtenerFeedHabitaciones,
+  type HabitacionFeed,
+} from '../habitaciones/api';
+import { BuscadorHabitaciones } from './componentes/BuscadorHabitaciones';
+import { DetalleHabitacion } from './componentes/DetalleHabitacion';
+import { TarjetaHabitacion } from './componentes/TarjetaHabitacion';
+import { rangosRenta, type RangoRenta } from './formato';
 
-type VistaExploracion = 'resultados' | 'perfil' | 'rapida';
-
-const filtrosDisponibles = ['Todas', 'Mascotas', 'Tabaco', 'Limpieza'];
-
-const nombresDimension: Record<string, string> = {
-  schedule: 'Horarios',
-  cleanliness: 'Limpieza',
-  noise: 'Ruido',
-  pets: 'Mascotas',
-  smoking: 'Tabaco',
-  visits: 'Visitas',
-  genderPref: 'Género',
-};
-
-function adaptarPerfil(perfil: PerfilAfinidad): PerfilRoomie {
-  const nombre = perfil.fullName.trim() || 'Roomie';
-  const preferencias =
-    perfil.compatibilitySummary?.map(
-      ({ dimension, percentage }) => `${nombresDimension[dimension]} ${percentage}%`,
-    ) ?? [];
-  const presupuesto =
-    perfil.budgetMin || perfil.budgetMax
-      ? `$${perfil.budgetMin ?? '0'} – $${perfil.budgetMax ?? 'sin límite'} MXN`
-      : 'Sin presupuesto indicado';
-
-  return {
-    id: perfil.userId,
-    iniciales: nombre
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((parte) => parte[0]?.toLocaleUpperCase('es') ?? '')
-      .join(''),
-    nombre,
-    edad: perfil.age,
-    compatibilidad: perfil.compatibilityScore,
-    ciudad: perfil.city ?? 'Ubicación no indicada',
-    zona: perfil.zone ?? 'Zona no indicada',
-    estilo: perfil.occupation ?? 'Ocupación no indicada',
-    ocupacion: perfil.occupation ?? 'Ocupación no indicada',
-    preferencias,
-    presupuesto,
-    bio: perfil.bio ?? 'Este perfil aún no tiene una descripción.',
-    fotoUrl: perfil.photoUrl,
-  };
-}
+const RETRASO_BUSQUEDA_MS = 400;
 
 export function PantallaExploracion() {
-  const [vista, setVista] = useState<VistaExploracion>('resultados');
-  const [perfilActivo, setPerfilActivo] = useState<PerfilRoomie | null>(null);
-  const [perfiles, setPerfiles] = useState<PerfilRoomie[]>([]);
-  const [feed, setFeed] = useState<FeedAfinidad | null>(null);
+  const [habitaciones, setHabitaciones] = useState<HabitacionFeed[]>([]);
+  const [habitacionActiva, setHabitacionActiva] = useState<HabitacionFeed | null>(null);
+  const [postuladas, setPostuladas] = useState<Set<string>>(new Set());
+  const [busqueda, setBusqueda] = useState('');
+  const [rango, setRango] = useState<RangoRenta>(rangosRenta[0]!);
   const [pagina, setPagina] = useState(1);
+  const [hayMas, setHayMas] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [cargandoMas, setCargandoMas] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [busqueda, setBusqueda] = useState('');
-  const [pestanaActiva, setPestanaActiva] = useState<PestanaExploracion>('Perfil');
-  const [filtroActivo, setFiltroActivo] = useState('Todas');
-  const [solicitudEnviada, setSolicitudEnviada] = useState(false);
-  const [comparando, setComparando] = useState(false);
   const { width } = useWindowDimensions();
   const anchoContenido = Math.min(width, 460);
 
-  useEffect(() => {
-    let activo = true;
-    obtenerFeedAfinidad(1)
-      .then((resultado) => {
-        if (!activo) return;
-        setFeed(resultado);
-        setPerfiles(resultado.profiles.map(adaptarPerfil));
-        setPagina(1);
-        setError(null);
-      })
-      .catch((cause: unknown) => {
-        if (activo) {
-          setError(cause instanceof Error ? cause.message : 'No se pudo cargar el feed.');
-        }
-      })
-      .finally(() => {
-        if (activo) setCargando(false);
-      });
-    return () => {
-      activo = false;
-    };
-  }, []);
+  // Evita que una respuesta lenta pise a una búsqueda más reciente.
+  const consultaActual = useRef(0);
 
-  const perfilesVisibles = useMemo(() => {
-    const consulta = busqueda.trim().toLocaleLowerCase('es');
-    return perfiles.filter((perfil) => {
-      const coincideBusqueda =
-        consulta.length === 0 ||
-        `${perfil.nombre} ${perfil.ciudad} ${perfil.zona} ${perfil.estilo} ${perfil.preferencias.join(' ')}`
-          .toLocaleLowerCase('es')
-          .includes(consulta);
-      const coincideFiltro =
-        filtroActivo === 'Todas' ||
-        perfil.preferencias.some((preferencia) =>
-          preferencia.toLocaleLowerCase('es').includes(filtroActivo.toLocaleLowerCase('es')),
-        );
-      return coincideBusqueda && coincideFiltro;
-    });
-  }, [busqueda, filtroActivo, perfiles]);
-
-  const abrirPerfil = async (perfil: PerfilRoomie, vistaSeleccionada: VistaExploracion) => {
-    setPerfilActivo(perfil);
-    setSolicitudEnviada(false);
-    setComparando(false);
-    setVista(vistaSeleccionada);
+  const cargarPrimeraPagina = useCallback(async (texto: string, rangoElegido: RangoRenta) => {
+    const consulta = ++consultaActual.current;
+    setCargando(true);
     setError(null);
     try {
-      const detalle = await obtenerPerfilAfinidad(perfil.id);
-      setPerfilActivo(adaptarPerfil(detalle));
+      const resultado = await obtenerFeedHabitaciones(1, {
+        busqueda: texto,
+        ...(rangoElegido.rentaMinima !== undefined && { rentaMinima: rangoElegido.rentaMinima }),
+        ...(rangoElegido.rentaMaxima !== undefined && { rentaMaxima: rangoElegido.rentaMaxima }),
+      });
+      if (consulta !== consultaActual.current) return;
+      setHabitaciones(resultado.items);
+      setHayMas(resultado.hasMore);
+      setPagina(1);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo cargar el perfil.');
+      if (consulta !== consultaActual.current) return;
+      setHabitaciones([]);
+      setHayMas(false);
+      setError(cause instanceof Error ? cause.message : 'No se pudo cargar el feed.');
+    } finally {
+      if (consulta === consultaActual.current) setCargando(false);
     }
-  };
+  }, []);
+
+  // Busca al cargar la pantalla y cada vez que cambian la búsqueda o el rango de renta.
+  useEffect(() => {
+    const temporizador = setTimeout(
+      () => void cargarPrimeraPagina(busqueda, rango),
+      busqueda ? RETRASO_BUSQUEDA_MS : 0,
+    );
+    return () => clearTimeout(temporizador);
+  }, [busqueda, rango, cargarPrimeraPagina]);
 
   const cargarMas = async () => {
-    if (!feed?.hasMore || cargandoMas) return;
-    const siguientePagina = pagina + 1;
+    if (!hayMas || cargandoMas) return;
+    const consulta = consultaActual.current;
     setCargandoMas(true);
     setError(null);
     try {
-      const resultado = await obtenerFeedAfinidad(siguientePagina);
-      setFeed(resultado);
-      setPerfiles((actuales) => [
-        ...actuales,
-        ...resultado.profiles.map(adaptarPerfil),
-      ]);
-      setPagina(siguientePagina);
+      const resultado = await obtenerFeedHabitaciones(pagina + 1, {
+        busqueda,
+        ...(rango.rentaMinima !== undefined && { rentaMinima: rango.rentaMinima }),
+        ...(rango.rentaMaxima !== undefined && { rentaMaxima: rango.rentaMaxima }),
+      });
+      if (consulta !== consultaActual.current) return;
+      setHabitaciones((actuales) => [...actuales, ...resultado.items]);
+      setHayMas(resultado.hasMore);
+      setPagina(pagina + 1);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudieron cargar más perfiles.');
+      setError(cause instanceof Error ? cause.message : 'No se pudieron cargar más habitaciones.');
     } finally {
       setCargandoMas(false);
     }
   };
 
-  const solicitarConexion = async () => {
-    if (!perfilActivo || solicitudEnviada) return;
-    setError(null);
-    try {
-      await enviarSolicitudConexion(perfilActivo.id);
-      setSolicitudEnviada(true);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo enviar la solicitud.');
-    }
+  const limpiarFiltros = () => {
+    setBusqueda('');
+    setRango(rangosRenta[0]!);
   };
 
   return (
@@ -180,123 +106,90 @@ export function PantallaExploracion() {
         showsVerticalScrollIndicator={false}>
         <Text style={styles.marca}>ROOMLINK / 04</Text>
 
-        {vista === 'resultados' ? (
+        {habitacionActiva ? (
           <>
-            <Text style={styles.titulo}>Encuentra tu gente</Text>
-            <Text style={styles.subtitulo}>
-              Perfiles ordenados por afinidad
-            </Text>
-            <BuscadorRoomies
-              busqueda={busqueda}
-              pestanaActiva={pestanaActiva}
-              alBuscar={setBusqueda}
-              alCambiarPestana={setPestanaActiva}
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setHabitacionActiva(null)}
+              style={styles.volver}>
+              <Text style={styles.textoVolver}>‹  Habitaciones disponibles</Text>
+            </Pressable>
+            <DetalleHabitacion
+              alPostularse={() =>
+                setPostuladas((actuales) => new Set(actuales).add(habitacionActiva.id))
+              }
+              habitacion={habitacionActiva}
+              yaPostulada={postuladas.has(habitacionActiva.id)}
             />
-            {pestanaActiva === 'Filtros' && (
-              <View style={styles.filtros}>
-                {filtrosDisponibles.map((filtro) => {
-                  const activo = filtroActivo === filtro;
-                  return (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: activo }}
-                      key={filtro}
-                      onPress={() => setFiltroActivo(filtro)}
-                      style={[styles.filtro, activo && styles.filtroActivo]}>
-                      <Text style={[styles.textoFiltro, activo && styles.textoFiltroActivo]}>
-                        {filtro}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-            <View style={styles.resumen}>
-              <Text style={styles.textoResumen}>
-                {perfilesVisibles.length} perfiles cargados
+          </>
+        ) : (
+          <>
+            <Text style={styles.titulo}>Encuentra tu cuarto</Text>
+            <Text style={styles.subtitulo}>
+              Habitaciones publicadas por anfitriones, de las más recientes a las más antiguas
+            </Text>
+            <BuscadorHabitaciones
+              alBuscar={setBusqueda}
+              alElegirRango={setRango}
+              busqueda={busqueda}
+              rangoActivo={rango}
+            />
+
+            {!cargando && !error && (
+              <Text style={styles.resumen}>
+                {habitaciones.length}{' '}
+                {habitaciones.length === 1 ? 'habitación' : 'habitaciones'} cargadas
               </Text>
-            </View>
-            {!feed?.hasTest && (
-              <View style={styles.aviso}>
-                <Text style={styles.textoAviso}>
-                  Completa el test de compatibilidad para ordenar los perfiles por afinidad.
-                </Text>
-              </View>
             )}
+
             {cargando ? (
-              <Text style={styles.estado}>Cargando perfiles…</Text>
-            ) : perfilesVisibles.length > 0 ? (
-              <View style={styles.cuadricula}>
-                {perfilesVisibles.map((perfil) => (
-                  <TarjetaRoomie
-                    key={perfil.id}
-                    perfil={perfil}
-                    mostrarPreferencias={pestanaActiva === 'Preferencias'}
-                    alAbrir={() => abrirPerfil(perfil, 'perfil')}
-                    alVerRapido={() => abrirPerfil(perfil, 'rapida')}
+              <View style={styles.estado}>
+                <ActivityIndicator color="#84658D" />
+                <Text style={styles.textoEstado}>Buscando habitaciones…</Text>
+              </View>
+            ) : habitaciones.length > 0 ? (
+              <View style={styles.lista}>
+                {habitaciones.map((habitacion) => (
+                  <TarjetaHabitacion
+                    alAbrir={() => setHabitacionActiva(habitacion)}
+                    habitacion={habitacion}
+                    key={habitacion.id}
                   />
                 ))}
               </View>
-            ) : (
+            ) : !error ? (
               <View style={styles.vacio}>
-                <Text style={styles.textoVacio}>No encontramos perfiles con esos filtros.</Text>
-                <Pressable
-                  onPress={() => {
-                    setBusqueda('');
-                    setFiltroActivo('Todas');
-                  }}>
-                  <Text style={styles.limpiarFiltros}>Limpiar búsqueda</Text>
+                <Text style={styles.textoVacio}>
+                  No hay habitaciones disponibles con esos filtros.
+                </Text>
+                <Pressable accessibilityRole="button" onPress={limpiarFiltros}>
+                  <Text style={styles.limpiarFiltros}>Limpiar filtros</Text>
                 </Pressable>
               </View>
-            )}
-            {feed?.hasMore && (
+            ) : null}
+
+            {hayMas && !cargando && (
               <Pressable
                 accessibilityRole="button"
+                disabled={cargandoMas}
                 onPress={cargarMas}
-                style={styles.botonTodos}>
-                <Text style={styles.textoBotonTodos}>
-                  {cargandoMas ? 'Cargando…' : 'Ver más perfiles'}
+                style={styles.botonMas}>
+                <Text style={styles.textoBotonMas}>
+                  {cargandoMas ? 'Cargando…' : 'Ver más habitaciones'}
                 </Text>
               </Pressable>
             )}
           </>
-        ) : perfilActivo ? (
-          <>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setVista('resultados')}
-              style={styles.volver}>
-              <Text style={styles.textoVolver}>‹  Explorar perfiles</Text>
-            </Pressable>
-            <Text style={styles.titulo}>
-              {vista === 'rapida' ? 'Un vistazo a' : 'Conoce a'}{' '}
-              {perfilActivo.nombre.split(' ')[0]}
-            </Text>
-            <Text style={styles.subtitulo}>
-              {vista === 'rapida'
-                ? 'Vista rápida del perfil'
-                : 'Un estilo de vida parecido al tuyo'}
-            </Text>
-            <View style={styles.ficha}>
-              <FichaRoomie
-                perfil={perfilActivo}
-                pestanaActiva={pestanaActiva}
-                vistaRapida={vista === 'rapida'}
-                solicitudEnviada={solicitudEnviada}
-                comparando={comparando}
-                alCambiarPestana={setPestanaActiva}
-                alAbrirVistaRapida={() => setVista('rapida')}
-                alEnviarSolicitud={solicitarConexion}
-                alComparar={() => setComparando((actual) => !actual)}
-                alVerPerfilCompleto={() => setVista('perfil')}
-                alCerrar={() => setVista('resultados')}
-              />
-            </View>
-          </>
-        ) : <Text style={styles.estado}>Cargando perfil…</Text>}
-        {error && (
+        )}
+
+        {error && !habitacionActiva && (
           <View accessibilityRole="alert" style={styles.error}>
             <Text style={styles.textoError}>{error}</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void cargarPrimeraPagina(busqueda, rango)}>
+              <Text style={styles.reintentar}>Reintentar</Text>
+            </Pressable>
           </View>
         )}
       </ScrollView>
@@ -335,83 +228,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 3,
   },
-  filtros: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 9,
-  },
-  filtro: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#EEE8F0',
-  },
-  filtroActivo: {
-    backgroundColor: '#E9DAEC',
-    borderColor: '#E9DAEC',
-  },
-  textoFiltro: {
-    color: '#6F5B76',
-    fontSize: 9,
-  },
-  textoFiltroActivo: {
-    color: '#84658D',
-    fontWeight: '600',
-  },
   resumen: {
-    marginTop: 10,
-    marginBottom: 7,
+    color: '#817987',
+    fontSize: 9,
+    marginBottom: 8,
   },
-  aviso: {
-    padding: 11,
-    borderRadius: 12,
-    backgroundColor: '#E9DAEC',
-    marginTop: 10,
-  },
-  textoAviso: {
-    color: '#6F5B76',
-    fontSize: 11,
+  lista: {
+    gap: 12,
   },
   estado: {
+    alignItems: 'center',
+    gap: 8,
+    padding: 24,
+  },
+  textoEstado: {
     color: '#817987',
     fontSize: 12,
-    textAlign: 'center',
-    padding: 18,
-  },
-  error: {
-    padding: 11,
-    borderRadius: 10,
-    backgroundColor: '#FCE8E8',
-    marginTop: 10,
-  },
-  textoError: {
-    color: '#8A3030',
-    fontSize: 11,
-  },
-  textoResumen: {
-    color: '#817987',
-    fontSize: 9,
-  },
-  cuadricula: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  botonTodos: {
-    minHeight: 39,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    backgroundColor: '#84658D',
-    marginTop: 12,
-  },
-  textoBotonTodos: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '600',
   },
   vacio: {
     alignItems: 'center',
@@ -431,6 +263,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 10,
   },
+  botonMas: {
+    minHeight: 39,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: '#84658D',
+    marginTop: 14,
+  },
+  textoBotonMas: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
   volver: {
     alignSelf: 'flex-start',
     paddingVertical: 7,
@@ -440,10 +285,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  ficha: {
-    padding: 10,
-    borderRadius: 15,
-    backgroundColor: '#F6F1F7',
-    marginTop: 13,
+  error: {
+    padding: 11,
+    borderRadius: 10,
+    backgroundColor: '#FCE8E8',
+    marginTop: 10,
+  },
+  textoError: {
+    color: '#8A3030',
+    fontSize: 11,
+  },
+  reintentar: {
+    color: '#8A3030',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 8,
   },
 });
