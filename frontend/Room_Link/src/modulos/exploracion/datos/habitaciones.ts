@@ -3,6 +3,7 @@ import type { HabitacionDetalle, HabitacionResumen } from '../api';
 /** Modelo de presentación de una habitación del feed. */
 export type HabitacionFeed = {
   id: string;
+  hostId: string;
   titulo: string;
   renta: number;
   rentaTexto: string;
@@ -11,6 +12,8 @@ export type HabitacionFeed = {
   fotos: number;
   descripcion: string | null;
   maxCompaneros: number | null;
+  /** Afinidad (0-100) entre el buscador y el anfitrión; null si no hay test o perfil. */
+  compatibilidad: number | null;
 };
 
 const MESES = [
@@ -45,6 +48,7 @@ export function adaptarHabitacion(
   const detalle = habitacion as Partial<HabitacionDetalle>;
   return {
     id: habitacion.id,
+    hostId: habitacion.hostId,
     titulo: habitacion.title.trim() || 'Habitación sin título',
     renta: habitacion.monthlyRent,
     rentaTexto: formatearRenta(habitacion.monthlyRent),
@@ -55,5 +59,6 @@ export function adaptarHabitacion(
     fotos: habitacion.photosCount,
     descripcion: detalle.description ?? null,
     maxCompaneros: detalle.maxRoommates ?? null,
+    compatibilidad: null,
   };
 }

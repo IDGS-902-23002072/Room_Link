@@ -46,10 +46,14 @@ export function obtenerHabitacion(id: string) {
   return solicitud<HabitacionDetalle>(`/api/v1/rooms/${encodeURIComponent(id)}`);
 }
 
-/** El buscador (usuario actual) se postula a una habitación publicada. */
+/**
+ * El buscador (usuario actual) se postula a una habitación publicada.
+ * compatibilityScore es la afinidad entre el buscador y el anfitrión.
+ */
 export function postularseAHabitacion(
   listingId: string,
   message: string | null = null,
+  compatibilityScore: number | null = null,
 ) {
   const { userId } = configuracionApi();
   return solicitud<PostulacionRespuesta>('/api/v1/applications', {
@@ -58,7 +62,7 @@ export function postularseAHabitacion(
       listingId,
       applicantId: userId,
       message: message && message.trim().length > 0 ? message.trim() : null,
-      compatibilityScore: null,
+      compatibilityScore,
     }),
   });
 }

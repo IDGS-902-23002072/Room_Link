@@ -40,6 +40,11 @@ export function FichaHabitacion({
 
       <Text style={styles.titulo}>{habitacion.titulo}</Text>
       <Text style={styles.renta}>{habitacion.rentaTexto}</Text>
+      {habitacion.compatibilidad !== null && (
+        <Text style={styles.compatibilidad}>
+          {habitacion.compatibilidad}% compatible con el anfitrión
+        </Text>
+      )}
 
       <View style={styles.datos}>
         <View style={styles.dato}>
@@ -163,6 +168,12 @@ const styles = StyleSheet.create({
     color: '#84658D',
     fontSize: 13,
     fontWeight: '700',
+    marginTop: 3,
+  },
+  compatibilidad: {
+    color: '#84658D',
+    fontSize: 11,
+    fontWeight: '600',
     marginTop: 3,
   },
   datos: {

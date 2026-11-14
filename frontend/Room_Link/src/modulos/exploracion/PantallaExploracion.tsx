@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { obtenerPerfilAfinidad } from '../compatibilidad/api';
+
 import {
   obtenerHabitacion,
   obtenerHabitacionesPublicadas,
@@ -51,8 +53,30 @@ export function PantallaExploracion() {
   const [filtroActivo, setFiltroActivo] = useState<FiltroHabitacion>('Todas');
   const [postuladas, setPostuladas] = useState<Set<string>>(new Set());
   const [enviando, setEnviando] = useState(false);
+  // Afinidad buscador ↔ anfitrión, por hostId (null = sin test o sin perfil).
+  const [compatibilidades, setCompatibilidades] = useState<Record<string, number | null>>({});
   const { width } = useWindowDimensions();
   const anchoContenido = Math.min(width, 460);
+
+  // Consulta la afinidad con cada anfitrión nuevo; sin test o sin perfil queda en null.
+  const cargarCompatibilidades = (hostIds: string[], yaCargadas: Record<string, number | null>) => {
+    const pendientes = [...new Set(hostIds)].filter((id) => !(id in yaCargadas));
+    if (pendientes.length === 0) return;
+    Promise.all(
+      pendientes.map((id) =>
+        obtenerPerfilAfinidad(id)
+          .then((perfil) => [id, perfil.compatibilityScore] as const)
+          .catch(() => [id, null] as const),
+      ),
+    ).then((pares) => {
+      setCompatibilidades((actuales) => ({ ...actuales, ...Object.fromEntries(pares) }));
+    });
+  };
+
+  const conCompatibilidad = (habitacion: HabitacionFeed): HabitacionFeed => ({
+    ...habitacion,
+    compatibilidad: compatibilidades[habitacion.hostId] ?? null,
+  });
 
   useEffect(() => {
     let activo = true;
@@ -60,6 +84,10 @@ export function PantallaExploracion() {
       .then((resultado) => {
         if (!activo) return;
         setHabitaciones(resultado.map(adaptarHabitacion));
+        cargarCompatibilidades(
+          resultado.map((habitacion) => habitacion.hostId),
+          {},
+        );
         setHayMas(resultado.length === TAMANO_PAGINA);
         setPagina(1);
         setError(null);
@@ -114,6 +142,10 @@ export function PantallaExploracion() {
     try {
       const resultado = await obtenerHabitacionesPublicadas(siguientePagina);
       setHabitaciones((actuales) => [...actuales, ...resultado.map(adaptarHabitacion)]);
+      cargarCompatibilidades(
+        resultado.map((habitacion) => habitacion.hostId),
+        compatibilidades,
+      );
       setHayMas(resultado.length === TAMANO_PAGINA);
       setPagina(siguientePagina);
     } catch (cause) {
@@ -130,7 +162,11 @@ export function PantallaExploracion() {
     setEnviando(true);
     setError(null);
     try {
-      await postularseAHabitacion(habitacionActiva.id, mensaje);
+      await postularseAHabitacion(
+        habitacionActiva.id,
+        mensaje,
+        compatibilidades[habitacionActiva.hostId] ?? null,
+      );
       setPostuladas((actuales) => new Set(actuales).add(habitacionActiva.id));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo enviar la postulación.');
@@ -169,7 +205,7 @@ export function PantallaExploracion() {
                 {habitacionesVisibles.map((habitacion) => (
                   <TarjetaHabitacion
                     key={habitacion.id}
-                    habitacion={habitacion}
+                    habitacion={conCompatibilidad(habitacion)}
                     postulada={postuladas.has(habitacion.id)}
                     alAbrir={() => abrirHabitacion(habitacion, 'detalle')}
                     alVerRapido={() => abrirHabitacion(habitacion, 'rapida')}
@@ -223,7 +259,7 @@ export function PantallaExploracion() {
             </Text>
             <View style={styles.ficha}>
               <FichaHabitacion
-                habitacion={habitacionActiva}
+                habitacion={conCompatibilidad(habitacionActiva)}
                 vistaRapida={vista === 'rapida'}
                 postulada={postuladas.has(habitacionActiva.id)}
                 enviando={enviando}

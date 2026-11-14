@@ -50,6 +50,11 @@ export function TarjetaHabitacion({
             ? 'Disponible ahora'
             : `Disponible desde ${habitacion.disponibleDesde}`}
         </Text>
+        {habitacion.compatibilidad !== null && (
+          <Text numberOfLines={1} style={styles.compatibilidad}>
+            {habitacion.compatibilidad}% compatible con el anfitrión
+          </Text>
+        )}
         {postulada && <Text style={styles.postulada}>Postulación enviada</Text>}
       </Pressable>
     </View>
@@ -119,6 +124,12 @@ const styles = StyleSheet.create({
     color: '#84658D',
     fontSize: 10,
     fontWeight: '700',
+    marginTop: 3,
+  },
+  compatibilidad: {
+    color: '#84658D',
+    fontSize: 9,
+    fontWeight: '600',
     marginTop: 3,
   },
   detalle: {
