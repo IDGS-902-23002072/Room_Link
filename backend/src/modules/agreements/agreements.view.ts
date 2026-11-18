@@ -1,37 +1,37 @@
-import type { Agreement, AgreementAcceptance } from "../../domain/index.js";
+import type { Agreement } from "../../domain/index.js";
 
-export interface AgreementDTO {
+export interface AgreementDto {
   id: string;
   listingId: string;
+  version: number;
+  supersedesAgreementId: string | null;
+  hostId: string;
+  roomieIds: string[];
   rulesSnapshot: Record<string, unknown>;
+  acceptances: Array<{ userId: string; acceptedAt: string | null }>;
+  fullyAccepted: boolean;
   createdAt: string;
 }
 
-export interface AcceptanceDTO {
-  agreementId: string;
-  userId: string;
-  acceptedAt: string | null;
-}
-
-export class AgreementView {
-  static toDTO(a: Agreement): AgreementDTO {
+export class AgreementsView {
+  public static toDto(agreement: Agreement): AgreementDto {
     return {
-      id: a.id,
-      listingId: a.listingId,
-      rulesSnapshot: a.rulesSnapshot,
-      createdAt: a.createdAt.toISOString(),
+      id: agreement.id,
+      listingId: agreement.listingId,
+      version: agreement.version,
+      supersedesAgreementId: agreement.supersedesAgreementId,
+      hostId: agreement.hostId,
+      roomieIds: agreement.roomieIds,
+      rulesSnapshot: agreement.rulesSnapshot as unknown as Record<
+        string,
+        unknown
+      >,
+      acceptances: agreement.acceptances.map((a) => ({
+        userId: a.userId,
+        acceptedAt: a.acceptedAt ? a.acceptedAt.toISOString() : null,
+      })),
+      fullyAccepted: agreement.isFullyAccepted(),
+      createdAt: agreement.createdAt.toISOString(),
     };
-  }
-
-  static toAcceptance(a: AgreementAcceptance): AcceptanceDTO {
-    return {
-      agreementId: a.agreementId,
-      userId: a.userId,
-      acceptedAt: a.acceptedAt ? a.acceptedAt.toISOString() : null,
-    };
-  }
-
-  static toAcceptanceList(items: AgreementAcceptance[]): AcceptanceDTO[] {
-    return items.map((a) => AgreementView.toAcceptance(a));
   }
 }
