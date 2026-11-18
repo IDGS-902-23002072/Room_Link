@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { obtenerToken, obtenerUserId } from '@/auth/sesion';
+
 export const MAX_FOTOS = 6;
 export const MAX_TAMANO_FOTO = 5 * 1024 * 1024;
 
@@ -59,12 +61,13 @@ const TIPOS_POR_EXTENSION: Record<string, string> = {
 
 function configuracionApi() {
   const baseUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
-  const userId = process.env.EXPO_PUBLIC_USER_ID?.trim();
+  const userId = obtenerUserId();
 
-  if (!baseUrl || !userId) {
-    throw new Error(
-      'Configura EXPO_PUBLIC_API_URL y EXPO_PUBLIC_USER_ID en frontend/Room_Link/.env.',
-    );
+  if (!baseUrl) {
+    throw new Error('Configura EXPO_PUBLIC_API_URL en frontend/Room_Link/.env.');
+  }
+  if (!userId) {
+    throw new Error('No hay una sesión activa. Iniciá sesión para continuar.');
   }
 
   return { baseUrl, userId };
@@ -92,9 +95,16 @@ function mapearFoto(baseUrl: string, foto: FotoRemota): FotoPerfil {
 
 async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
   const { baseUrl } = configuracionApi();
+  const token = obtenerToken();
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}${path}`, init);
+    response = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init?.headers as Record<string, string> | undefined),
+      },
+    });
   } catch (error) {
     throw new Error(
       `No se pudo conectar con RoomLink API: ${
@@ -248,7 +258,7 @@ function esFotoPerfil(valor: unknown): valor is FotoPerfil {
  */
 export async function leerGaleriaLocal(): Promise<FotoPerfil[]> {
   try {
-    const userId = process.env.EXPO_PUBLIC_USER_ID?.trim() || 'local';
+    const userId = obtenerUserId() || 'local';
     const guardado = await AsyncStorage.getItem(claveGaleria(userId));
     if (!guardado) return [];
 
@@ -265,7 +275,7 @@ export async function guardarGaleriaLocal(
   fotos: FotoPerfil[],
 ): Promise<void> {
   try {
-    const userId = process.env.EXPO_PUBLIC_USER_ID?.trim() || 'local';
+    const userId = obtenerUserId() || 'local';
     await AsyncStorage.setItem(
       claveGaleria(userId),
       JSON.stringify(fotos.slice(0, MAX_FOTOS)),

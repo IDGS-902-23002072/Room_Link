@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { obtenerToken, obtenerUserId } from '@/auth/sesion';
+
 export interface PerfilPublico {
   userId: string;
   fullName: string;
@@ -40,12 +42,13 @@ const CAMPOS_PERFIL: (keyof PerfilFormulario)[] = [
 
 function configuracionApi() {
   const baseUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
-  const userId = process.env.EXPO_PUBLIC_USER_ID?.trim();
+  const userId = obtenerUserId();
 
-  if (!baseUrl || !userId) {
-    throw new Error(
-      'Configura EXPO_PUBLIC_API_URL y EXPO_PUBLIC_USER_ID en frontend/Room_Link/.env.',
-    );
+  if (!baseUrl) {
+    throw new Error('Configura EXPO_PUBLIC_API_URL en frontend/Room_Link/.env.');
+  }
+  if (!userId) {
+    throw new Error('No hay una sesión activa. Iniciá sesión para continuar.');
   }
 
   return { baseUrl, userId };
@@ -59,10 +62,12 @@ async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
   const { baseUrl } = configuracionApi();
   let response: Response;
   try {
+    const token = obtenerToken();
     response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },
     });
@@ -112,7 +117,7 @@ export function perfilDesdeApi(perfil: PerfilPublico): PerfilFormulario {
 }
 
 function clavePerfilLocal() {
-  const userId = process.env.EXPO_PUBLIC_USER_ID?.trim() || 'local';
+  const userId = obtenerUserId() || 'local';
   return `@roomlink/profile:${userId}`;
 }
 
