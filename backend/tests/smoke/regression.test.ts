@@ -17,6 +17,7 @@ import {
   InMemoryProfileRepository,
   InMemoryRoomRepository,
   InMemorySanctionRepository,
+  InMemorySearchRepository,
   InMemoryUserRepository,
   ZeroAnalyticsSource,
   buildUser,
@@ -66,6 +67,7 @@ describe("Regression smoke — flujo end-to-end con fakes in-memory", () => {
   const notificationRepo = new InMemoryNotificationRepository();
   const agreementRepo = new InMemoryAgreementRepository();
   const analyticsRepo = new InMemoryAnalyticsRepository();
+  const searchRepo = new InMemorySearchRepository(profileRepo, roomRepo);
 
   // Precargo usuarios para que el login funcione con los fakes de auth.
   userRepo.users.set("host-1", buildUser({ id: "host-1", email: "host@roomlink.test", roles: ["host"] }));
@@ -96,6 +98,7 @@ describe("Regression smoke — flujo end-to-end con fakes in-memory", () => {
     notificationRepo,
     agreementRepo,
     analyticsRepo,
+    searchRepo,
     analyticsSource: new ZeroAnalyticsSource(),
     activityLogRepo: new InMemoryActivityLogRepository(),
     authDependencies: authFakes.dependencies,
@@ -383,6 +386,52 @@ describe("Regression smoke — flujo end-to-end con fakes in-memory", () => {
     );
     expect(recompute.status).toBe(200);
     assertNoSensitive(await recompute.json());
+
+    const dashboard = await app.request(
+      "/api/v1/admin/analytics?start=2026-11-01&end=2026-11-30",
+      {
+        headers: auth(tokens.admin),
+      },
+    );
+    expect(dashboard.status).toBe(200);
+    assertNoSensitive(await dashboard.json());
+  });
+
+  it("seeker crea perfil extendido, consulta búsqueda y feed de habitaciones", async () => {
+    const createProfile = await app.request("/api/v1/profiles", {
+      method: "POST",
+      headers: auth(tokens.seeker, { "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        fullName: "Seeker Prueba",
+        birthDate: "2001-05-15",
+        occupation: "Estudiante",
+        bio: "Busco cuarto tranquilo",
+      }),
+    });
+    expect(createProfile.status).toBe(201);
+    assertNoSensitive(await createProfile.json());
+
+    const addPhoto = await app.request("/api/v1/profiles/seeker-1/photos", {
+      method: "POST",
+      headers: auth(tokens.seeker, { "Content-Type": "application/json" }),
+      body: JSON.stringify({ url: "https://example.com/photo1.jpg" }),
+    });
+    expect(addPhoto.status).toBe(201);
+    const photoBody = await addPhoto.json();
+    assertNoSensitive(photoBody);
+    expect(photoBody.photos).toHaveLength(1);
+
+    const searchProfiles = await app.request("/api/v1/search/profiles", {
+      headers: auth(tokens.seeker),
+    });
+    expect(searchProfiles.status).toBe(200);
+    const searchBody = await searchProfiles.json();
+    assertNoSensitive(searchBody);
+    expect(searchBody.items).toHaveLength(1);
+
+    const feedRes = await app.request("/api/v1/rooms/feed");
+    expect(feedRes.status).toBe(200);
+    assertNoSensitive(await feedRes.json());
   });
 
   it("todos los endpoints llevan los headers de seguridad transversales", async () => {

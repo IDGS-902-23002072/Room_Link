@@ -9,6 +9,13 @@ import {
   type IApplicationRepository,
   type ICompatibilityRepository,
   type IConnectionRepository,
+  type IActivityLogRepository,
+  type IAgreementRepository,
+  type IAnalyticsRepository,
+  type IAnalyticsSource,
+  type INotificationRepository,
+  type ISanctionRepository,
+  type ISearchRepository,
 } from "./domain/index.js";
 import {
   DrizzleUserRepository,
@@ -88,15 +95,6 @@ import {
   InProcessEventBus,
   createNotificationsRoutes,
 } from "./modules/notifications/index.js";
-import type {
-  IActivityLogRepository,
-  IAgreementRepository,
-  IAnalyticsRepository,
-  IAnalyticsSource,
-  INotificationRepository,
-  ISanctionRepository,
-  ISearchRepository,
-} from "./domain/index.js";
 import {
   SearchService,
   SearchController,
@@ -158,20 +156,20 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   });
 
   // Permitir consultar las fotografías almacenadas
-app.use(
-  "/uploads/*",
-  serveStatic({ root: "./" })
-);
-  const allowedOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:8081";
+  app.use("/uploads/*", serveStatic({ root: "./" }));
+
+  const allowedOrigins = new Set([
+    process.env.FRONTEND_ORIGIN ?? "http://localhost:8081",
+    "http://127.0.0.1:8081",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ]);
   app.use(
     "/api/*",
     cors({
-      origin: (origin) =>
-        origin === allowedOrigin || origin === "http://127.0.0.1:8081"
-          ? origin
-          : null,
-      allowHeaders: ["Content-Type"],
-      allowMethods: ["GET", "POST", "PUT", "OPTIONS"],
+      origin: (origin) => (allowedOrigins.has(origin) ? origin : null),
+      allowHeaders: ["Content-Type", "Authorization"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       maxAge: 600,
     }),
   );

@@ -49,6 +49,10 @@ export class RoomListing {
     return this.props.description;
   }
 
+  get publishedAt(): Date | null | undefined {
+    return this.props.publishedAt;
+  }
+
   get monthlyRent(): number {
     return this.props.monthlyRent;
   }

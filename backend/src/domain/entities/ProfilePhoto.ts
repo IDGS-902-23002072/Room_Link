@@ -39,6 +39,10 @@ export class ProfilePhoto {
     return this.props.createdAt;
   }
 
+  public isMain(): boolean {
+    return this.props.position === 1;
+  }
+
   public moveTo(position: number): void {
     ProfilePhoto.validatePosition(position);
     this.props.position = position;
@@ -60,8 +64,8 @@ export class ProfilePhoto {
     if (url.length > 2048) {
       throw new Error("La URL de la foto es demasiado larga.");
     }
-    if (!/^https?:\/\//i.test(url)) {
-      throw new Error("La URL de la foto debe iniciar con http:// o https://");
+    if (!/^(https?:\/\/|\/uploads\/)/i.test(url)) {
+      throw new Error("La URL de la foto debe iniciar con http://, https:// o /uploads/");
     }
   }
 

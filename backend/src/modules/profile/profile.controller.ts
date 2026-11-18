@@ -1,7 +1,17 @@
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import type { Context } from "hono";
 import type { ProfileService } from "./profile.service.js";
 import { ProfileView } from "./profile.view.js";
 import { notificationTypeValues } from "../../domain/index.js";
+
+const PHOTO_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
 
 export class ProfileController {
   constructor(private profileService: ProfileService) {}
@@ -83,13 +93,60 @@ export class ProfileController {
     const userId = c.req.param("userId");
     if (!userId) return c.json({ error: "userId es obligatorio" }, 400);
     const photos = await this.profileService.listPhotos(userId);
-    return c.json({ items: photos.map(ProfileView.toPhotoDto) }, 200);
+    const dtos = photos.map(ProfileView.toPhotoDto);
+    return c.json({ items: dtos, photos: dtos }, 200);
   };
 
   addPhoto = async (c: Context) => {
     try {
       const userId = c.req.param("userId");
       if (!userId) return c.json({ error: "userId es obligatorio" }, 400);
+
+      const contentType = c.req.header("content-type") ?? "";
+      if (contentType.includes("multipart/form-data")) {
+        const parsed = (await c.req.parseBody({ all: true })) as Record<
+          string,
+          unknown
+        >;
+        const rawFiles = [parsed["photos"], parsed["photo"]].flatMap((v) =>
+          Array.isArray(v) ? v : v === undefined || v === null ? [] : [v],
+        );
+        const files = rawFiles.filter((v): v is File => v instanceof File);
+        if (files.length === 0) {
+          return c.json(
+            { error: "Adjunta al menos una foto en el campo 'photos'." },
+            400,
+          );
+        }
+        const uploadDir = path.resolve(process.cwd(), "uploads", "photos");
+        await mkdir(uploadDir, { recursive: true });
+        for (const file of files) {
+          const mime = file.type?.trim().toLowerCase() ?? "";
+          const ext = PHOTO_EXTENSIONS[mime];
+          if (!ext) {
+            return c.json(
+              { error: "La foto debe ser JPG, PNG o WEBP." },
+              400,
+            );
+          }
+          if (file.size <= 0 || file.size > MAX_PHOTO_SIZE_BYTES) {
+            return c.json(
+              { error: "Cada foto debe pesar como máximo 5 MB." },
+              400,
+            );
+          }
+          const filename = `${randomUUID()}.${ext}`;
+          const bytes = Buffer.from(await file.arrayBuffer());
+          await writeFile(path.join(uploadDir, filename), bytes);
+          await this.profileService.addPhoto(userId, {
+            url: `/uploads/photos/${filename}`,
+          });
+        }
+        const allPhotos = await this.profileService.listPhotos(userId);
+        const dtos = allPhotos.map(ProfileView.toPhotoDto);
+        return c.json({ items: dtos, photos: dtos }, 201);
+      }
+
       const body = (await c.req.json()) as Record<string, unknown>;
       if (!body["url"]) return c.json({ error: "url es obligatoria" }, 400);
       const photoInput: { url: string; position?: number } = {
@@ -99,7 +156,12 @@ export class ProfileController {
         photoInput.position = Number(body["position"]);
       }
       const photo = await this.profileService.addPhoto(userId, photoInput);
-      return c.json(ProfileView.toPhotoDto(photo), 201);
+      const allPhotos = await this.profileService.listPhotos(userId);
+      const dtos = allPhotos.map(ProfileView.toPhotoDto);
+      return c.json(
+        { ...ProfileView.toPhotoDto(photo), items: dtos, photos: dtos },
+        201,
+      );
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Error al agregar foto";
@@ -129,18 +191,30 @@ export class ProfileController {
       if (!userId) return c.json({ error: "userId es obligatorio" }, 400);
       const body = (await c.req.json()) as Record<string, unknown>;
       const orderRaw = body["order"];
-      if (!Array.isArray(orderRaw)) {
+      const photoIdsRaw = body["photoIds"];
+      let order: { photoId: string; position: number }[];
+      if (Array.isArray(orderRaw)) {
+        order = (orderRaw as unknown[]).map((entry) => {
+          const record = entry as Record<string, unknown>;
+          return {
+            photoId: String(record["photoId"]),
+            position: Number(record["position"]),
+          };
+        });
+      } else if (
+        Array.isArray(photoIdsRaw) &&
+        photoIdsRaw.every((id) => typeof id === "string")
+      ) {
+        order = (photoIdsRaw as string[]).map((photoId, idx) => ({
+          photoId,
+          position: idx + 1,
+        }));
+      } else {
         return c.json({ error: "order debe ser un arreglo" }, 400);
       }
-      const order = (orderRaw as unknown[]).map((entry) => {
-        const record = entry as Record<string, unknown>;
-        return {
-          photoId: String(record["photoId"]),
-          position: Number(record["position"]),
-        };
-      });
       const updated = await this.profileService.reorderPhotos(userId, order);
-      return c.json({ items: updated.map(ProfileView.toPhotoDto) }, 200);
+      const dtos = updated.map(ProfileView.toPhotoDto);
+      return c.json({ items: dtos, photos: dtos }, 200);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Error al reordenar fotos";

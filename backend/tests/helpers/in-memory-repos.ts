@@ -24,6 +24,8 @@ import {
   type INotificationRepository,
   type IProfileRepository,
   type IRoomListingRepository,
+  type RoomFeedFilters,
+  type RoomFeedItem,
   type ISanctionRepository,
   type IUserRepository,
   type ListNotificationsFilter,
@@ -36,6 +38,9 @@ import {
   type CompatibilityFeedCandidate,
   type ConnectionRequest,
   type ActivityLogFilter,
+  type ISearchRepository,
+  type SearchFilters,
+  type Pagination,
 } from "../../src/domain/index.js";
 import type {
   AnyReportRecord,
@@ -78,7 +83,8 @@ export class InMemoryUserRepository implements IUserRepository {
 
 // Perfil extendido (HU-02, Roberto): se reexporta el fake completo que implementa
 // la interfaz IProfileRepository ampliada (fotos, socials, privacy, preferencias).
-export { InMemoryExtendedProfileRepository as InMemoryProfileRepository } from "./in-memory-profile-repo.js";
+import { InMemoryExtendedProfileRepository } from "./in-memory-profile-repo.js";
+export { InMemoryExtendedProfileRepository as InMemoryProfileRepository };
 
 export class InMemoryRoomRepository implements IRoomListingRepository {
   readonly rooms = new Map<string, RoomListing>();
@@ -88,6 +94,47 @@ export class InMemoryRoomRepository implements IRoomListingRepository {
   async findById(id: string) {
     return this.rooms.get(id) ?? null;
   }
+  async findPublishedFeed(
+    filters: RoomFeedFilters,
+    limit: number,
+    offset: number,
+  ): Promise<RoomFeedItem[]> {
+    const term = filters.search?.toLocaleLowerCase("es");
+    return Array.from(this.rooms.values())
+      .filter((room) => room.status === "published")
+      .filter((room) => filters.minRent === undefined || room.monthlyRent >= filters.minRent)
+      .filter((room) => filters.maxRent === undefined || room.monthlyRent <= filters.maxRent)
+      .filter((room) => !filters.excludeHostId || room.hostId !== filters.excludeHostId)
+      .filter((room) => {
+        if (!term) return true;
+        const address = room.locationId ? this.locations.get(room.locationId)?.address : "";
+        return `${room.title} ${room.description ?? ""} ${address ?? ""}`
+          .toLocaleLowerCase("es")
+          .includes(term);
+      })
+      .sort(
+        (a, b) =>
+          (b.publishedAt?.getTime() ?? b.createdAt.getTime()) -
+          (a.publishedAt?.getTime() ?? a.createdAt.getTime()),
+      )
+      .slice(offset, offset + limit)
+      .map((room) => ({
+        id: room.id,
+        hostId: room.hostId,
+        hostName: null,
+        title: room.title,
+        description: room.description ?? null,
+        monthlyRent: room.monthlyRent,
+        availableFrom: room.availableFrom ?? null,
+        maxRoommates: room.maxRoommates ?? null,
+        photoCount: room.photoCount,
+        address: room.locationId ? (this.locations.get(room.locationId)?.address ?? null) : null,
+        zone: null,
+        city: null,
+        publishedAt: room.publishedAt ?? null,
+      }));
+  }
+
   async findPublished(limit = 20, offset = 0) {
     return [...this.rooms.values()]
       .filter((r) => r.status === "published")
@@ -716,3 +763,52 @@ export function buildUser(input: {
 
 // Alias de utilidad por si hace falta en otros sitios.
 export type ApplicationStatusType = ApplicationStatus;
+
+export class InMemorySearchRepository implements ISearchRepository {
+  constructor(
+    private readonly profileRepo?: InMemoryExtendedProfileRepository,
+    private readonly roomRepo?: InMemoryRoomRepository,
+  ) {}
+
+  async searchProfiles(
+    _filters: SearchFilters,
+    pagination: Pagination,
+  ): Promise<{ items: Profile[]; total: number }> {
+    const all = this.profileRepo ? [...this.profileRepo.profiles.values()] : [];
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    return {
+      items: all.slice(offset, offset + pagination.pageSize),
+      total: all.length,
+    };
+  }
+
+  async searchListings(
+    filters: SearchFilters,
+    pagination: Pagination,
+  ): Promise<{ items: RoomListing[]; total: number }> {
+    let all = this.roomRepo
+      ? [...this.roomRepo.rooms.values()].filter((r) => r.status === "published")
+      : [];
+    if (filters.budgetMin != null) {
+      all = all.filter((r) => r.monthlyRent >= filters.budgetMin!);
+    }
+    if (filters.budgetMax != null) {
+      all = all.filter((r) => r.monthlyRent <= filters.budgetMax!);
+    }
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    return {
+      items: all.slice(offset, offset + pagination.pageSize),
+      total: all.length,
+    };
+  }
+
+  async countProfiles(_filters: SearchFilters): Promise<number> {
+    return this.profileRepo ? this.profileRepo.profiles.size : 0;
+  }
+
+  async countListings(filters: SearchFilters): Promise<number> {
+    const { total } = await this.searchListings(filters, { page: 1, pageSize: 1000 });
+    return total;
+  }
+}
+

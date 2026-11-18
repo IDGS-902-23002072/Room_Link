@@ -6,6 +6,23 @@ import { AnalyticsView } from "./analytics.view.js";
 
 type AuthContext = Context<{ Variables: AuthVariables }>;
 
+function parseDate(value: string | undefined): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10) === value ? date : null;
+}
+
+function addMonths(date: Date, months: number): Date {
+  const targetMonth = date.getUTCMonth() + months;
+  const year = date.getUTCFullYear() + Math.floor(targetMonth / 12);
+  const month = targetMonth % 12;
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return new Date(
+    Date.UTC(year, month, Math.min(date.getUTCDate(), lastDay)),
+  );
+}
+
 export class AnalyticsController {
   constructor(private readonly service: AnalyticsService) {}
 
@@ -20,6 +37,37 @@ export class AnalyticsController {
 
   getRange = async (c: AuthContext) =>
     this.handle(c, async () => {
+      const startRaw = c.req.query("start");
+      const endRaw = c.req.query("end");
+      if (startRaw !== undefined || endRaw !== undefined) {
+        const start = parseDate(startRaw);
+        const endDate = parseDate(endRaw);
+        if (!start || !endDate) {
+          return c.json(
+            { error: "Indica fechas válidas con formato YYYY-MM-DD." },
+            400,
+          );
+        }
+        if (start > endDate) {
+          return c.json(
+            {
+              error:
+                "La fecha inicial debe ser anterior o igual a la fecha final.",
+            },
+            400,
+          );
+        }
+        if (endDate > addMonths(start, 12)) {
+          return c.json(
+            { error: "El rango de fechas no puede superar los 12 meses." },
+            400,
+          );
+        }
+        const end = new Date(endDate.getTime() + 86_400_000 - 1);
+        const dashboard = await this.service.getDashboard(start, end);
+        return c.json(dashboard, 200);
+      }
+
       const fromRaw = c.req.query("from");
       const toRaw = c.req.query("to");
       if (!fromRaw || !toRaw) {

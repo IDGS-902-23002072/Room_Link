@@ -15,6 +15,7 @@ export const createRoomsRoutes = (
 
   // Rutas públicas de consulta
   router.get("/", controller.list);
+  router.get("/feed", controller.feed);
   router.get("/host/:hostId", controller.listByHost);
   router.get("/:id/photos/first", controller.getFirstPhoto);
   router.get("/:id/photos/:photoId", controller.getPhoto);

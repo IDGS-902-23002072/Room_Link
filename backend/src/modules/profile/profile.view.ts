@@ -24,6 +24,10 @@ export interface ProfilePhotoDto {
   id: string;
   url: string;
   position: number;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+  isMain: boolean;
 }
 
 export interface ContactPrivacyDto {
@@ -61,10 +65,21 @@ export class ProfileView {
   }
 
   public static toPhotoDto(photo: ProfilePhoto): ProfilePhotoDto {
+    const ext = photo.url.split(".").pop()?.toLowerCase();
+    const mimeType =
+      ext === "png"
+        ? "image/png"
+        : ext === "webp"
+          ? "image/webp"
+          : "image/jpeg";
     return {
       id: photo.id,
       url: photo.url,
       position: photo.position,
+      mimeType,
+      sizeBytes: 0,
+      createdAt: photo.createdAt.toISOString(),
+      isMain: photo.isMain(),
     };
   }
 

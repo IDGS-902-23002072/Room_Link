@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, count, eq, gte, lte, sql } from "drizzle-orm";
 import type { MySql2Database } from "drizzle-orm/mysql2";
 import { authUsers } from "../../db/schema/auth.js";
 import { analyticsDailyMetrics } from "../../db/schema/governance.js";
@@ -7,8 +7,10 @@ import { appApplications, connConnections } from "../../db/schema/social.js";
 import {
   DailyMetrics,
   toUtcMidnight,
+  type AnalyticsTotals,
   type IAnalyticsRepository,
   type IAnalyticsSource,
+  type MonthlyMetric,
 } from "../../domain/index.js";
 
 function dayRange(day: Date): { start: Date; end: Date; isoDate: string } {
@@ -79,6 +81,85 @@ export class DrizzleAnalyticsRepository implements IAnalyticsRepository {
     return rows.map((row) => this.toDomain(row));
   }
 
+  async getTotals(start: Date, end: Date): Promise<AnalyticsTotals> {
+    const [users] = await this.db
+      .select({ total: count() })
+      .from(authUsers)
+      .where(and(gte(authUsers.createdAt, start), lte(authUsers.createdAt, end)));
+    const [rooms] = await this.db
+      .select({ total: count() })
+      .from(roomListings)
+      .where(eq(roomListings.status, "published"));
+    const [connections] = await this.db
+      .select({
+        sent: count(),
+        accepted: sql<number>`COALESCE(SUM(CASE WHEN ${connConnections.status} = 'accepted' THEN 1 ELSE 0 END), 0)`,
+      })
+      .from(connConnections)
+      .where(
+        and(
+          gte(connConnections.createdAt, start),
+          lte(connConnections.createdAt, end),
+        ),
+      );
+    const [closures] = await this.db
+      .select({
+        average: sql<number | null>`AVG(TIMESTAMPDIFF(DAY, ${roomListings.publishedAt}, ${roomListings.closedAt}))`,
+      })
+      .from(roomListings)
+      .where(
+        and(
+          eq(roomListings.status, "closed"),
+          gte(roomListings.closedAt, start),
+          lte(roomListings.closedAt, end),
+        ),
+      );
+
+    return {
+      usersRegistered: Number(users?.total ?? 0),
+      activeRooms: Number(rooms?.total ?? 0),
+      connectionsSent: Number(connections?.sent ?? 0),
+      connectionsAccepted: Number(connections?.accepted ?? 0),
+      avgDaysToClose:
+        closures?.average === null || closures?.average === undefined
+          ? null
+          : Number(closures.average),
+    };
+  }
+
+  async getUsersByMonth(start: Date, end: Date): Promise<MonthlyMetric[]> {
+    const month = sql<string>`DATE_FORMAT(${authUsers.createdAt}, '%Y-%m')`;
+    const rows = await this.db
+      .select({ month, total: count() })
+      .from(authUsers)
+      .where(and(gte(authUsers.createdAt, start), lte(authUsers.createdAt, end)))
+      .groupBy(month)
+      .orderBy(month);
+    return rows.map((row: { month: string; total: number }) => ({
+      month: row.month,
+      total: Number(row.total),
+    }));
+  }
+
+  async getListingsByMonth(start: Date, end: Date): Promise<MonthlyMetric[]> {
+    const month = sql<string>`DATE_FORMAT(${roomListings.publishedAt}, '%Y-%m')`;
+    const rows = await this.db
+      .select({ month, total: count() })
+      .from(roomListings)
+      .where(
+        and(
+          gte(roomListings.publishedAt, start),
+          lte(roomListings.publishedAt, end),
+        ),
+      )
+      .groupBy(month)
+      .orderBy(month);
+    return rows.map((row: { month: string; total: number }) => ({
+      month: row.month,
+      total: Number(row.total),
+    }));
+  }
+
   private toDomain(row: typeof analyticsDailyMetrics.$inferSelect): DailyMetrics {
     const parseNumeric = (value: string | null): number | null =>
       value === null ? null : Number(value);
@@ -109,8 +190,6 @@ export class DrizzleAnalyticsSource implements IAnalyticsSource {
   }
 
   async countActiveListingsAt(_day: Date): Promise<number> {
-    // Snapshot "a hoy": listings con status published. Para precisión histórica
-    // habría que unir con una tabla de eventos de publicación; se deja como mejora.
     const [row] = await this.db
       .select({ value: sql<number>`count(*)` })
       .from(roomListings)
