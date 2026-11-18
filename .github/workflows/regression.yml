@@ -103,6 +103,94 @@ jobs:
           path: backend/coverage
           if-no-files-found: ignore
 
+  e2e-mobile:
+    name: Móvil · E2E cross-origin (navegador real)
+    runs-on: ubuntu-latest
+    if: hashFiles('backend/package.json') != '' && hashFiles('frontend/package.json') != ''
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: roomlink_root
+          MYSQL_DATABASE: roomlink
+          MYSQL_USER: roomlink_app
+          MYSQL_PASSWORD: roomlink_school
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proomlink_root --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Resolve Chrome del runner
+        run: echo "CHROME_PATH=$(which google-chrome || which google-chrome-stable || which chromium-browser)" >> "$GITHUB_ENV"
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Apply migrations
+        working-directory: backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASSWORD: roomlink_root
+          DB_NAME: roomlink
+        run: npm run db:migrate
+
+      - name: Start backend (background)
+        working-directory: backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: roomlink_app
+          DB_PASSWORD: roomlink_school
+          DB_NAME: roomlink
+          FRONTEND_ORIGIN: http://localhost:8081
+        run: |
+          npm run start:node &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/health >/dev/null && { echo "backend up"; exit 0; }
+            sleep 1
+          done
+          echo "backend no respondió a tiempo" >&2; exit 1
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build mobile web
+        working-directory: frontend
+        run: npm run build:web
+
+      - name: Serve mobile build (background)
+        working-directory: frontend
+        run: |
+          python3 -m http.server 8081 --directory dist &
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:8081/ >/dev/null && { echo "web up"; exit 0; }
+            sleep 1
+          done
+          echo "el build del móvil no se sirvió a tiempo" >&2; exit 1
+
+      - name: E2E móvil (navegador real)
+        working-directory: frontend
+        env:
+          E2E_API_URL: http://localhost:3000/api/v1
+          E2E_WEB_URL: http://localhost:8081
+        run: npm run test:e2e
+
   regression-bootstrap-notice:
     name: Nothing initialized yet
     runs-on: ubuntu-latest

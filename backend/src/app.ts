@@ -170,6 +170,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
       origin: (origin) => (allowedOrigins.has(origin) ? origin : null),
       allowHeaders: ["Content-Type", "Authorization"],
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      credentials: true,
       maxAge: 600,
     }),
   );
