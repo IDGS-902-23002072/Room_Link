@@ -29,6 +29,7 @@ import {
   DrizzleAgreementRepository,
   DrizzleAnalyticsRepository,
   DrizzleAnalyticsSource,
+  DrizzleSearchRepository,
 } from "./infrastructure/repositories/index.js";
 import {
   AuthService,
@@ -94,7 +95,13 @@ import type {
   IAnalyticsSource,
   INotificationRepository,
   ISanctionRepository,
+  ISearchRepository,
 } from "./domain/index.js";
+import {
+  SearchService,
+  SearchController,
+  createSearchRoutes,
+} from "./modules/search/index.js";
 import {
   AgreementsService,
   AgreementsController,
@@ -136,6 +143,7 @@ export interface AppDependencies {
   agreementRepo?: IAgreementRepository;
   analyticsRepo?: IAnalyticsRepository;
   analyticsSource?: IAnalyticsSource;
+  searchRepo?: ISearchRepository;
 }
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
@@ -307,28 +315,21 @@ app.use(
     createSanctionsRoutes(sanctionsController, authService),
   );
 
-  // 11. Agreements (acuerdos de convivencia)
+  // 11. Agreements (acuerdos de convivencia) — módulo de Roberto
   const agreementsService = new AgreementsService(
     dependencies.agreementRepo ?? new DrizzleAgreementRepository(db),
-    {
-      getListingHostId: async (listingId: string) => {
-        const room = await roomRepo.findById(listingId);
-        return room ? room.hostId : null;
-      },
-      isAcceptedApplicant: async (listingId: string, userId: string) => {
-        const apps = await appRepo.findByApplicantId(userId);
-        return apps.some(
-          (a) => a.listingId === listingId && a.status === "accepted",
-        );
-      },
-    },
-    authDependencies.eventPublisher,
   );
   const agreementsController = new AgreementsController(agreementsService);
   app.route(
     "/api/v1/agreements",
     createAgreementsRoutes(agreementsController, authService),
   );
+
+  // 14. Search Module (HU-05) — módulo de Roberto
+  const searchRepo = dependencies.searchRepo ?? new DrizzleSearchRepository(db);
+  const searchService = new SearchService(searchRepo);
+  const searchController = new SearchController(searchService);
+  app.route("/api/v1/search", createSearchRoutes(searchController, authService));
 
   // 12. Analytics (admin)
   const analyticsService = new AnalyticsService(
