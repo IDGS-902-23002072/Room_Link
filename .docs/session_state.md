@@ -34,11 +34,25 @@
 - Workflow `.github/workflows/regression.yml` nuevo: triggers `pull_request: [main]`, `push: [main]`, `workflow_dispatch`; service MySQL 8.4; pipeline `typecheck → db:check → db:migrate:bun → test:unit:bun → vitest integration → vitest smoke`; `npm audit` informativo; coverage artifact.
 - Documentada la branch protection rule en `backend/README.md` sección 7.
 
+### Integración completa en `develop` (PRs recientes + `integracion/roberto`)
+- **`integracion/roberto` (y PR #242 / `feature/roberto`)**: integrados los módulos completos de Roberto Vargas bajo la arquitectura endurecida con sesión/autorización:
+  - **Perfil extendido (HU-02)**: galería de fotos (tope 6, soporte de URL y carga `multipart/form-data` en `/uploads/photos`, reordenamiento por `order` o `photoIds`), privacidad de contacto (`ContactPrivacy`), solicitud de verificación de identidad, redes sociales y preferencias de notificación por tipo.
+  - **Search (HU-05)**: módulo `/api/v1/search` (`profiles`, `listings`, `count`) con `DrizzleSearchRepository` y validación de rangos.
+  - **Agreements (HU-12)**: módulo `/api/v1/agreements` con agregado `Agreement`, snapshot inmutable de reglas y costos, firma digital con validación de participantes y versionado.
+- **`feature/omar` (PR #241 y PR #238) + `feature/4-feed-habitaciones` (PR #240)**:
+  - **Rooms Feed (HU-04)**: endpoint público `GET /api/v1/rooms/feed` con búsqueda por texto (`q`), rango de renta (`minRent`, `maxRent`), `excludeHostId` y paginación (`page`, `pageSize`).
+  - **Analytics administrativo dual (`/api/v1/admin/analytics`)**: soporta tanto el corte diario (`GET /?from=&to=` y `POST /recompute?date=`) como el dashboard administrativo web (`GET /?start=&end=` con `kpis`, `monthlyUsers` y `monthlyListings`).
+  - **CORS y configuración**: habilitados orígenes de desarrollo web Vite (`http://localhost:5173`, `http://127.0.0.1:5173`) además de Expo (`8081`), `railway.json` y script de seed/benchmark de compatibilidad (`db:seed:compatibility`, `db:benchmark:compatibility`).
+  - **Frontend móvil y Web**: integrados el rediseño del feed de habitaciones, galería de fotos de perfil y portal web React (cuestionario, recomendaciones y dashboard de métricas).
+- **`feature/cesar`**: integrado ajuste de versión de Bun en `CONTRIBUTING.md`.
+
 ### Métricas de calidad al cierre
-- `npm run typecheck` → limpio.
-- `npm run test:unit` → **106/106**.
-- `npm run test:smoke` → **11/11** (sin MySQL, fakes in-memory).
-- `npm run test:integration` → sigue verde contra el servicio MySQL 8.4 en CI (`regression.yml`).
+- `npm run typecheck` / `bun run typecheck` → limpio (0 errores).
+- `npm run db:check` / `bun run db:check` → limpio (`Everything's fine`).
+- `npm run test:unit` / `bun run test:unit:bun` → **154/154** (18 suites unitarias).
+- `npm run test:smoke` → **12/12** (flujo end-to-end in-memory cubriendo los 13 módulos del backend).
+- `DB_PORT=3307 npm run test:integration` → **4/4** contra MySQL 8.4 real.
+- `web` (`npm test`) → **4/4** tests pasando.
 
 ## [QUÉ FALTA (Pending)]
 
