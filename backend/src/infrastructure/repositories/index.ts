@@ -12,3 +12,4 @@ export * from "./DrizzleSanctionRepository.js";
 export * from "./DrizzleActivityLogRepository.js";
 export * from "./DrizzleAgreementRepository.js";
 export * from "./DrizzleAnalyticsRepository.js";
+export * from "./DrizzleSearchRepository.js";
