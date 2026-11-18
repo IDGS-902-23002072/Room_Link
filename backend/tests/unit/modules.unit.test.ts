@@ -53,22 +53,8 @@ class InMemoryUserRepository implements IUserRepository {
   }
 }
 
-class InMemoryProfileRepository implements IProfileRepository {
-  public profiles: Map<string, Profile> = new Map();
-
-  async findByUserId(userId: string): Promise<Profile | null> {
-    return this.profiles.get(userId) ?? null;
-  }
-
-  async create(profile: Profile): Promise<Profile> {
-    this.profiles.set(profile.userId, profile);
-    return profile;
-  }
-
-  async update(profile: Profile): Promise<void> {
-    this.profiles.set(profile.userId, profile);
-  }
-}
+// Perfil extendido (HU-02, Roberto): fake completo con la interfaz ampliada.
+import { InMemoryExtendedProfileRepository as InMemoryProfileRepository } from "../helpers/in-memory-profile-repo.js";
 
 
 class InMemoryRoomRepository implements IRoomListingRepository {
