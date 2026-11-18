@@ -1,8 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
   ActivityLogEntry,
-  Agreement,
-  AgreementAcceptance,
   Application,
   type ApplicationStatus,
   CompatibilityProfile,
@@ -78,19 +76,9 @@ export class InMemoryUserRepository implements IUserRepository {
   }
 }
 
-export class InMemoryProfileRepository implements IProfileRepository {
-  readonly profiles = new Map<string, Profile>();
-  async findByUserId(userId: string) {
-    return this.profiles.get(userId) ?? null;
-  }
-  async create(profile: Profile) {
-    this.profiles.set(profile.userId, profile);
-    return profile;
-  }
-  async update(profile: Profile) {
-    this.profiles.set(profile.userId, profile);
-  }
-}
+// Perfil extendido (HU-02, Roberto): se reexporta el fake completo que implementa
+// la interfaz IProfileRepository ampliada (fotos, socials, privacy, preferencias).
+export { InMemoryExtendedProfileRepository as InMemoryProfileRepository } from "./in-memory-profile-repo.js";
 
 export class InMemoryRoomRepository implements IRoomListingRepository {
   readonly rooms = new Map<string, RoomListing>();
@@ -643,38 +631,9 @@ export class InMemoryNotificationRepository implements INotificationRepository {
   }
 }
 
-export class InMemoryAgreementRepository implements IAgreementRepository {
-  readonly agreements = new Map<string, Agreement>();
-  readonly acceptances: AgreementAcceptance[] = [];
-  async findById(id: string) {
-    return this.agreements.get(id) ?? null;
-  }
-  async listByListingId(listingId: string) {
-    return [...this.agreements.values()].filter((a) => a.listingId === listingId);
-  }
-  async create(a: Agreement) {
-    this.agreements.set(a.id, a);
-    return a;
-  }
-  async findAcceptance(agreementId: string, userId: string) {
-    return (
-      this.acceptances.find(
-        (a) => a.agreementId === agreementId && a.userId === userId,
-      ) ?? null
-    );
-  }
-  async listAcceptances(agreementId: string) {
-    return this.acceptances.filter((a) => a.agreementId === agreementId);
-  }
-  async upsertAcceptance(a: AgreementAcceptance) {
-    const idx = this.acceptances.findIndex(
-      (x) => x.agreementId === a.agreementId && x.userId === a.userId,
-    );
-    if (idx >= 0) this.acceptances[idx] = a;
-    else this.acceptances.push(a);
-    return a;
-  }
-}
+// Acuerdos (HU-12, Roberto): se reexporta el fake que implementa la interfaz
+// IAgreementRepository de Roberto (getListingSnapshot, findByListing, findByUser…).
+export { InMemoryAgreementRepository } from "./in-memory-agreement-repo.js";
 
 export class InMemoryActivityLogRepository implements IActivityLogRepository {
   readonly entries: ActivityLogEntry[] = [];
