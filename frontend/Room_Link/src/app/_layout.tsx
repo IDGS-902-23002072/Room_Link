@@ -12,6 +12,11 @@ import { useColorScheme } from 'react-native';
 
 import { SesionProvider, useSesion } from '@/auth/SesionContext';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import {
+  configurarCanalAndroid,
+  sincronizarNotificacionesSistema,
+  solicitarPermisoNotificacionesSistema,
+} from '@/modulos/notificaciones/permisosSistema';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,6 +35,22 @@ function Navegacion() {
       router.replace('/anuncios');
     }
   }, [sesion, cargando, segmentos, router]);
+
+  useEffect(() => {
+    if (!sesion) return;
+    let activo = true;
+    void configurarCanalAndroid();
+    void solicitarPermisoNotificacionesSistema().then(() => {
+      if (activo) void sincronizarNotificacionesSistema();
+    });
+    const intervalo = setInterval(() => {
+      if (activo) void sincronizarNotificacionesSistema();
+    }, 20000);
+    return () => {
+      activo = false;
+      clearInterval(intervalo);
+    };
+  }, [sesion]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

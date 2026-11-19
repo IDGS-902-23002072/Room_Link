@@ -104,11 +104,22 @@ Verificado end-to-end (login real contra backend+MySQL, 0 errores de consola).
   la sesión y accesible desde `PantallaPerfil` (junto con cierre de sesión y galería), además de
   reporte de anuncios desde `FichaHabitacion`.
 
-### ✅ HECHO — Fase 4: Notificaciones (HU-14)
+### ✅ HECHO — Fase 4: Notificaciones (HU-14) + Permisos y Notificaciones a nivel sistema Android
 - ✅ **Centro de notificaciones (`/notificaciones`) — HECHO:** `modulos/notificaciones/api.ts` +
   `modulos/notificaciones/PantallaNotificaciones.tsx` consumiendo `GET /api/v1/notifications`,
   `PATCH /api/v1/notifications/:id/read`, `POST /api/v1/notifications/mark-all-read` y
   `GET/PUT /api/v1/notifications/preferences`.
+- ✅ **Notificaciones a nivel sistema Android y permisos (`POST_NOTIFICATIONS`) — HECHO:**
+  - Declarados `android.permission.POST_NOTIFICATIONS`, `VIBRATE` y `RECEIVE_BOOT_COMPLETED` en
+    `frontend/Room_Link/app.json`.
+  - Creado `modulos/notificaciones/permisosSistema.ts`: solicitud de permiso en tiempo de ejecución
+    para Android 13+ (`PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS`) con mensaje racional,
+    configuración de canal Android (`roomlink-default`), emisión de notificaciones al sistema
+    (vía `expo-notifications` si está disponible en el build nativo, `Notification` Web API y
+    vibración/alerta en Android), y sincronización automática en segundo plano desde `app/_layout.tsx`
+    para disparar notificaciones nativas por cada aviso no leído nuevo.
+  - Tarjeta de control de permisos Android en `PantallaNotificaciones.tsx` con estado del permiso,
+    botón para solicitar permiso / abrir ajustes del sistema Android y botón de notificación de prueba.
 - Accesible desde campana en el header de exploración (`PantallaExploracion`) y desde `PantallaPerfil`.
 
 ### ✅ HECHO — Otros módulos con frontend en Room_Link (backend ya al 100%)

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
+  Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +25,12 @@ import {
   type PreferenciaNotificacion,
   type TipoNotificacion,
 } from './api';
+import {
+  consultarPermisoNotificacionesSistema,
+  mostrarNotificacionSistema,
+  solicitarPermisoNotificacionesSistema,
+  type EstadoPermisoNotificacion,
+} from './permisosSistema';
 
 type VistaNotificaciones = 'all' | 'unread' | 'preferences';
 
@@ -62,9 +70,47 @@ export function PantallaNotificaciones() {
   const [items, setItems] = useState<NotificacionDto[]>([]);
   const [noLeidas, setNoLeidas] = useState(0);
   const [preferencias, setPreferencias] = useState<PreferenciaNotificacion[]>([]);
+  const [permisoSistema, setPermisoSistema] =
+    useState<EstadoPermisoNotificacion>('undetermined');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
+
+  useEffect(() => {
+    void consultarPermisoNotificacionesSistema().then(setPermisoSistema);
+  }, []);
+
+  const pedirPermisoSistema = async () => {
+    setError('');
+    setMensaje('');
+    const resultado = await solicitarPermisoNotificacionesSistema();
+    setPermisoSistema(resultado);
+    if (resultado === 'granted') {
+      setMensaje('Permiso de notificaciones del sistema Android/OS activado.');
+      await mostrarNotificacionSistema({
+        title: 'RoomLink · Notificaciones activas',
+        body: 'Recibirás alertas de mensajes, conexiones y acuerdos en tu dispositivo.',
+      });
+    } else if (resultado === 'never_ask_again') {
+      setError(
+        'El permiso fue bloqueado permanentemente. Habilítalo desde los Ajustes de Android.',
+      );
+    } else {
+      setError('No se concedió el permiso de notificaciones del sistema.');
+    }
+  };
+
+  const probarNotificacionSistema = async () => {
+    const enviada = await mostrarNotificacionSistema({
+      title: 'Prueba de notificación RoomLink',
+      body: 'Las notificaciones a nivel de sistema Android están funcionando.',
+    });
+    if (enviada) {
+      setMensaje('Notificación de prueba enviada al sistema.');
+    } else {
+      setError('Activa primero el permiso de notificaciones del sistema.');
+    }
+  };
 
   const cargarLista = async (soloNoLeidas = vista === 'unread') => {
     if (!sesion) return;
@@ -278,6 +324,77 @@ export function PantallaNotificaciones() {
               Ajustes
             </Text>
           </Pressable>
+        </View>
+
+        <View style={styles.tarjetaPermisoSistema}>
+          <View style={styles.filaEntre}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tituloItem}>
+                Notificaciones del sistema ({Platform.OS === 'android' ? 'Android' : Platform.OS.toUpperCase()})
+              </Text>
+              <Text style={styles.cuerpoItem}>
+                {permisoSistema === 'granted'
+                  ? 'Permiso POST_NOTIFICATIONS concedido. Recibirás alertas nativas en tu dispositivo.'
+                  : permisoSistema === 'never_ask_again'
+                    ? 'Permiso bloqueado en Android. Abre los ajustes del sistema para habilitarlo.'
+                    : 'Activa los permisos del sistema Android para recibir avisos aunque no estés en esta pantalla.'}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.chipTipo,
+                {
+                  backgroundColor:
+                    permisoSistema === 'granted' ? '#DCF0E8' : '#F6ECD6',
+                },
+              ]}>
+              <Text
+                style={[
+                  styles.textoChipTipo,
+                  {
+                    color:
+                      permisoSistema === 'granted' ? '#2F9E82' : '#C08A2C',
+                  },
+                ]}>
+                {permisoSistema === 'granted' ? 'ACTIVO' : 'PENDIENTE'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+            {permisoSistema !== 'granted' ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={pedirPermisoSistema}
+                style={styles.botonPermiso}>
+                <Text style={styles.textoBotonPermiso}>
+                  Permitir notificaciones Android
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                onPress={probarNotificacionSistema}
+                style={styles.botonPermisoSecundario}>
+                <Text style={styles.textoBotonPermisoSecundario}>
+                  Enviar notificación de prueba
+                </Text>
+              </Pressable>
+            )}
+
+            {permisoSistema === 'never_ask_again' && Platform.OS !== 'web' ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  void Linking.openSettings();
+                }}
+                style={styles.botonPermisoSecundario}>
+                <Text style={styles.textoBotonPermisoSecundario}>
+                  Abrir ajustes de Android
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
         {error ? (
@@ -551,6 +668,42 @@ const styles = StyleSheet.create({
   tarjetaSinLeer: {
     borderColor: '#B695C0',
     borderWidth: 1.5,
+  },
+  tarjetaPermisoSistema: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#D8CADF',
+    padding: 16,
+    gap: 10,
+  },
+  botonPermiso: {
+    backgroundColor: '#81638B',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textoBotonPermiso: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  botonPermisoSecundario: {
+    backgroundColor: '#FAF7FC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D8CADF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textoBotonPermisoSecundario: {
+    color: '#81638B',
+    fontSize: 13,
+    fontWeight: '700',
   },
   filaEntre: {
     flexDirection: 'row',
