@@ -22,3 +22,17 @@ describe("reglas de moderación unificada (Room_Link)", () => {
     expect(esDenunciaDeAnuncio({ id: "3", targetUserId: "user-1" })).toBe(false);
   });
 });
+
+describe("permisos y configuración de notificaciones Android (Room_Link)", () => {
+  it("declara POST_NOTIFICATIONS, VIBRATE y RECEIVE_BOOT_COMPLETED en app.json", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const appJson = JSON.parse(
+      fs.readFileSync(path.resolve("Room_Link/app.json"), "utf8"),
+    );
+    const perms = appJson?.expo?.android?.permissions ?? [];
+    expect(perms).toContain("android.permission.POST_NOTIFICATIONS");
+    expect(perms).toContain("android.permission.VIBRATE");
+    expect(perms).toContain("android.permission.RECEIVE_BOOT_COMPLETED");
+  });
+});
