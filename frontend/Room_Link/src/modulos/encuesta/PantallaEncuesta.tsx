@@ -1,3 +1,4 @@
+import { obtenerUserId } from '@/auth/sesion';
 import { useEffect, useState } from 'react';
 import { Link, useRouter } from 'expo-router';
 import {
@@ -38,7 +39,7 @@ const colors = {
 type Step = 1 | 2 | 3;
 type Answers = Partial<RespuestasCompatibilidad>;
 const BORRADOR_KEY =
-  `@roomlink/compatibility-test-draft:${process.env.EXPO_PUBLIC_USER_ID?.trim() || 'unconfigured'}`;
+  `@roomlink/compatibility-test-draft:${obtenerUserId() || 'unconfigured'}`;
 
 const dimensionNames: Record<DimensionCompatibilidad, string> = {
   schedule: 'Horarios',

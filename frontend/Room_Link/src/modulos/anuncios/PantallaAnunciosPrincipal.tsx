@@ -32,6 +32,7 @@ type Filtro = "Activas" | "Pausadas" | "Cerradas";
 
 type Props = {
   onCrearPublicacion?: () => void;
+  onEditarPublicacion?: (id: string) => void;
 };
 
 type EstadoBD = "published" | "paused" | "closed";
@@ -64,6 +65,7 @@ function convertirFiltro(
 
 export default function PantallaAnunciosPrincipal({
   onCrearPublicacion,
+  onEditarPublicacion,
 }: Props) {
   const [publicaciones, setPublicaciones] =
     useState<Publicacion[]>([]);
@@ -230,6 +232,7 @@ export default function PantallaAnunciosPrincipal({
             <TarjetaPublicacion
               key={publicacion.id}
               publicacion={publicacion}
+              onEditar={onEditarPublicacion}
             />
           ))
         ) : (

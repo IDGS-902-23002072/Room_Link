@@ -8,14 +8,21 @@ import {
   type NewModListingReview,
   type NewModReport,
 } from "../../db/schema/governance.js";
+import { authUsers } from "../../db/schema/auth.js";
 import { roomListings } from "../../db/schema/rooms.js";
+import { chatMessages, chatRoomMembers } from "../../db/schema/social.js";
 import type {
+  AnyReportRecord,
   ListingReportReason,
   ListingReportRecord,
   ListingReviewRecord,
   ListingReviewStatus,
+  MessageReportRecord,
   ModerationRepository,
+  ReportReason,
   ReportStatus,
+  ReportTargetType,
+  UserReportRecord,
 } from "../../modules/moderation/index.js";
 import { AppError } from "../../shared/AppError.js";
 
@@ -153,6 +160,153 @@ export class DrizzleModerationRepository implements ModerationRepository {
       reason: input.reason ?? null,
       reviewedAt: input.at,
       createdAt: new Date(rows[0].createdAt),
+    };
+  }
+
+  async userExists(userId: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ id: authUsers.id })
+      .from(authUsers)
+      .where(eq(authUsers.id, userId))
+      .limit(1);
+    return Boolean(rows[0]);
+  }
+
+  async hasOpenUserReport(reporterId: string, targetUserId: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ id: modReports.id })
+      .from(modReports)
+      .where(
+        and(
+          eq(modReports.reporterId, reporterId),
+          eq(modReports.targetType, "user"),
+          eq(modReports.targetUserId, targetUserId),
+          eq(modReports.status, "open"),
+        ),
+      )
+      .limit(1);
+    return Boolean(rows[0]);
+  }
+
+  async createUserReport(report: UserReportRecord): Promise<UserReportRecord> {
+    const record: NewModReport = {
+      id: report.id,
+      reporterId: report.reporterId,
+      targetType: "user",
+      targetUserId: report.targetUserId,
+      reason: report.reason,
+      description: report.description ?? null,
+      status: report.status,
+      createdAt: report.createdAt,
+    };
+    await this.db.insert(modReports).values(record);
+    return report;
+  }
+
+  async getMessageRoomId(messageId: number): Promise<string | null> {
+    const rows = await this.db
+      .select({ roomId: chatMessages.roomId })
+      .from(chatMessages)
+      .where(eq(chatMessages.id, messageId))
+      .limit(1);
+    return rows[0]?.roomId ?? null;
+  }
+
+  async isRoomMember(roomId: string, userId: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ userId: chatRoomMembers.userId })
+      .from(chatRoomMembers)
+      .where(
+        and(eq(chatRoomMembers.roomId, roomId), eq(chatRoomMembers.userId, userId)),
+      )
+      .limit(1);
+    return Boolean(rows[0]);
+  }
+
+  async hasOpenMessageReport(reporterId: string, targetMessageId: number): Promise<boolean> {
+    const rows = await this.db
+      .select({ id: modReports.id })
+      .from(modReports)
+      .where(
+        and(
+          eq(modReports.reporterId, reporterId),
+          eq(modReports.targetType, "message"),
+          eq(modReports.targetMessageId, targetMessageId),
+          eq(modReports.status, "open"),
+        ),
+      )
+      .limit(1);
+    return Boolean(rows[0]);
+  }
+
+  async createMessageReport(report: MessageReportRecord): Promise<MessageReportRecord> {
+    const record: NewModReport = {
+      id: report.id,
+      reporterId: report.reporterId,
+      targetType: "message",
+      targetMessageId: report.targetMessageId,
+      reason: report.reason,
+      description: report.description ?? null,
+      status: report.status,
+      createdAt: report.createdAt,
+    };
+    await this.db.insert(modReports).values(record);
+    return report;
+  }
+
+  async listReports(input: {
+    targetType?: ReportTargetType;
+    status?: ReportStatus;
+  } = {}): Promise<AnyReportRecord[]> {
+    const conditions = [] as any[];
+    if (input.targetType) conditions.push(eq(modReports.targetType, input.targetType));
+    if (input.status) conditions.push(eq(modReports.status, input.status));
+    const query = this.db.select().from(modReports);
+    const rows: ModReportRow[] = conditions.length
+      ? await query.where(and(...conditions)).orderBy(desc(modReports.createdAt))
+      : await query.orderBy(desc(modReports.createdAt));
+    return rows.map((row) => this.toAnyReport(row));
+  }
+
+  async findReportById(id: string): Promise<AnyReportRecord | null> {
+    const rows = await this.db
+      .select()
+      .from(modReports)
+      .where(eq(modReports.id, id))
+      .limit(1);
+    const row = rows[0];
+    return row ? this.toAnyReport(row) : null;
+  }
+
+  async resolveReport(input: {
+    id: string;
+    status: "resolved" | "dismissed";
+    at: Date;
+  }): Promise<AnyReportRecord> {
+    await this.db
+      .update(modReports)
+      .set({ status: input.status, resolvedAt: input.at })
+      .where(eq(modReports.id, input.id));
+    const found = await this.findReportById(input.id);
+    if (!found) {
+      throw new AppError("Denuncia no encontrada tras actualizar.", 404, "REPORT_NOT_FOUND");
+    }
+    return found;
+  }
+
+  private toAnyReport(row: ModReportRow): AnyReportRecord {
+    return {
+      id: row.id,
+      reporterId: row.reporterId,
+      targetType: row.targetType as ReportTargetType,
+      targetListingId: row.targetListingId ?? null,
+      targetUserId: row.targetUserId ?? null,
+      targetMessageId: row.targetMessageId ?? null,
+      reason: row.reason as ReportReason,
+      description: row.description ?? null,
+      status: row.status as ReportStatus,
+      createdAt: new Date(row.createdAt),
+      resolvedAt: row.resolvedAt ? new Date(row.resolvedAt) : null,
     };
   }
 

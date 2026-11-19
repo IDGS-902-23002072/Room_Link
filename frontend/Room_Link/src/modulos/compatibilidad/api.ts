@@ -1,3 +1,5 @@
+import { obtenerToken, obtenerUserId } from '../../auth/sesion';
+
 export type DimensionCompatibilidad =
   | 'schedule'
   | 'cleanliness'
@@ -45,27 +47,37 @@ export interface FeedAfinidad {
   profiles: PerfilAfinidad[];
 }
 
-function configuracionApi() {
+/** URL base de la API (desde el entorno). No requiere sesión. */
+function urlBase(): string {
   const baseUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
-  const userId = process.env.EXPO_PUBLIC_USER_ID?.trim();
-
-  if (!baseUrl || !userId) {
-    throw new Error(
-      'Configura EXPO_PUBLIC_API_URL y EXPO_PUBLIC_USER_ID en frontend/Room_Link/.env.',
-    );
+  if (!baseUrl) {
+    throw new Error('Configura EXPO_PUBLIC_API_URL en frontend/Room_Link/.env.');
   }
-
-  return { baseUrl, userId };
+  return baseUrl;
 }
 
-async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
-  const { baseUrl } = configuracionApi();
+/**
+ * Config que requiere sesión: devuelve el userId del usuario autenticado
+ * (ya NO un UUID hardcodeado del .env). El backend valida el token (RNF-01.2).
+ */
+export function configuracionApi() {
+  const userId = obtenerUserId();
+  if (!userId) {
+    throw new Error('No hay una sesión activa. Iniciá sesión para continuar.');
+  }
+  return { baseUrl: urlBase(), userId };
+}
+
+export async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
+  const baseUrl = urlBase();
+  const token = obtenerToken();
   let response: Response;
   try {
     response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },
     });
@@ -81,6 +93,11 @@ async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
     | (T & { error?: string })
     | null;
   if (!response.ok) {
+    if (response.status >= 500) {
+      throw new Error(
+        `La API respondió con un error interno (${response.status}). Comprueba que MySQL esté iniciado y que /ready responda con estado "ready".`,
+      );
+    }
     throw new Error(body?.error ?? `La API respondió con estado ${response.status}.`);
   }
   if (body === null) {

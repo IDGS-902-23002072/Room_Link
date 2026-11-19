@@ -4,7 +4,9 @@ import type { AuthVariables } from "../auth/index.js";
 import type {
   ListingReportReason,
   ListingReviewStatus,
+  ReportReason,
   ReportStatus,
+  ReportTargetType,
 } from "./moderation.ports.js";
 import type { ModerationService } from "./moderation.service.js";
 
@@ -61,6 +63,57 @@ export class ModerationController {
 
   history = async (context: AuthContext) =>
     this.handle(context, async () => context.json(await this.service.listHistory()));
+
+  reportUser = async (context: AuthContext) =>
+    this.handle(context, async () => {
+      const body = await context.req.json();
+      return context.json(
+        await this.service.reportUser({
+          reporterId: context.get("auth").userId,
+          targetUserId: context.req.param("userId")!,
+          reason: body.reason as ReportReason,
+          description: body.description,
+        }),
+        201,
+      );
+    });
+
+  reportMessage = async (context: AuthContext) =>
+    this.handle(context, async () => {
+      const body = await context.req.json();
+      const rawMessageId = context.req.param("messageId");
+      const messageId = rawMessageId ? Number(rawMessageId) : NaN;
+      return context.json(
+        await this.service.reportMessage({
+          reporterId: context.get("auth").userId,
+          targetMessageId: messageId,
+          reason: body.reason as ReportReason,
+          description: body.description,
+        }),
+        201,
+      );
+    });
+
+  allReports = async (context: AuthContext) =>
+    this.handle(context, async () => {
+      const targetType = context.req.query("targetType") as ReportTargetType | undefined;
+      const status = context.req.query("status") as ReportStatus | undefined;
+      const filter: { targetType?: ReportTargetType; status?: ReportStatus } = {};
+      if (targetType) filter.targetType = targetType;
+      if (status) filter.status = status;
+      return context.json(await this.service.listAllReports(filter));
+    });
+
+  resolveReport = async (context: AuthContext) =>
+    this.handle(context, async () => {
+      const body = await context.req.json();
+      return context.json(
+        await this.service.resolveReport({
+          reportId: context.req.param("id")!,
+          status: body.status,
+        }),
+      );
+    });
 
   private async handle(context: AuthContext, operation: () => Promise<Response>): Promise<Response> {
     try {

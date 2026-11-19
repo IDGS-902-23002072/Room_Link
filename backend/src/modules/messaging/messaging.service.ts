@@ -1,4 +1,5 @@
 import { AppError } from "../../shared/AppError.js";
+import type { DomainEventPublisher } from "../auth/index.js";
 import type {
   ChatContext,
   ChatInboxItem,
@@ -13,6 +14,7 @@ export class MessagingService {
     private readonly repository: MessagingRepository,
     private readonly events: MessageEventPublisher,
     private readonly now: () => Date = () => new Date(),
+    private readonly domainEvents?: DomainEventPublisher,
   ) {}
 
   async openRoom(input: {
@@ -62,6 +64,24 @@ export class MessagingService {
       sentAt: this.now(),
     });
     this.events.publish(roomId, { type: "message.created", message });
+    // Notifica al resto de miembros vía el bus de dominio (opcional por inyección).
+    if (this.domainEvents) {
+      const context = await this.repository.getContext(roomId, senderId);
+      const recipientId = context.counterpartId;
+      if (recipientId) {
+        await this.domainEvents.publish({
+          type: "MessageSentEvent",
+          aggregateId: String(message.id),
+          payload: {
+            messageId: message.id,
+            roomId,
+            senderId,
+            recipientId,
+            preview: body.slice(0, 120),
+          },
+        });
+      }
+    }
     return message;
   }
 

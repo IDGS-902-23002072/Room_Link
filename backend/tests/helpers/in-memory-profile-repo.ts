@@ -2,8 +2,8 @@ import {
   Profile,
   ProfilePhoto,
   ContactPrivacy,
-  NotificationPreference,
-  type NotificationType,
+  ProfileNotificationPreference,
+  type ProfileNotificationType,
   type IProfileRepository,
 } from "../../src/domain/index.js";
 
@@ -15,7 +15,7 @@ export class InMemoryExtendedProfileRepository implements IProfileRepository {
   public profiles: Map<string, Profile> = new Map();
   public photos: Map<string, ProfilePhoto> = new Map();
   public privacy: Map<string, ContactPrivacy> = new Map();
-  public prefs: Map<string, NotificationPreference> = new Map();
+  public prefs: Map<string, ProfileNotificationPreference> = new Map();
 
   async findByUserId(userId: string): Promise<Profile | null> {
     return this.profiles.get(userId) ?? null;
@@ -79,20 +79,20 @@ export class InMemoryExtendedProfileRepository implements IProfileRepository {
 
   async listNotificationPreferences(
     userId: string,
-  ): Promise<NotificationPreference[]> {
+  ): Promise<ProfileNotificationPreference[]> {
     return Array.from(this.prefs.values()).filter((p) => p.userId === userId);
   }
 
   async upsertNotificationPreference(
-    preference: NotificationPreference,
+    preference: ProfileNotificationPreference,
   ): Promise<void> {
     this.prefs.set(`${preference.userId}:${preference.type}`, preference);
   }
 
   async findNotificationPreference(
     userId: string,
-    type: NotificationType,
-  ): Promise<NotificationPreference | null> {
+    type: ProfileNotificationType,
+  ): Promise<ProfileNotificationPreference | null> {
     return this.prefs.get(`${userId}:${type}`) ?? null;
   }
 }

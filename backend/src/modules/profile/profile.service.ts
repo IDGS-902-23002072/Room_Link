@@ -3,8 +3,8 @@ import {
   Profile,
   ProfilePhoto,
   ContactPrivacy,
-  NotificationPreference,
-  type NotificationType,
+  ProfileNotificationPreference,
+  type ProfileNotificationType,
   type IProfileRepository,
 } from "../../domain/index.js";
 
@@ -213,21 +213,21 @@ export class ProfileService {
 
   async getNotificationPreferences(
     userId: string,
-  ): Promise<NotificationPreference[]> {
+  ): Promise<ProfileNotificationPreference[]> {
     return this.profileRepo.listNotificationPreferences(userId);
   }
 
   async updateNotificationPreference(
     userId: string,
-    input: { type: NotificationType; inApp?: boolean; email?: boolean },
-  ): Promise<NotificationPreference> {
+    input: { type: ProfileNotificationType; inApp?: boolean; email?: boolean },
+  ): Promise<ProfileNotificationPreference> {
     const existing = await this.profileRepo.findNotificationPreference(
       userId,
       input.type,
     );
     const preference =
       existing ??
-      new NotificationPreference({
+      new ProfileNotificationPreference({
         userId,
         type: input.type,
         inApp: true,

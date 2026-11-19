@@ -24,6 +24,7 @@ const imagenPredeterminada =
 
 type Props = {
   publicacion: Publicacion;
+  onEditar?: (id: string) => void;
   onPausar?: (id: string) => void;
   onReactivar?: (id: string) => void;
   onCerrar?: (id: string) => void;
@@ -31,17 +32,18 @@ type Props = {
 
 export default function TarjetaPublicacion({
   publicacion,
+  onEditar,
   onPausar,
   onReactivar,
   onCerrar,
 }: Props) {
-  const [errorImagen, setErrorImagen] = useState(false);
+  const [imagenConError, setImagenConError] = useState<string | null>(null);
 
   const activa = publicacion.estado === "Activa";
   const pausada = publicacion.estado === "Pausada";
 
   const imagenMostrar =
-    !errorImagen && publicacion.imagen
+    publicacion.imagen && imagenConError !== publicacion.imagen
       ? publicacion.imagen
       : imagenPredeterminada;
 
@@ -51,55 +53,46 @@ export default function TarjetaPublicacion({
         source={{ uri: imagenMostrar }}
         style={styles.imagen}
         resizeMode="cover"
-        onError={() => setErrorImagen(true)}
+        onError={() => setImagenConError(publicacion.imagen ?? null)}
       />
 
       <View style={styles.contenido}>
-        <Text style={styles.estado}>
-          {publicacion.estado.toUpperCase()} ·{" "}
-          {publicacion.fotosCount ?? 0} FOTOS
-        </Text>
+        <Text style={styles.estado}>{publicacion.estado}</Text>
 
         <Text style={styles.titulo}>
           {publicacion.titulo}
         </Text>
 
         <Text style={styles.detalle}>
-          {publicacion.precio} MXN / mes
-          {publicacion.detalle
-            ? ` · ${publicacion.detalle}`
-            : ""}
+          {publicacion.precio}
+          {publicacion.detalle ? ` · ${publicacion.detalle}` : ""}
         </Text>
 
         <View style={styles.acciones}>
-          {activa ? (
-            <Pressable
-              onPress={() => onPausar?.(publicacion.id)}
-            >
-              <Text style={styles.accion}>
-                Editar · Pausar
-              </Text>
-            </Pressable>
-          ) : pausada ? (
-            <Pressable
-              onPress={() => onReactivar?.(publicacion.id)}
-            >
-              <Text style={styles.accion}>
-                Reactivar
-              </Text>
-            </Pressable>
-          ) : null}
-
           {(activa || pausada) && (
-            <Text style={styles.separador}> · </Text>
+            <>
+              <Pressable onPress={() => onEditar?.(publicacion.id)}>
+                <Text style={styles.accion}>Editar</Text>
+              </Pressable>
+
+              <Text style={styles.separador}> · </Text>
+
+              {activa ? (
+                <Pressable onPress={() => onPausar?.(publicacion.id)}>
+                  <Text style={styles.accion}>Pausar</Text>
+                </Pressable>
+              ) : (
+                <Pressable onPress={() => onReactivar?.(publicacion.id)}>
+                  <Text style={styles.accion}>Reactivar</Text>
+                </Pressable>
+              )}
+
+              <Text style={styles.separador}> · </Text>
+            </>
           )}
 
-          <Pressable
-            onPress={() => onCerrar?.(publicacion.id)}
-          >
-            <Text style={styles.accion}>
-              Cerrar
-            </Text>
+          <Pressable onPress={() => onCerrar?.(publicacion.id)}>
+            <Text style={styles.accion}>Cerrar</Text>
           </Pressable>
         </View>
       </View>

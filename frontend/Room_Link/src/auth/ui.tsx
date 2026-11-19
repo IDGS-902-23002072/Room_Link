@@ -1,0 +1,187 @@
+import { type ReactNode } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type KeyboardTypeOptions,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+export const paleta = {
+  primario: '#81638b',
+  primarioTexto: '#ffffff',
+  secundario: '#b695c0',
+  lavanda: '#dac9df',
+  teal: '#5dc1b9',
+  fondo: '#f3eef6',
+  tarjeta: '#ffffff',
+  tinta: '#2b2430',
+  tenue: '#6b6472',
+  borde: '#e4dbe9',
+  error: '#b23a5b',
+  ok: '#2f8f6b',
+};
+
+export function PantallaAuth({
+  children,
+  kicker,
+  titulo,
+  subtitulo,
+}: {
+  children: ReactNode;
+  kicker?: string;
+  titulo: string;
+  subtitulo?: string;
+}) {
+  return (
+    <SafeAreaView style={estilos.safe}>
+      <ScrollView
+        contentContainerStyle={estilos.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
+        {kicker ? <Text style={estilos.kicker}>{kicker}</Text> : null}
+        <Text style={estilos.titulo}>{titulo}</Text>
+        {subtitulo ? <Text style={estilos.subtitulo}>{subtitulo}</Text> : null}
+        <View style={estilos.cuerpo}>{children}</View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+export function Campo({
+  etiqueta,
+  valor,
+  onChangeText,
+  placeholder,
+  secure,
+  keyboardType,
+  autoCapitalize = 'none',
+}: {
+  etiqueta: string;
+  valor: string;
+  onChangeText: (v: string) => void;
+  placeholder?: string;
+  secure?: boolean;
+  keyboardType?: KeyboardTypeOptions;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+}) {
+  return (
+    <View style={estilos.campo}>
+      <Text style={estilos.etiqueta}>{etiqueta}</Text>
+      <TextInput
+        style={estilos.input}
+        value={valor}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={paleta.tenue}
+        secureTextEntry={secure}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+        autoCorrect={false}
+      />
+    </View>
+  );
+}
+
+export function BotonPrimario({
+  etiqueta,
+  onPress,
+  cargando,
+  variante = 'solido',
+}: {
+  etiqueta: string;
+  onPress: () => void;
+  cargando?: boolean;
+  variante?: 'solido' | 'contorno';
+}) {
+  const esSolido = variante === 'solido';
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={cargando}
+      onPress={onPress}
+      style={[
+        estilos.boton,
+        esSolido ? estilos.botonSolido : estilos.botonContorno,
+        cargando ? estilos.botonDeshab : null,
+      ]}
+    >
+      {cargando ? (
+        <ActivityIndicator color={esSolido ? paleta.primarioTexto : paleta.primario} />
+      ) : (
+        <Text style={esSolido ? estilos.botonTextoSolido : estilos.botonTextoContorno}>
+          {etiqueta}
+        </Text>
+      )}
+    </Pressable>
+  );
+}
+
+export function Enlace({ etiqueta, onPress }: { etiqueta: string; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="link" onPress={onPress} style={estilos.enlace}>
+      <Text style={estilos.enlaceTexto}>{etiqueta}</Text>
+    </Pressable>
+  );
+}
+
+export function Aviso({ texto, tono }: { texto: string; tono: 'error' | 'ok' }) {
+  if (!texto) return null;
+  return (
+    <View
+      style={[
+        estilos.aviso,
+        { backgroundColor: tono === 'error' ? '#f7e3e9' : '#e2f3ec' },
+      ]}
+    >
+      <Text style={{ color: tono === 'error' ? paleta.error : paleta.ok, fontSize: 14 }}>
+        {texto}
+      </Text>
+    </View>
+  );
+}
+
+const estilos = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: paleta.fondo },
+  scroll: { padding: 24, paddingTop: 36, flexGrow: 1 },
+  kicker: {
+    color: paleta.secundario,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  titulo: { color: paleta.tinta, fontSize: 30, fontWeight: '800', marginTop: 6 },
+  subtitulo: { color: paleta.tenue, fontSize: 15, marginTop: 6 },
+  cuerpo: { marginTop: 24, gap: 16 },
+  campo: { gap: 6 },
+  etiqueta: { color: paleta.tinta, fontSize: 14, fontWeight: '700' },
+  input: {
+    backgroundColor: paleta.tarjeta,
+    borderColor: paleta.borde,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: paleta.tinta,
+  },
+  boton: {
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  botonSolido: { backgroundColor: paleta.primario },
+  botonContorno: { backgroundColor: paleta.tarjeta, borderWidth: 1, borderColor: paleta.borde },
+  botonDeshab: { opacity: 0.6 },
+  botonTextoSolido: { color: paleta.primarioTexto, fontSize: 16, fontWeight: '700' },
+  botonTextoContorno: { color: paleta.tinta, fontSize: 16, fontWeight: '700' },
+  enlace: { alignItems: 'center', paddingVertical: 6 },
+  enlaceTexto: { color: paleta.primario, fontSize: 14, fontWeight: '700' },
+  aviso: { borderRadius: 12, padding: 12 },
+});

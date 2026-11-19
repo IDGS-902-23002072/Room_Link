@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { ProfileService } from "../../src/modules/profile/profile.service.js";
-import { NotificationPreference } from "../../src/domain/entities/NotificationPreference.js";
+import { ProfileNotificationPreference } from "../../src/domain/entities/NotificationPreference.js";
 import { InMemoryExtendedProfileRepository } from "../helpers/in-memory-profile-repo.js";
 
 /**
@@ -222,10 +222,10 @@ describe("ProfileService (Roberto, HU-02)", () => {
       expect(second.inApp).toBe(true);
     });
 
-    it("la entidad NotificationPreference rechaza tipos inexistentes", () => {
+    it("la entidad ProfileNotificationPreference rechaza tipos inexistentes", () => {
       expect(
         () =>
-          new NotificationPreference({
+          new ProfileNotificationPreference({
             userId: uid,
             type: "no-existe" as any,
             inApp: true,

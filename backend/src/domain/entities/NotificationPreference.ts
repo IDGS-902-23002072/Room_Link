@@ -9,19 +9,19 @@ export const notificationTypeValues = [
   "system",
 ] as const;
 
-export type NotificationType = (typeof notificationTypeValues)[number];
+export type ProfileNotificationType = (typeof notificationTypeValues)[number];
 
-export interface NotificationPreferenceProps {
+export interface ProfileNotificationPreferenceProps {
   userId: string;
-  type: NotificationType;
+  type: ProfileNotificationType;
   inApp: boolean;
   email: boolean;
 }
 
-export class NotificationPreference {
-  private props: NotificationPreferenceProps;
+export class ProfileNotificationPreference {
+  private props: ProfileNotificationPreferenceProps;
 
-  constructor(props: NotificationPreferenceProps) {
+  constructor(props: ProfileNotificationPreferenceProps) {
     if (!notificationTypeValues.includes(props.type)) {
       throw new Error(`Tipo de notificación inválido: ${props.type}`);
     }
@@ -32,7 +32,7 @@ export class NotificationPreference {
     return this.props.userId;
   }
 
-  get type(): NotificationType {
+  get type(): ProfileNotificationType {
     return this.props.type;
   }
 

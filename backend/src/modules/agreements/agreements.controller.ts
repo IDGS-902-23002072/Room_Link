@@ -36,14 +36,11 @@ export class AgreementsController {
       if (!agreementId) {
         return c.json({ error: "agreementId es obligatorio" }, 400);
       }
-      const body = (await c.req.json()) as Record<string, unknown>;
-      const userId = body["userId"];
-      if (!userId) {
-        return c.json({ error: "userId es obligatorio en el cuerpo" }, 400);
-      }
+      // Se acepta en nombre del usuario autenticado, no de un userId del body (RNF-01.2).
+      const userId = c.get("auth").userId as string;
       const agreement = await this.service.aceptarAcuerdo(
         agreementId,
-        String(userId),
+        userId,
       );
       return c.json(AgreementsView.toDto(agreement), 200);
     } catch (err: unknown) {

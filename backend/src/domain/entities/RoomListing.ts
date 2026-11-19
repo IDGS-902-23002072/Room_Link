@@ -49,6 +49,10 @@ export class RoomListing {
     return this.props.description;
   }
 
+  get publishedAt(): Date | null | undefined {
+    return this.props.publishedAt;
+  }
+
   get monthlyRent(): number {
     return this.props.monthlyRent;
   }
@@ -80,6 +84,33 @@ export class RoomListing {
   public canPublish(): boolean {
     return (this.props.photoCount ?? 0) >= 3;
   }
+
+
+public updateDetails(data: {
+  title: string;
+  description: string | null;
+  monthlyRent: number;
+  availableFrom: Date | null;
+  maxRoommates: number | null;
+}): void {
+  this.validateTitle(data.title);
+  this.validateRent(data.monthlyRent);
+
+  if (
+    data.maxRoommates !== null &&
+    (!Number.isInteger(data.maxRoommates) || data.maxRoommates < 1)
+  ) {
+    throw new Error("El número máximo de habitantes debe ser mayor a 0.");
+  }
+
+  this.props.title = data.title.trim();
+  this.props.description = data.description?.trim() || null;
+  this.props.monthlyRent = data.monthlyRent;
+  this.props.availableFrom = data.availableFrom;
+  this.props.maxRoommates = data.maxRoommates;
+  this.props.updatedAt = new Date();
+}
+
 
   public publish(): void {
     if (!this.canPublish()) {

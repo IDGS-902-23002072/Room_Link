@@ -4,8 +4,8 @@ import {
   Profile,
   ProfilePhoto,
   ContactPrivacy,
-  NotificationPreference,
-  type NotificationType,
+  ProfileNotificationPreference,
+  type ProfileNotificationType,
   type IProfileRepository,
 } from "../../domain/index.js";
 import {
@@ -195,14 +195,14 @@ export class DrizzleProfileRepository implements IProfileRepository {
 
   async listNotificationPreferences(
     userId: string,
-  ): Promise<NotificationPreference[]> {
+  ): Promise<ProfileNotificationPreference[]> {
     const rows: NotifPreferenceRow[] = await this.db
       .select()
       .from(notifPreferences)
       .where(eq(notifPreferences.userId, userId));
     return rows.map(
       (row) =>
-        new NotificationPreference({
+        new ProfileNotificationPreference({
           userId: row.userId,
           type: row.type,
           inApp: Boolean(row.inApp),
@@ -212,7 +212,7 @@ export class DrizzleProfileRepository implements IProfileRepository {
   }
 
   async upsertNotificationPreference(
-    preference: NotificationPreference,
+    preference: ProfileNotificationPreference,
   ): Promise<void> {
     await this.db
       .insert(notifPreferences)
@@ -232,8 +232,8 @@ export class DrizzleProfileRepository implements IProfileRepository {
 
   async findNotificationPreference(
     userId: string,
-    type: NotificationType,
-  ): Promise<NotificationPreference | null> {
+    type: ProfileNotificationType,
+  ): Promise<ProfileNotificationPreference | null> {
     const rows: NotifPreferenceRow[] = await this.db
       .select()
       .from(notifPreferences)
@@ -246,7 +246,7 @@ export class DrizzleProfileRepository implements IProfileRepository {
       .limit(1);
     const row = rows[0];
     if (!row) return null;
-    return new NotificationPreference({
+    return new ProfileNotificationPreference({
       userId: row.userId,
       type: row.type,
       inApp: Boolean(row.inApp),

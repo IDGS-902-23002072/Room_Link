@@ -78,6 +78,15 @@ export interface Clock {
   now(): Date;
 }
 
+/**
+ * Puerto delgado usado por AuthService para saber si un usuario tiene una sanción
+ * activa que bloquee su sesión. Lo implementa `SanctionsService` sin acoplar auth
+ * al módulo de sanciones.
+ */
+export interface SessionGuard {
+  isBlocked(userId: string): Promise<boolean>;
+}
+
 export interface AuthServiceDependencies {
   passwordHasher: PasswordHasher;
   tokenGenerator: SecureTokenGenerator;
@@ -88,6 +97,7 @@ export interface AuthServiceDependencies {
   emailNotifier: EmailNotifier;
   eventPublisher: DomainEventPublisher;
   clock?: Clock;
+  sessionGuard?: SessionGuard;
 }
 
 export interface AuthResult {

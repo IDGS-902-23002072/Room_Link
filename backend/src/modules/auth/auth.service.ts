@@ -79,12 +79,15 @@ export class AuthService {
   }
 
   async login(input: LoginUserInput): Promise<AuthResult> {
-    const user = await this.userRepo.findByEmail(this.normalizeEmail(input.email));
+    const email = this.normalizeEmail(input.email);
+    const user = await this.userRepo.findByEmail(email);
     if (!user || !user.passwordHash) {
+      await this.publishLoginFailed(null, email, "user_not_found", input);
       throw new AppError("Credenciales inválidas.", 401, "INVALID_CREDENTIALS");
     }
     const now = this.clock.now();
     if (user.isLocked(now)) {
+      await this.publishLoginFailed(user.id, email, "locked", input);
       throw new AppError(
         "La cuenta está bloqueada temporalmente. Intenta de nuevo más tarde.",
         423,
@@ -92,18 +95,49 @@ export class AuthService {
       );
     }
     if (!user.isActive()) {
+      await this.publishLoginFailed(user.id, email, "inactive", input);
       throw new AppError("La cuenta se encuentra inactiva o suspendida.", 403, "ACCOUNT_INACTIVE");
     }
 
     if (!(await this.dependencies.passwordHasher.verify(input.password, user.passwordHash))) {
       user.recordFailedLogin(now);
       await this.userRepo.update(user);
+      await this.publishLoginFailed(user.id, email, "invalid_password", input);
       throw new AppError("Credenciales inválidas.", 401, "INVALID_CREDENTIALS");
     }
 
     user.recordSuccessfulLogin(now);
     await this.userRepo.update(user);
+    await this.dependencies.eventPublisher.publish({
+      type: "LoginSucceededEvent",
+      aggregateId: user.id,
+      payload: {
+        userId: user.id,
+        email: user.email,
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+      },
+    });
     return this.issueSession(user, input.userAgent, input.ipAddress);
+  }
+
+  private async publishLoginFailed(
+    userId: string | null,
+    email: string,
+    reason: string,
+    input: LoginUserInput,
+  ): Promise<void> {
+    await this.dependencies.eventPublisher.publish({
+      type: "LoginFailedEvent",
+      aggregateId: userId ?? email,
+      payload: {
+        userId,
+        email,
+        reason,
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+      },
+    });
   }
 
   async loginWithGoogle(input: OAuthLoginInput): Promise<AuthResult> {
@@ -209,6 +243,12 @@ export class AuthService {
     const user = await this.userRepo.findById(session.userId);
     if (!user || !user.isActive()) {
       throw new AppError("Sesión no autorizada.", 401, "INVALID_SESSION");
+    }
+    if (this.dependencies.sessionGuard) {
+      const blocked = await this.dependencies.sessionGuard.isBlocked(user.id);
+      if (blocked) {
+        throw new AppError("Cuenta sancionada.", 423, "ACCOUNT_SANCTIONED");
+      }
     }
     return { userId: user.id, roles: user.roles, sessionId: session.id };
   }

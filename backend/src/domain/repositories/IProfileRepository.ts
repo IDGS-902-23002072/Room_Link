@@ -2,8 +2,8 @@ import type { Profile } from "../entities/Profile.js";
 import type { ProfilePhoto } from "../entities/ProfilePhoto.js";
 import type { ContactPrivacy } from "../entities/ContactPrivacy.js";
 import type {
-  NotificationPreference,
-  NotificationType,
+  ProfileNotificationPreference,
+  ProfileNotificationType,
 } from "../entities/NotificationPreference.js";
 
 export interface IProfileRepository {
@@ -32,10 +32,10 @@ export interface IProfileRepository {
   upsertContactPrivacy(privacy: ContactPrivacy): Promise<void>;
 
   // Preferencias de notificaciones
-  listNotificationPreferences(userId: string): Promise<NotificationPreference[]>;
-  upsertNotificationPreference(preference: NotificationPreference): Promise<void>;
+  listNotificationPreferences(userId: string): Promise<ProfileNotificationPreference[]>;
+  upsertNotificationPreference(preference: ProfileNotificationPreference): Promise<void>;
   findNotificationPreference(
     userId: string,
-    type: NotificationType,
-  ): Promise<NotificationPreference | null>;
+    type: ProfileNotificationType,
+  ): Promise<ProfileNotificationPreference | null>;
 }

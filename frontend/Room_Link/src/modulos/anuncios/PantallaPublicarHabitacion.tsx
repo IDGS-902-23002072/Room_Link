@@ -21,15 +21,15 @@ export type DatosHabitacion = {
   ubicacion: string;
   renta: string;
   descripcion: string;
+  availableFrom: string;
+  maxRoommates: string;
 };
 
 // Propiedades que recibe la pantalla.
 type Props = {
   datosIniciales?: Partial<DatosHabitacion>;
   onVolver?: () => void;
-  onElegirUbicacion?: (
-    datos: DatosHabitacion
-  ) => void;
+  onElegirUbicacion?: (datos: DatosHabitacion) => void;
 };
 
 export default function PantallaPublicarHabitacion({
@@ -37,6 +37,7 @@ export default function PantallaPublicarHabitacion({
   onVolver,
   onElegirUbicacion,
 }: Props) {
+
   // Estados de los campos.
   const [titulo, setTitulo] = useState(
     datosIniciales?.titulo ?? ""
@@ -52,6 +53,14 @@ export default function PantallaPublicarHabitacion({
 
   const [descripcion, setDescripcion] = useState(
     datosIniciales?.descripcion ?? ""
+  );
+
+  const [availableFrom, setAvailableFrom] = useState(
+    datosIniciales?.availableFrom ?? ""
+  );
+
+  const [maxRoommates, setMaxRoommates] = useState(
+    datosIniciales?.maxRoommates ?? ""
   );
 
   // Validar información y abrir el mapa.
@@ -80,11 +89,42 @@ export default function PantallaPublicarHabitacion({
       return;
     }
 
+    if (!availableFrom.trim()) {
+      Alert.alert(
+        "Campo requerido",
+        "Indica desde qué fecha estará disponible la habitación."
+      );
+      return;
+    }
+
+    if (!maxRoommates.trim()) {
+      Alert.alert(
+        "Campo requerido",
+        "Indica el máximo de compañeros que podrán compartir la habitación."
+      );
+      return;
+    }
+
+    const cantidad = Number(maxRoommates);
+
+    if (
+      !Number.isInteger(cantidad) ||
+      cantidad < 1
+    ) {
+      Alert.alert(
+        "Dato incorrecto",
+        "El máximo de compañeros debe ser un número entero mayor a cero."
+      );
+      return;
+    }
+
     const datos: DatosHabitacion = {
       titulo: titulo.trim(),
       ubicacion: ubicacion.trim(),
       renta: renta.trim(),
       descripcion: descripcion.trim(),
+      availableFrom: availableFrom.trim(),
+      maxRoommates: maxRoommates.trim(),
     };
 
     onElegirUbicacion?.(datos);
@@ -163,6 +203,23 @@ export default function PantallaPublicarHabitacion({
           multiline
         />
 
+        {/* Fecha de disponibilidad */}
+        <CampoFormulario
+          etiqueta="Disponible a partir de"
+          value={availableFrom}
+          onChangeText={setAvailableFrom}
+          placeholder="AAAA-MM-DD (Ej. 2026-12-01)"
+        />
+
+        {/* Máximo de compañeros */}
+        <CampoFormulario
+          etiqueta="Máximo de compañeros"
+          value={maxRoommates}
+          onChangeText={setMaxRoommates}
+          placeholder="Ej. 2"
+          keyboardType="numeric"
+        />
+
         {/* Continuar */}
         <Pressable
           style={styles.botonContinuar}
@@ -232,7 +289,7 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
+    marginTop: 12,
   },
 
   textoBoton: {

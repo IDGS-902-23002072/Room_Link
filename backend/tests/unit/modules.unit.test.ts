@@ -2,23 +2,26 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../../src/app.js";
 
+
 import type {
   RoomPhotoInput,
   RoomPhotoRecord,
+  RoomLocationInput,
+  RoomPhotoMetadata,
+  RoomPhotoUpdateItem,
 } from "../../src/domain/index.js";
+
 
 import {
   User,
   Profile,
-  ProfilePhoto,
-  ContactPrivacy,
-  NotificationPreference,
-  type NotificationType,
   RoomListing,
   Application,
   type IUserRepository,
   type IProfileRepository,
   type IRoomListingRepository,
+  type RoomFeedFilters,
+  type RoomFeedItem,
   type IApplicationRepository,
 } from "../../src/domain/index.js";
 import { createAuthFakes } from "../helpers/auth-fakes.js";
@@ -52,82 +55,58 @@ class InMemoryUserRepository implements IUserRepository {
   }
 }
 
-class InMemoryProfileRepository implements IProfileRepository {
-  public profiles: Map<string, Profile> = new Map();
-  public photos: Map<string, ProfilePhoto> = new Map();
-  public privacy: Map<string, ContactPrivacy> = new Map();
-  public prefs: Map<string, NotificationPreference> = new Map();
+// Perfil extendido (HU-02, Roberto): fake completo con la interfaz ampliada.
+import { InMemoryExtendedProfileRepository as InMemoryProfileRepository } from "../helpers/in-memory-profile-repo.js";
 
-  async findByUserId(userId: string): Promise<Profile | null> {
-    return this.profiles.get(userId) ?? null;
-  }
-
-  async create(profile: Profile): Promise<Profile> {
-    this.profiles.set(profile.userId, profile);
-    return profile;
-  }
-
-  async update(profile: Profile): Promise<void> {
-    this.profiles.set(profile.userId, profile);
-  }
-  async updateSocials(): Promise<void> {}
-  async updateIdentityStatus(profile: Profile): Promise<void> {
-    this.profiles.set(profile.userId, profile);
-  }
-  async listPhotos(userId: string): Promise<ProfilePhoto[]> {
-    return Array.from(this.photos.values())
-      .filter((p) => p.userId === userId)
-      .sort((a, b) => a.position - b.position);
-  }
-  async countPhotos(userId: string): Promise<number> {
-    return (await this.listPhotos(userId)).length;
-  }
-  async addPhoto(photo: ProfilePhoto): Promise<ProfilePhoto> {
-    this.photos.set(photo.id, photo);
-    return photo;
-  }
-  async removePhoto(_userId: string, photoId: string): Promise<void> {
-    this.photos.delete(photoId);
-  }
-  async updatePhotoPosition(photo: ProfilePhoto): Promise<void> {
-    this.photos.set(photo.id, photo);
-  }
-  async findPhoto(
-    userId: string,
-    photoId: string,
-  ): Promise<ProfilePhoto | null> {
-    const p = this.photos.get(photoId);
-    return p && p.userId === userId ? p : null;
-  }
-  async findContactPrivacy(userId: string): Promise<ContactPrivacy | null> {
-    return this.privacy.get(userId) ?? null;
-  }
-  async upsertContactPrivacy(privacy: ContactPrivacy): Promise<void> {
-    this.privacy.set(privacy.userId, privacy);
-  }
-  async listNotificationPreferences(
-    userId: string,
-  ): Promise<NotificationPreference[]> {
-    return Array.from(this.prefs.values()).filter((p) => p.userId === userId);
-  }
-  async upsertNotificationPreference(
-    preference: NotificationPreference,
-  ): Promise<void> {
-    this.prefs.set(`${preference.userId}:${preference.type}`, preference);
-  }
-  async findNotificationPreference(
-    userId: string,
-    type: NotificationType,
-  ): Promise<NotificationPreference | null> {
-    return this.prefs.get(`${userId}:${type}`) ?? null;
-  }
-}
 
 class InMemoryRoomRepository implements IRoomListingRepository {
   public rooms: Map<string, RoomListing> = new Map();
+  public photos: Map<string, RoomPhotoRecord[]> = new Map();
+  public locations: Map<string, RoomLocationInput> = new Map();
 
   async findById(id: string): Promise<RoomListing | null> {
     return this.rooms.get(id) ?? null;
+  }
+
+  async findPublishedFeed(
+    filters: RoomFeedFilters,
+    limit: number,
+    offset: number,
+  ): Promise<RoomFeedItem[]> {
+    const term = filters.search?.toLocaleLowerCase("es");
+    return Array.from(this.rooms.values())
+      .filter((room) => room.status === "published")
+      .filter((room) => filters.minRent === undefined || room.monthlyRent >= filters.minRent)
+      .filter((room) => filters.maxRent === undefined || room.monthlyRent <= filters.maxRent)
+      .filter((room) => !filters.excludeHostId || room.hostId !== filters.excludeHostId)
+      .filter((room) => {
+        if (!term) return true;
+        const address = room.locationId ? this.locations.get(room.locationId)?.address : "";
+        return `${room.title} ${room.description ?? ""} ${address ?? ""}`
+          .toLocaleLowerCase("es")
+          .includes(term);
+      })
+      .sort(
+        (a, b) =>
+          (b.publishedAt?.getTime() ?? b.createdAt.getTime()) -
+          (a.publishedAt?.getTime() ?? a.createdAt.getTime()),
+      )
+      .slice(offset, offset + limit)
+      .map((room) => ({
+        id: room.id,
+        hostId: room.hostId,
+        hostName: null,
+        title: room.title,
+        description: room.description ?? null,
+        monthlyRent: room.monthlyRent,
+        availableFrom: room.availableFrom ?? null,
+        maxRoommates: room.maxRoommates ?? null,
+        photoCount: room.photoCount,
+        address: room.locationId ? (this.locations.get(room.locationId)?.address ?? null) : null,
+        zone: null,
+        city: null,
+        publishedAt: room.publishedAt ?? null,
+      }));
   }
 
   async findPublished(
@@ -152,16 +131,25 @@ class InMemoryRoomRepository implements IRoomListingRepository {
 
   async createWithLocationAndPhotos(
     room: RoomListing,
-    location: {
-      address: string;
-      latitude: number;
-      longitude: number;
-    },
+    location: RoomLocationInput,
     photos: RoomPhotoInput[]
   ): Promise<RoomListing> {
     room.setPhotoCount(photos.length);
-
     this.rooms.set(room.id, room);
+
+    if (room.locationId) {
+      this.locations.set(room.locationId, location);
+    }
+
+    this.photos.set(
+      room.id,
+      photos.map((photo, index) => ({
+        id: crypto.randomUUID(),
+        listingId: room.id,
+        position: index + 1,
+        ...photo,
+      }))
+    );
 
     return room;
   }
@@ -171,24 +159,94 @@ class InMemoryRoomRepository implements IRoomListingRepository {
   }
 
   async countPhotos(listingId: string): Promise<number> {
-    const room = this.rooms.get(listingId);
-    return room ? room.photoCount : 0;
+    return this.photos.get(listingId)?.length ?? 0;
   }
 
   async findPhotoById(
     listingId: string,
     photoId: string
   ): Promise<RoomPhotoRecord | null> {
-    return null;
+    return (
+      this.photos.get(listingId)?.find((photo) => photo.id === photoId) ?? null
+    );
   }
 
-  // En este repositorio simulado todavía no almacenamos fotografías.
   async findFirstPhotoByListingId(
     listingId: string
   ): Promise<RoomPhotoRecord | null> {
-    return null;
+    return this.photos.get(listingId)?.[0] ?? null;
+  }
+
+  async findLocationById(
+    id: string
+  ): Promise<RoomLocationInput | null> {
+    return this.locations.get(id) ?? null;
+  }
+
+  async findPhotosByListingId(
+    listingId: string
+  ): Promise<RoomPhotoMetadata[]> {
+    return (this.photos.get(listingId) ?? []).map(
+      ({ id, listingId, fileName, mimeType, position }) => ({
+        id,
+        listingId,
+        fileName,
+        mimeType,
+        position,
+      })
+    );
+  }
+
+  async updateWithLocationAndPhotos(
+    room: RoomListing,
+    location: RoomLocationInput,
+    photos: RoomPhotoUpdateItem[]
+  ): Promise<void> {
+    if (!room.locationId) {
+      throw new Error("La habitación no tiene ubicación.");
+    }
+
+    if (photos.length > 10) {
+      throw new Error("Una habitación no puede tener más de 10 fotografías.");
+    }
+
+    const fotosActuales = this.photos.get(room.id) ?? [];
+    const fotosActualizadas: RoomPhotoRecord[] = [];
+
+    for (const [index, item] of photos.entries()) {
+      if (item.type === "existing") {
+        const foto = fotosActuales.find(
+          (actual) => actual.id === item.id
+        );
+
+        if (!foto) {
+          throw new Error(
+            `La fotografía ${item.id} no pertenece a esta habitación.`
+          );
+        }
+
+        fotosActualizadas.push({
+          ...foto,
+          position: index + 1,
+        });
+      } else {
+        fotosActualizadas.push({
+          id: crypto.randomUUID(),
+          listingId: room.id,
+          position: index + 1,
+          ...item.photo,
+        });
+      }
+    }
+
+    room.setPhotoCount(fotosActualizadas.length);
+
+    this.rooms.set(room.id, room);
+    this.locations.set(room.locationId, location);
+    this.photos.set(room.id, fotosActualizadas);
   }
 }
+
 
 class InMemoryApplicationRepository
   implements IApplicationRepository
@@ -237,6 +295,13 @@ describe("Modular Monolith MVC API", () => {
     authDependencies: authFakes.dependencies,
   });
 
+  // Token de sesión compartido por los tests que llegan tras el login.
+  let sessionToken = "";
+  const authHeaders = (extra: Record<string, string> = {}) => ({
+    ...extra,
+    Authorization: `Bearer ${sessionToken}`,
+  });
+
   describe("Auth Module", () => {
     it("registers a new user and returns public view (sanitized)", async () => {
       const res = await app.request("/api/v1/auth/register", {
@@ -275,16 +340,26 @@ describe("Modular Monolith MVC API", () => {
 
       expect(data.token).toBeDefined();
       expect(data.user.email).toBe("nuevo_estudiante@uni.edu");
+
+      sessionToken = data.token;
+    });
+
+    it("rejects protected routes without session", async () => {
+      const res = await app.request("/api/v1/profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName: "X", birthDate: "2000-01-01" }),
+      });
+      expect(res.status).toBe(401);
     });
   });
 
   describe("Profile Module", () => {
-    it("creates a student profile and calculates age", async () => {
+    it("creates a student profile for the authenticated user", async () => {
       const res = await app.request("/api/v1/profiles", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
-          userId: "user-123",
           fullName: "Ana García",
           birthDate: "2002-05-15",
           occupation: "Estudiante de Ingeniería",
@@ -304,58 +379,39 @@ describe("Modular Monolith MVC API", () => {
   describe("Rooms Module", () => {
     let createdRoomId = "";
 
-    it("creates a draft room listing", async () => {
-      // Recuperamos el usuario creado en la prueba de registro.
-      const host = await userRepo.findByEmail(
-        "nuevo_estudiante@uni.edu"
-      );
-
+    it("creates a draft room listing (hostId taken from session)", async () => {
+      const host = await userRepo.findByEmail("nuevo_estudiante@uni.edu");
       expect(host).not.toBeNull();
 
-      // FormData permite enviar campos y archivos en una sola petición.
       const formData = new FormData();
-
-      formData.append("hostId", host!.id);
-      formData.append(
-        "titulo",
-        "Cuarto amueblado a 5 min del campus"
-      );
+      // No se envía hostId: el backend lo toma de la sesión.
+      formData.append("titulo", "Cuarto amueblado a 5 min del campus");
       formData.append("renta", "2800");
-      formData.append(
-        "descripcion",
-        "Incluye agua e internet."
-      );
-      formData.append(
-        "ubicacion",
-        "Calle de prueba 123, León, Guanajuato"
-      );
+      formData.append("descripcion", "Incluye agua e internet.");
+      formData.append("ubicacion", "Calle de prueba 123, León, Guanajuato");
       formData.append("latitude", "21.1221");
       formData.append("longitude", "-101.683");
 
       const res = await app.request("/api/v1/rooms", {
         method: "POST",
+        headers: authHeaders(),
         body: formData,
       });
 
       const data = await res.json();
 
-      // Si falla, Vitest mostrará el mensaje del backend.
       expect(res.status, JSON.stringify(data)).toBe(201);
-      expect(data.title).toBe(
-        "Cuarto amueblado a 5 min del campus"
-      );
+      expect(data.title).toBe("Cuarto amueblado a 5 min del campus");
       expect(data.status).toBe("draft");
 
       createdRoomId = data.id;
     });
 
     it("rejects publishing room without enough photos", async () => {
-      const res = await app.request(
-        `/api/v1/rooms/${createdRoomId}/publish`,
-        {
-          method: "PATCH",
-        }
-      );
+      const res = await app.request(`/api/v1/rooms/${createdRoomId}/publish`, {
+        method: "PATCH",
+        headers: authHeaders(),
+      });
 
       expect(res.status).toBe(400);
 
@@ -363,16 +419,22 @@ describe("Modular Monolith MVC API", () => {
 
       expect(data.error).toMatch(/al menos 3 fotografías/);
     });
+
+    it("rejects publish without session", async () => {
+      const res = await app.request(`/api/v1/rooms/${createdRoomId}/publish`, {
+        method: "PATCH",
+      });
+      expect(res.status).toBe(401);
+    });
   });
 
   describe("Applications Module", () => {
-    it("submits application for a listing", async () => {
+    it("submits application for a listing (applicantId from session)", async () => {
       const res = await app.request("/api/v1/applications", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           listingId: "listing-abc",
-          applicantId: "user-456",
           message: "Hola, me interesa mucho el cuarto.",
           compatibilityScore: 92.5,
         }),
@@ -384,6 +446,15 @@ describe("Modular Monolith MVC API", () => {
 
       expect(data.status).toBe("pending");
       expect(data.compatibilityScore).toBe(92.5);
+    });
+
+    it("rejects application without session", async () => {
+      const res = await app.request("/api/v1/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId: "listing-abc" }),
+      });
+      expect(res.status).toBe(401);
     });
   });
 });
