@@ -1,4 +1,4 @@
-import { solicitud } from '@/modulos/compatibilidad/api';
+import { solicitud } from '../compatibilidad/api';
 
 export type DireccionConexion = 'incoming' | 'outgoing' | 'all';
 export type EstadoConexion = 'pending' | 'accepted' | 'rejected' | 'cancelled';

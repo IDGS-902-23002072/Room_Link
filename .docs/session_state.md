@@ -46,6 +46,13 @@
   - **Frontend móvil y Web**: integrados el rediseño del feed de habitaciones, galería de fotos de perfil y portal web React (cuestionario, recomendaciones y dashboard de métricas).
 - **`feature/cesar`**: integrado ajuste de versión de Bun en `CONTRIBUTING.md`.
 
+### Unificación 100% del Frontend en `frontend/Room_Link` (2026-11-18)
+- **Fase 1 (Auth + Rewire):** sesión (`src/auth/sesion.ts`, `api-auth.ts`, `SesionContext.tsx`, `ui.tsx`), pantallas `app/(auth)/` (login, registro, recuperar), gating en `app/_layout.tsx`, shim web de mapas (`PantallaUbicacion.web.tsx`) y rewire de todos los `api.ts` al token `Bearer` de sesión real.
+- **Fase 3 (Chat HU-10 y Moderación HU-13):** portados `modulos/chats/` (bandeja, sala, historial, envío, lectura, contexto y reporte) y `modulos/moderacion/` (cola, denuncias e historial admin en `/moderacion` + reporte de anuncios en `FichaHabitacion`).
+- **Fase 4 (Notificaciones HU-14 + Sistema Android):** implementado `modulos/notificaciones/` (`/notificaciones`, listado, lectura, marcar todas y preferencias In-App/Email) junto con `permisosSistema.ts` y permisos Android `POST_NOTIFICATIONS` en `app.json` (solicitud runtime en Android 13+, canal nativo, disparo de alertas a nivel sistema y sincronización en segundo plano).
+- **Módulos restantes con UI móvil:** `modulos/acuerdos/` (`/acuerdos` — HU-12), `modulos/conexiones/` (`/conexiones` — gestión de solicitudes entrantes/salientes) y `modulos/sanciones/` (`/sanciones` — panel admin).
+- **Cierre de unificación:** eliminada la app duplicada `frontend/src` y `frontend/App.js`, apuntando scripts, tests unitarios (`frontend/tests/modules.unit.test.js`), E2E (`mobile-auth.e2e.mjs`) y CI (`regression.yml`) a `frontend/Room_Link`.
+
 ### Métricas de calidad al cierre
 - `npm run typecheck` / `bun run typecheck` → limpio (0 errores).
 - `npm run db:check` / `bun run db:check` → limpio (`Everything's fine`).

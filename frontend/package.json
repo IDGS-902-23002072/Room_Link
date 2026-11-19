@@ -4,11 +4,11 @@
   "private": true,
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
-    "build:web": "expo export --platform web",
+    "start": "npm --prefix Room_Link start",
+    "android": "npm --prefix Room_Link run android",
+    "ios": "npm --prefix Room_Link run ios",
+    "web": "npm --prefix Room_Link run web",
+    "build:web": "npm --prefix Room_Link run build:web",
     "test": "vitest run",
     "test:e2e": "node --test tests/e2e/*.e2e.mjs",
     "check": "npm test && npm run build:web"

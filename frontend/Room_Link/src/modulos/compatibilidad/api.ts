@@ -1,4 +1,4 @@
-import { obtenerToken, obtenerUserId } from '@/auth/sesion';
+import { obtenerToken, obtenerUserId } from '../../auth/sesion';
 
 export type DimensionCompatibilidad =
   | 'schedule'

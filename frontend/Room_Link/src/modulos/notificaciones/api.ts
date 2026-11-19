@@ -1,4 +1,4 @@
-import { solicitud } from '@/modulos/compatibilidad/api';
+import { solicitud } from '../compatibilidad/api';
 
 export type TipoNotificacion =
   | 'application_status_changed'

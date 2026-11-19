@@ -1,4 +1,4 @@
-import { configuracionApi, solicitud } from '@/modulos/compatibilidad/api';
+import { configuracionApi, solicitud } from '../compatibilidad/api';
 
 export interface AceptacionAcuerdo {
   userId: string;

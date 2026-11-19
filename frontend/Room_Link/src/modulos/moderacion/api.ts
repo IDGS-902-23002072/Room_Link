@@ -1,4 +1,4 @@
-import { solicitud } from '@/modulos/compatibilidad/api';
+import { solicitud } from '../compatibilidad/api';
 
 export type DecisionModeracion = 'approved' | 'rejected' | 'removed';
 export type EstadoRevisionAnuncio = 'pending' | DecisionModeracion;
@@ -49,29 +49,11 @@ export interface DenunciaModeracion {
   resolvedAt?: string | null;
 }
 
-export function validarDecisionModeracion(
-  decision: string,
-  reason: string,
-): string | null {
-  if (!['approved', 'rejected', 'removed'].includes(decision)) {
-    return 'Selecciona una decisión válida.';
-  }
-  if (decision !== 'approved' && !reason.trim()) {
-    return 'El rechazo o la baja requieren un motivo.';
-  }
-  return null;
-}
-
-export function esDenunciaDeAnuncio(denuncia: DenunciaModeracion): boolean {
-  const idAnuncio = denuncia.listingId || denuncia.targetListingId;
-  return Boolean(idAnuncio) && !denuncia.targetUserId && !denuncia.targetMessageId;
-}
-
-export function obtenerIdAnuncioDenuncia(
-  denuncia: DenunciaModeracion,
-): string | null {
-  return denuncia.listingId || denuncia.targetListingId || null;
-}
+export {
+  esDenunciaDeAnuncio,
+  obtenerIdAnuncioDenuncia,
+  validarDecisionModeracion,
+} from './logica';
 
 export function listarColaModeracion(): Promise<ElementoColaModeracion[]> {
   return solicitud<ElementoColaModeracion[]>('/api/v1/moderation/admin/queue');

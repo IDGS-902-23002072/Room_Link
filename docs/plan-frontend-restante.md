@@ -37,13 +37,14 @@ Lo demás (CORS `credentials:true`, E2E puppeteer, workflows CI, `docs/testing.m
 
 - **Backend: 100%** — 14 módulos, verificado (typecheck 0, unit 154/154, smoke 12/12,
   integración MySQL 4/4). Publicado en `origin/develop`.
-- **Frontend: en unificación.** Había **dos apps**:
-  - `frontend/` (César): auth, mensajería, moderación — React Native Web.
-  - `frontend/Room_Link/` (Omar + Avril): exploración, anuncios, perfil, encuesta,
-    maps — Expo Router, nativa.
-- **Decisión tomada:** base = **`frontend/Room_Link`** (Expo Router, nativa, más
-  módulos, los 4 tabs) y se porta lo de César encima. `frontend/` (César) queda
-  como fuente para portar, después se elimina.
+- **Frontend: 100% unificado en `frontend/Room_Link`.**
+  - Se unificaron los módulos de exploración, anuncios, perfil, galería, encuesta, mapas,
+    autenticación, chat real (HU-10), moderación (HU-13), notificaciones con permisos a
+    nivel de sistema Android (`POST_NOTIFICATIONS` — HU-14), acuerdos de convivencia (HU-12),
+    gestión de conexiones y panel admin de sanciones.
+  - La app duplicada de `frontend/src` (y `frontend/App.js`) fue eliminada tras portar toda
+    su funcionalidad y apuntar los tests unitarios, E2E y workflows de CI (`regression.yml`)
+    a `frontend/Room_Link`.
 
 ---
 
@@ -137,17 +138,17 @@ Verificado end-to-end (login real contra backend+MySQL, 0 errores de consola).
 - Credenciales reales **Google OAuth** + **SMTP** (hoy stubbeados) — los correos de confirmación
   dependen de esto.
 - Integration tests dedicados por módulo nuevo (hoy solo smoke).
-- Unificación final: una vez portado todo a Room_Link, **eliminar `frontend/`** (app de César) y
-  dejar Room_Link como única app.
+- ✅ **Unificación final — HECHO:** eliminado `frontend/src` y `frontend/App.js` (app duplicada de César);
+  `frontend/Room_Link` queda como única app móvil y los scripts/tests de `frontend/` apuntan a `Room_Link`.
 
 ---
 
 ## 5. Orden sugerido para el 100% del frontend
-1. ✅ **Notificaciones (HU-14)** — el objetivo pedido, ya sobre base autenticada (completado).
+1. ✅ **Notificaciones (HU-14)** — el objetivo pedido, ya sobre base autenticada + permisos y alertas a nivel sistema Android (`POST_NOTIFICATIONS`) (completado).
 2. ✅ **Chat real** (reemplaza el placeholder — completado).
 3. ✅ **Moderación** (admin + denuncia de anuncios — completado).
 4. ✅ **Acuerdos** → **Conexiones (gestión)** → **Sanciones (admin)** (completados).
-5. Eliminar `frontend/` (César) y cerrar la unificación.
+5. ✅ **Eliminar `frontend/src` (César) y cerrar la unificación** (completado).
 
 ---
 

@@ -87,14 +87,18 @@ test("móvil: login real cross-origin y llegada a la pantalla autenticada", asyn
     await inputs[0].type(email, { delay: 5 });
     await inputs[1].type(password, { delay: 5 });
 
-    const clicked = await clickByText(page, "Iniciar sesión");
-    assert.ok(clicked, "Debe existir el botón 'Iniciar sesión'");
+    const clicked =
+      (await clickByText(page, "Entrar")) ||
+      (await clickByText(page, "Iniciar sesión"));
+    assert.ok(clicked, "Debe existir el botón 'Entrar' o 'Iniciar sesión'");
 
-    // La llegada a la bandeja prueba que el login cross-origin se completó.
+    // La llegada a las pestañas autenticadas prueba que el login cross-origin se completó.
     await page.waitForFunction(
       () =>
         document.body.innerText.includes("Tus conversaciones") ||
-        document.body.innerText.includes("Chats"),
+        document.body.innerText.includes("Chats") ||
+        document.body.innerText.includes("Anuncios") ||
+        document.body.innerText.includes("Descubrir"),
       { timeout: 15000 },
     );
 
@@ -106,8 +110,11 @@ test("móvil: login real cross-origin y llegada a la pantalla autenticada", asyn
 
     const bodyText = await page.evaluate(() => document.body.innerText);
     assert.ok(
-      bodyText.includes("Tus conversaciones") || bodyText.includes("Chats"),
-      "Tras el login se debe ver la pantalla autenticada (bandeja de chats)",
+      bodyText.includes("Tus conversaciones") ||
+        bodyText.includes("Chats") ||
+        bodyText.includes("Anuncios") ||
+        bodyText.includes("Descubrir"),
+      "Tras el login se debe ver la pantalla autenticada",
     );
   } finally {
     await browser.close();
