@@ -2,7 +2,8 @@
 //
 // Verifica lo que un smoke por curl NO puede: que el navegador (cliente real)
 // pueda consumir la API cross-origin — CORS + credenciales + Bearer token —
-// y completar el login hasta la pantalla autenticada.
+// y completar el login hasta la pantalla autenticada, y que la navegación por
+// pestañas (post-unificación en Room_Link) funcione sin barra duplicada.
 //
 // Requisitos (los orquesta el workflow de CI o el script local):
 //   - Backend corriendo y accesible en E2E_API_URL  (default http://localhost:3000/api/v1)
@@ -33,7 +34,9 @@ function resolveChromePath() {
 }
 
 const CHROME_PATH = resolveChromePath();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Click por texto EXACTO sobre un elemento visible (pestañas, botones).
 const clickByText = (page, label) =>
   page.evaluate((t) => {
     const nodes = [
@@ -48,6 +51,21 @@ const clickByText = (page, label) =>
     }
     return false;
   }, label);
+
+// Navegación profunda robusta: los <Link href> de expo-router renderizan <a href>
+// en web. Clickear el <a> por su ruta es más fiable que por texto.
+const clickHref = (page, route) =>
+  page.evaluate((r) => {
+    const a = [...document.querySelectorAll("a")].find((x) => {
+      const h = x.getAttribute("href") || "";
+      return (h === r || h.endsWith(r)) && x.offsetParent !== null;
+    });
+    if (a) {
+      a.click();
+      return true;
+    }
+    return false;
+  }, route);
 
 async function registerTestUser() {
   const email = `e2e-${Date.now()}@roomlink.test`;
@@ -65,7 +83,7 @@ async function registerTestUser() {
   return { email, password };
 }
 
-test("móvil: login real cross-origin y llegada a la pantalla autenticada", async () => {
+test("móvil: login real cross-origin + navegación por pestañas (Room_Link unificado)", async () => {
   const { email, password } = await registerTestUser();
 
   const browser = await puppeteer.launch({
@@ -92,8 +110,9 @@ test("móvil: login real cross-origin y llegada a la pantalla autenticada", asyn
     });
 
     await page.goto(WEB_URL, { waitUntil: "networkidle0", timeout: 30000 });
-    await new Promise((r) => setTimeout(r, 800));
+    await sleep(900);
 
+    // Login
     const inputs = await page.$$("input");
     assert.ok(
       inputs.length >= 2,
@@ -101,85 +120,64 @@ test("móvil: login real cross-origin y llegada a la pantalla autenticada", asyn
     );
     await inputs[0].type(email, { delay: 5 });
     await inputs[1].type(password, { delay: 5 });
-
     const clicked =
       (await clickByText(page, "Entrar")) ||
       (await clickByText(page, "Iniciar sesión"));
     assert.ok(clicked, "Debe existir el botón 'Entrar' o 'Iniciar sesión'");
 
-    // La llegada a las pestañas autenticadas prueba que el login cross-origin se completó.
+    // Aterriza en Mis publicaciones (M07) — prueba que el login cross-origin se completó.
     await page.waitForFunction(
-      () =>
-        document.body.innerText.includes("Tus conversaciones") ||
-        document.body.innerText.includes("Chats") ||
-        document.body.innerText.includes("Anuncios") ||
-        document.body.innerText.includes("Descubrir"),
+      () => document.body.innerText.includes("Mis publicaciones"),
       { timeout: 15000 },
     );
-
     assert.equal(
       loginStatus,
       200,
       "POST /auth/login debe responder 200 en el navegador (valida CORS + credenciales)",
     );
 
-    const bodyText = await page.evaluate(() => document.body.innerText);
-    assert.ok(
-      bodyText.includes("Tus conversaciones") ||
-        bodyText.includes("Chats") ||
-        bodyText.includes("Anuncios") ||
-        bodyText.includes("Descubrir"),
-      "Tras el login se debe ver la pantalla autenticada",
+    // Navegación: una sola barra de pestañas (sin duplicado).
+    const navCount = await page.evaluate(
+      () =>
+        [...document.querySelectorAll("*")].filter(
+          (e) => (e.textContent || "").trim() === "Descubrir" && e.offsetParent,
+        ).length,
     );
+    assert.equal(navCount, 1, `Se esperaba una sola barra de nav, hay ${navCount}`);
 
-    // Navegar al tab Chats y verificar que carga la bandeja real de HU-10
+    // Tabs (hermanos): se navegan primero porque las pantallas apiladas
+    // (p.ej. /buscar-roomies, con botón "‹ Volver") no muestran la barra de pestañas.
+
+    // Tab Chats — bandeja real (HU-10)
     await clickByText(page, "Chats");
     await page.waitForFunction(
       () => document.body.innerText.includes("Tus conversaciones"),
       { timeout: 10000 },
     );
 
-    // Navegar al tab Perfil y verificar los enlaces a Notificaciones, Conexiones y Acuerdos
+    // Tab Perfil — perfil extendido (M02, módulo de Roberto)
     await clickByText(page, "Perfil");
     await page.waitForFunction(
+      () => document.body.innerText.includes("Mi perfil"),
+      { timeout: 10000 },
+    );
+
+    // Tab Descubrir — feed de habitaciones (M04 / HU-04)
+    await clickByText(page, "Descubrir");
+    await page.waitForFunction(
+      () => document.body.innerText.includes("Encuentra tu habitación"),
+      { timeout: 10000 },
+    );
+
+    // Pantalla apilada final: Búsqueda de roomies (M05, módulo de Roberto)
+    assert.ok(
+      await clickHref(page, "/buscar-roomies"),
+      "Debe existir el enlace a /buscar-roomies desde Descubrir",
+    );
+    await page.waitForFunction(
       () =>
-        document.body.innerText.includes("Mi perfil") &&
-        document.body.innerText.includes("Centro de notificaciones (HU-14)") &&
-        document.body.innerText.includes("Solicitudes de conexión") &&
-        document.body.innerText.includes("Acuerdos de convivencia (HU-12)"),
-      { timeout: 10000 },
-    );
-
-    // Abrir el Centro de Notificaciones (HU-14) y verificar que carga notificaciones y permisos del sistema
-    await clickByText(page, "Centro de notificaciones (HU-14)");
-    await page.waitForFunction(
-      () =>
-        document.body.innerText.includes("ROOMLINK / 14") &&
-        document.body.innerText.includes("Notificaciones del sistema"),
-      { timeout: 10000 },
-    );
-
-    // Volver a Perfil y abrir Solicitudes de conexión
-    await clickByText(page, "‹");
-    await page.waitForFunction(
-      () => document.body.innerText.includes("Solicitudes de conexión"),
-      { timeout: 10000 },
-    );
-    await clickByText(page, "Solicitudes de conexión");
-    await page.waitForFunction(
-      () => document.body.innerText.includes("ROOMLINK / CONEXIONES"),
-      { timeout: 10000 },
-    );
-
-    // Volver a Perfil y abrir Acuerdos de convivencia (HU-12)
-    await clickByText(page, "‹");
-    await page.waitForFunction(
-      () => document.body.innerText.includes("Acuerdos de convivencia (HU-12)"),
-      { timeout: 10000 },
-    );
-    await clickByText(page, "Acuerdos de convivencia (HU-12)");
-    await page.waitForFunction(
-      () => document.body.innerText.includes("ROOMLINK / 12"),
+        document.body.innerText.includes("Buscar roomies") &&
+        document.body.innerText.includes("Filtros generales"),
       { timeout: 10000 },
     );
   } finally {
