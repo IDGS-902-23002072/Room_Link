@@ -40,6 +40,9 @@ function Navegacion() {
         <Stack.Screen name="encuesta" />
         <Stack.Screen name="moderacion" />
         <Stack.Screen name="notificaciones" />
+        <Stack.Screen name="acuerdos" />
+        <Stack.Screen name="conexiones" />
+        <Stack.Screen name="sanciones" />
       </Stack>
     </ThemeProvider>
   );

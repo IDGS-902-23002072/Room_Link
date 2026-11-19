@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'expo-router';
 import {
   ActivityIndicator,
   Pressable,
@@ -266,18 +267,30 @@ export function PantallaChats() {
                 Conexiones que se convierten en hogar.
               </Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              onPress={cargarBandeja}
-              disabled={cargando}
-              style={({ pressed }) => [
-                styles.botonRecargar,
-                pressed && styles.presionado,
-              ]}>
-              <Text style={styles.textoBotonRecargar}>
-                {cargando ? '…' : 'Actualizar'}
-              </Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Link href="/conexiones" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonRecargar,
+                    pressed && styles.presionado,
+                  ]}>
+                  <Text style={styles.textoBotonRecargar}>Solicitudes</Text>
+                </Pressable>
+              </Link>
+              <Pressable
+                accessibilityRole="button"
+                onPress={cargarBandeja}
+                disabled={cargando}
+                style={({ pressed }) => [
+                  styles.botonRecargar,
+                  pressed && styles.presionado,
+                ]}>
+                <Text style={styles.textoBotonRecargar}>
+                  {cargando ? '…' : 'Actualizar'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
 
           <View style={styles.buscadorWrap}>
@@ -712,6 +725,15 @@ export function PantallaChats() {
                   ? `Postulación #${contexto.applicationId.slice(0, 8)}`
                   : 'Conexión activa')}
           </Text>
+          <Link href="/acuerdos" asChild>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.botonSecundario}>
+              <Text style={styles.textoBotonSecundario}>
+                Ver acuerdos de convivencia
+              </Text>
+            </Pressable>
+          </Link>
         </View>
 
         {error ? (

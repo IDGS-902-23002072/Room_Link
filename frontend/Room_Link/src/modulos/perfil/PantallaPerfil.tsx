@@ -377,6 +377,32 @@ export function PantallaPerfil() {
                 </Pressable>
               </Link>
 
+              <Link href="/conexiones" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonSecundario,
+                    pressed && styles.botonPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonSecundario}>
+                    Solicitudes de conexión
+                  </Text>
+                </Pressable>
+              </Link>
+
+              <Link href="/acuerdos" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonSecundario,
+                    pressed && styles.botonPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonSecundario}>
+                    Acuerdos de convivencia (HU-12)
+                  </Text>
+                </Pressable>
+              </Link>
+
               <Link href="/galeria-fotos" asChild>
                 <Pressable
                   accessibilityRole="button"
@@ -391,18 +417,32 @@ export function PantallaPerfil() {
               </Link>
 
               {esAdmin && (
-                <Link href="/moderacion" asChild>
-                  <Pressable
-                    accessibilityRole="button"
-                    style={({ pressed }) => [
-                      styles.botonAdmin,
-                      pressed && styles.botonPresionado,
-                    ]}>
-                    <Text style={styles.textoBotonAdmin}>
-                      Panel de moderación (Admin)
-                    </Text>
-                  </Pressable>
-                </Link>
+                <>
+                  <Link href="/moderacion" asChild>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={({ pressed }) => [
+                        styles.botonAdmin,
+                        pressed && styles.botonPresionado,
+                      ]}>
+                      <Text style={styles.textoBotonAdmin}>
+                        Panel de moderación (Admin)
+                      </Text>
+                    </Pressable>
+                  </Link>
+                  <Link href="/sanciones" asChild>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={({ pressed }) => [
+                        styles.botonAdmin,
+                        pressed && styles.botonPresionado,
+                      ]}>
+                      <Text style={styles.textoBotonAdmin}>
+                        Panel de sanciones (Admin)
+                      </Text>
+                    </Pressable>
+                  </Link>
+                </>
               )}
 
               <Pressable

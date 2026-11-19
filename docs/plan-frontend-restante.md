@@ -111,11 +111,16 @@ Verificado end-to-end (login real contra backend+MySQL, 0 errores de consola).
   `GET/PUT /api/v1/notifications/preferences`.
 - Accesible desde campana en el header de exploración (`PantallaExploracion`) y desde `PantallaPerfil`.
 
-### Otros módulos sin frontend (backend ya al 100%)
-- **Acuerdos de convivencia (HU-12):** `/api/v1/agreements` — pantalla para crear/firmar acuerdo.
-- **Conexiones (gestión):** aceptar/rechazar solicitudes. Hoy solo se *envían* desde el feed
-  de afinidad (`modulos/compatibilidad/api.ts` → `enviarSolicitudConexion`); falta la pantalla de gestión.
-- **Sanciones (admin):** `/api/v1/sanctions` — panel admin móvil.
+### ✅ HECHO — Otros módulos con frontend en Room_Link (backend ya al 100%)
+- ✅ **Acuerdos de convivencia (HU-12) — HECHO:** `/api/v1/agreements` — `modulos/acuerdos/api.ts` +
+  `modulos/acuerdos/PantallaAcuerdos.tsx` (ruta `/acuerdos`) para crear, listar, firmar digitalmente
+  y versionar acuerdos.
+- ✅ **Conexiones (gestión) — HECHO:** `/api/v1/connections` — `modulos/conexiones/api.ts` +
+  `modulos/conexiones/PantallaConexiones.tsx` (ruta `/conexiones`) para listar recibidas/enviadas,
+  aceptar, rechazar, cancelar y enviar por ID.
+- ✅ **Sanciones (admin) — HECHO:** `/api/v1/sanctions` — `modulos/sanciones/api.ts` +
+  `modulos/sanciones/PantallaSanciones.tsx` (ruta `/sanciones`, gateado por rol `admin`) para
+  emitir, consultar por usuario y revocar sanciones.
 
 ### Transversal (no-frontend, del session_state)
 - Credenciales reales **Google OAuth** + **SMTP** (hoy stubbeados) — los correos de confirmación
@@ -130,7 +135,7 @@ Verificado end-to-end (login real contra backend+MySQL, 0 errores de consola).
 1. ✅ **Notificaciones (HU-14)** — el objetivo pedido, ya sobre base autenticada (completado).
 2. ✅ **Chat real** (reemplaza el placeholder — completado).
 3. ✅ **Moderación** (admin + denuncia de anuncios — completado).
-4. **Acuerdos** → **Conexiones (gestión)** → **Sanciones (admin)**.
+4. ✅ **Acuerdos** → **Conexiones (gestión)** → **Sanciones (admin)** (completados).
 5. Eliminar `frontend/` (César) y cerrar la unificación.
 
 ---
