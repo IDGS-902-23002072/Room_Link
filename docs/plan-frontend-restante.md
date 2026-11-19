@@ -96,9 +96,9 @@ Verificado end-to-end (login real contra backend+MySQL, 0 errores de consola).
 ## 4. 🔜 LO QUE FALTA
 
 ### Fase 3 — Portar chat y moderación de César (a Room_Link)
-- **Chat real (HU-10):** el tab `chats` de Room_Link es un placeholder
-  (`modulos/comunes/PantallaEnPreparacion`). Portar `frontend/src/modules/messaging`
-  (bandeja + sala + contexto) a Expo Router, usando el cliente API con sesión.
+- ✅ **Chat real (HU-10) — HECHO:** el tab `chats` de Room_Link ya consume `/api/v1/messages`
+  (`modulos/chats/api.ts` + `modulos/chats/PantallaChats.tsx`: bandeja con filtros, sala con
+  historial/envío/lectura, apertura por sala/conexión/postulación y vista de contexto + reporte).
 - **Moderación (HU-13):** portar `frontend/src/modules/moderation` (cola, denuncias,
   historial). Es admin — gatear por `rol` del usuario de la sesión.
 - Reusar el design system de César (`frontend/src/shared/ui.js`) para consistencia.
@@ -125,7 +125,7 @@ Verificado end-to-end (login real contra backend+MySQL, 0 errores de consola).
 
 ## 5. Orden sugerido para el 100% del frontend
 1. **Notificaciones (HU-14)** — el objetivo pedido, ya sobre base autenticada.
-2. **Chat real** (reemplaza el placeholder).
+2. ✅ **Chat real** (reemplaza el placeholder — completado).
 3. **Moderación** (admin).
 4. **Acuerdos** → **Conexiones (gestión)** → **Sanciones (admin)**.
 5. Eliminar `frontend/` (César) y cerrar la unificación.
