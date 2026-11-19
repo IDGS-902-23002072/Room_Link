@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { obtenerPerfilAfinidad, obtenerTestCompatibilidad } from '../compatibilidad/api';
+import { estilos as estilosModulo } from '../comunes/InterfazModulo';
 
 import {
   obtenerHabitacion,
@@ -242,6 +243,11 @@ export function PantallaExploracion() {
           <>
             <Text style={styles.titulo}>Encuentra tu habitación</Text>
             <Text style={styles.subtitulo}>Habitaciones publicadas en renta</Text>
+            <Link href="/buscar-roomies" asChild>
+              <Pressable accessibilityRole="link" style={estilosModulo.boton}>
+                <Text style={estilosModulo.enlace}>Buscar roomies con filtros avanzados</Text>
+              </Pressable>
+            </Link>
             <BuscadorHabitaciones
               busqueda={busqueda}
               filtroActivo={filtroActivo}

@@ -176,14 +176,7 @@ export async function solicitarPermisoNotificacionesSistema(): Promise<EstadoPer
         },
       );
 
-      const estado: EstadoPermisoNotificacion =
-        resultado === PermissionsAndroid?.RESULTS?.GRANTED ||
-        resultado === 'granted'
-          ? 'granted'
-          : resultado === PermissionsAndroid?.RESULTS?.NEVER_ASK_AGAIN ||
-              resultado === 'never_ask_again'
-            ? 'never_ask_again'
-            : 'denied';
+      const estado: EstadoPermisoNotificacion = resultado;
 
       await AsyncStorage.setItem(CLAVE_PERMISO_NOTIF, estado).catch(
         () => undefined,

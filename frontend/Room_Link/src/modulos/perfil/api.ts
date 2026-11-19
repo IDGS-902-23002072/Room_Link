@@ -10,6 +10,7 @@ export interface PerfilPublico {
   occupation: string | null;
   bio: string | null;
   phone: string | null;
+  instagram?: string | null;
   identityStatus: string;
   isVerified: boolean;
 }
@@ -18,6 +19,7 @@ export interface DatosPerfil {
   fullName: string;
   occupation: string | null;
   bio: string | null;
+  phone?: string | null;
 }
 
 export interface PerfilFormulario {
@@ -28,6 +30,9 @@ export interface PerfilFormulario {
   zona: string;
   presupuestoMin: string;
   presupuestoMax: string;
+  ciudad?: string;
+  telefono?: string;
+  instagram?: string;
 }
 
 const CAMPOS_PERFIL: (keyof PerfilFormulario)[] = [
@@ -83,6 +88,9 @@ async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
     | (T & { error?: string })
     | null;
   if (!response.ok) {
+    if (response.status === 404 && body?.error?.startsWith('Perfil no encontrado')) {
+      throw new PerfilNoEncontrado(body.error);
+    }
     throw new Error(body?.error ?? `La API respondió con estado ${response.status}.`);
   }
   if (body === null) {
@@ -91,9 +99,18 @@ async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
   return body;
 }
 
+export class PerfilNoEncontrado extends Error {}
+
 export function obtenerPerfil() {
   const { userId } = configuracionApi();
   return solicitud<PerfilPublico>(rutaPerfil(userId));
+}
+
+export function crearPerfil(datos: DatosPerfil & { birthDate: string; instagram?: string }) {
+  return solicitud<PerfilPublico>('/api/v1/profiles', {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  });
 }
 
 export function actualizarPerfil(datos: DatosPerfil) {
@@ -102,6 +119,19 @@ export function actualizarPerfil(datos: DatosPerfil) {
     method: 'PUT',
     body: JSON.stringify(datos),
   });
+}
+
+export function actualizarInstagram(instagram: string) {
+  const { userId } = configuracionApi();
+  return solicitud<PerfilPublico>(`${rutaPerfil(userId)}/socials`, {
+    method: 'PUT',
+    body: JSON.stringify({ instagram }),
+  });
+}
+
+export function solicitarVerificacionIdentidad() {
+  const { userId } = configuracionApi();
+  return solicitud<PerfilPublico>(`${rutaPerfil(userId)}/verification/request`, { method: 'POST' });
 }
 
 export function perfilDesdeApi(perfil: PerfilPublico): PerfilFormulario {
@@ -113,6 +143,8 @@ export function perfilDesdeApi(perfil: PerfilPublico): PerfilFormulario {
     zona: '',
     presupuestoMin: '',
     presupuestoMax: '',
+    telefono: perfil.phone ?? '',
+    instagram: perfil.instagram ?? '',
   };
 }
 

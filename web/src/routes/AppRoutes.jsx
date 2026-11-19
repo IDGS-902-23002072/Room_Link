@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
 import Dashboard from '../pages/Dashboard/Dashboard.jsx'
 import Login from '../pages/Login/Login.jsx'
 import { useAuth } from '../hooks/useAuth.js'
@@ -7,10 +7,6 @@ import { AppLink } from '../components/AppLink.jsx'
 import { push } from './navigation.js'
 import Questionnaire from '../features/compatibility/Questionnaire.jsx'
 import Recommendations from '../features/compatibility/Recommendations.jsx'
-import { Workspace } from '../features/roomlink/Workspace.jsx'
-import { AccountPage, PhotosPage, ProfilePage } from '../features/roomlink/Profile.jsx'
-import { SearchPage } from '../features/roomlink/Search.jsx'
-import { AgreementsPage } from '../features/roomlink/Agreements.jsx'
 
 function Shell() {
   const { session, logout } = useAuth()
@@ -34,9 +30,6 @@ function Shell() {
           <span aria-disabled="true">Mensajes</span>
           <span aria-disabled="true">Solicitudes</span>
           <NavLink to="/cuestionario">Mi test</NavLink>
-          <NavLink className="room-module-link" to="/buscar">Buscar roomies</NavLink>
-          <NavLink className="room-module-link" to="/acuerdos">Acuerdos</NavLink>
-          <NavLink className="room-module-link" end to="/perfil">Mi perfil</NavLink>
           {isAdmin && <NavLink to="/admin/dashboard">Dashboard</NavLink>}
         </nav>
         <div className="account-menu">
@@ -56,7 +49,6 @@ function Shell() {
 
 function ProtectedLayout() {
   const { session, loadingSession, sessionError } = useAuth()
-  const { pathname } = useLocation()
 
   if (loadingSession) {
     return <div className="loading-screen">Preparando tu espacio…</div>
@@ -64,10 +56,7 @@ function ProtectedLayout() {
   if (sessionError) {
     return <div className="notice notice-error" role="alert">{sessionError}</div>
   }
-  if (!session) {
-    const review = pathname.startsWith('/acuerdos/revisar/') ? pathname : undefined
-    return <Navigate replace state={{ review }} to="/login" />
-  }
+  if (!session) return <Navigate replace to="/login" />
 
   return <Shell />
 }
@@ -83,19 +72,16 @@ function AdminLayout() {
 function LoginRoute() {
   const { session } = useAuth()
   const navigate = useNavigate()
-  const { state } = useLocation()
-  const review = typeof state?.review === 'string' && /^\/acuerdos\/revisar\/[^/]+$/.test(state.review) ? state.review : null
-  const destination = (user) => review ?? (user.roles?.includes('admin') ? '/admin/dashboard' : '/explorar')
 
   if (session) {
     return (
       <Navigate
         replace
-        to={destination(session.user)}
+        to={session.user.roles?.includes('admin') ? '/admin/dashboard' : '/explorar'}
       />
     )
   }
-  return <Login onLogin={(user) => push(navigate, destination(user))} />
+  return <Login onLogin={(user) => push(navigate, user.roles?.includes('admin') ? '/admin/dashboard' : '/explorar')} />
 }
 
 function NotFound() {
@@ -121,21 +107,6 @@ export default function AppRoutes() {
           <Route element={<Recommendations />} path="/perfil/candidato/:candidateId" />
           <Route element={<Questionnaire />} path="/cuestionario" />
           <Route element={<Questionnaire />} path="/resultados/test" />
-          <Route element={<Workspace module="profile" />} path="/perfil">
-            <Route element={<ProfilePage />} index />
-            <Route element={<PhotosPage />} path="fotos" />
-            <Route element={<AccountPage />} path="cuenta" />
-          </Route>
-          <Route element={<Workspace module="search" />} path="/buscar">
-            <Route element={<SearchPage tab="filters" />} index />
-            <Route element={<SearchPage tab="habits" />} path="habitos" />
-            <Route element={<SearchPage tab="saved" />} path="guardadas" />
-          </Route>
-          <Route element={<Workspace module="agreements" />} path="/acuerdos">
-            <Route element={<AgreementsPage tab="current" />} index />
-            <Route element={<AgreementsPage tab="create" />} path="crear" />
-            <Route element={<AgreementsPage tab="review" />} path="revisar/:agreementId?" />
-          </Route>
           <Route element={<AdminLayout />} path="/admin">
             <Route element={<Dashboard />} path="dashboard" />
           </Route>
