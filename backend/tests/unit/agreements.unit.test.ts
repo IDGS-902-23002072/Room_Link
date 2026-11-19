@@ -1,165 +1,259 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
 import {
   Agreement,
-  AgreementAcceptance,
+  type AgreementRuleSet,
   type IAgreementRepository,
+  type ListingRulesAndCosts,
 } from "../../src/domain/index.js";
-import {
-  AgreementsService,
-  type AgreementPolicies,
-} from "../../src/modules/agreements/index.js";
-import type { DomainEventPublisher } from "../../src/modules/auth/index.js";
+import { AgreementsService } from "../../src/modules/agreements/agreements.service.js";
 
-class InMemoryAgreementRepository implements IAgreementRepository {
-  readonly agreements = new Map<string, Agreement>();
-  readonly acceptances: AgreementAcceptance[] = [];
+/**
+ * HU-12 — Acuerdos de convivencia.
+ * Cubre EL-12.3 (generarAcuerdo), EL-12.4 (aceptarAcuerdo),
+ * EL-12.5 (crearNuevaVersion) y EL-12.6 (validación de participantes).
+ */
 
-  async findById(id: string) {
-    return this.agreements.get(id) ?? null;
+class FakeAgreementRepository implements IAgreementRepository {
+  public agreements: Map<string, Agreement> = new Map();
+  public acceptances: Array<{ id: string; userId: string; at: Date }> = [];
+  public snapshots: Map<string, ListingRulesAndCosts> = new Map();
+
+  async getListingSnapshot(
+    listingId: string,
+  ): Promise<ListingRulesAndCosts | null> {
+    return this.snapshots.get(listingId) ?? null;
   }
-  async listByListingId(listingId: string) {
+
+  async findById(agreementId: string): Promise<Agreement | null> {
+    return this.agreements.get(agreementId) ?? null;
+  }
+
+  async findByListing(listingId: string): Promise<Agreement[]> {
     return Array.from(this.agreements.values()).filter(
       (a) => a.listingId === listingId,
     );
   }
-  async create(agreement: Agreement) {
+
+  async findByUser(userId: string): Promise<Agreement[]> {
+    return Array.from(this.agreements.values()).filter((a) =>
+      a.isParticipant(userId),
+    );
+  }
+
+  async create(agreement: Agreement): Promise<Agreement> {
     this.agreements.set(agreement.id, agreement);
     return agreement;
   }
-  async findAcceptance(agreementId: string, userId: string) {
-    return (
-      this.acceptances.find(
-        (a) => a.agreementId === agreementId && a.userId === userId,
-      ) ?? null
-    );
-  }
-  async listAcceptances(agreementId: string) {
-    return this.acceptances.filter((a) => a.agreementId === agreementId);
-  }
-  async upsertAcceptance(acceptance: AgreementAcceptance) {
-    const idx = this.acceptances.findIndex(
-      (a) => a.agreementId === acceptance.agreementId && a.userId === acceptance.userId,
-    );
-    if (idx >= 0) this.acceptances[idx] = acceptance;
-    else this.acceptances.push(acceptance);
-    return acceptance;
+
+  async recordAcceptance(
+    agreementId: string,
+    userId: string,
+    acceptedAt: Date,
+  ): Promise<void> {
+    this.acceptances.push({ id: agreementId, userId, at: acceptedAt });
   }
 }
 
-function buildPolicies(overrides: Partial<AgreementPolicies> = {}): AgreementPolicies {
-  return {
-    getListingHostId: async (listingId) => (listingId === "L1" ? "host-1" : null),
-    isAcceptedApplicant: async (listingId, userId) =>
-      listingId === "L1" && userId === "applicant-1",
-    ...overrides,
-  };
-}
+const buildSnapshot = (
+  hostId: string,
+  listingTitle = "Casa de Roberto",
+): ListingRulesAndCosts => ({
+  listingTitle,
+  hostId,
+  visitsPolicy: "Solo con aviso previo",
+  partiesAllowed: false,
+  quietHoursStart: "22:00:00",
+  quietHoursEnd: "08:00:00",
+  petsAllowed: false,
+  smokingAllowed: false,
+  commonAreasNotes: "Cocina y baño compartidos",
+  extraRules: "Limpieza cada sábado",
+  costs: [
+    {
+      kind: "rent",
+      concept: "Renta mensual",
+      amount: 3500,
+      isIncluded: false,
+      isProrated: false,
+    },
+  ],
+});
 
-describe("AgreementsService", () => {
-  let repo: InMemoryAgreementRepository;
-  let events: Array<{ type: string }>;
-  let publisher: DomainEventPublisher;
+describe("AgreementsService (Roberto, HU-12)", () => {
+  let repo: FakeAgreementRepository;
   let service: AgreementsService;
-  const now = new Date("2026-11-07T10:00:00Z");
+  const host = "host-1";
+  const roomie = "roomie-2";
+  const listing = "listing-9";
 
   beforeEach(() => {
-    repo = new InMemoryAgreementRepository();
-    events = [];
-    publisher = { publish: async (event) => void events.push(event) };
-    service = new AgreementsService(repo, buildPolicies(), publisher, () => now);
+    repo = new FakeAgreementRepository();
+    repo.snapshots.set(listing, buildSnapshot(host));
+    service = new AgreementsService(repo);
   });
 
-  it("only the listing host can create an agreement", async () => {
-    await expect(
-      service.createForListing({
-        listingId: "L1",
-        hostId: "intruder",
-        rulesSnapshot: { quiet_hours: "22-7" },
-      }),
-    ).rejects.toMatchObject({ code: "AGREEMENT_FORBIDDEN" });
-
-    const created = await service.createForListing({
-      listingId: "L1",
-      hostId: "host-1",
-      rulesSnapshot: { quiet_hours: "22-7" },
+  describe("generarAcuerdo — EL-12.3", () => {
+    it("crea un acuerdo v1 con snapshot de reglas y costos", async () => {
+      const agreement = await service.generarAcuerdo({
+        listingId: listing,
+        hostId: host,
+        roomieId: roomie,
+      });
+      expect(agreement.version).toBe(1);
+      expect(agreement.hostId).toBe(host);
+      expect(agreement.roomieIds).toEqual([roomie]);
+      expect(agreement.rulesSnapshot.costs?.[0]?.amount).toBe(3500);
+      expect(agreement.acceptances).toHaveLength(0);
+      expect(repo.agreements.size).toBe(1);
     });
-    expect(created.id).toBeDefined();
-    expect(events).toMatchObject([{ type: "AgreementCreatedEvent" }]);
+
+    it("rechaza cuando el host indicado no coincide con el del listing", async () => {
+      await expect(
+        service.generarAcuerdo({
+          listingId: listing,
+          hostId: "otro-host",
+          roomieId: roomie,
+        }),
+      ).rejects.toThrow(/no coincide/);
+    });
+
+    it("rechaza cuando el listing no existe", async () => {
+      await expect(
+        service.generarAcuerdo({
+          listingId: "no-existe",
+          hostId: host,
+          roomieId: roomie,
+        }),
+      ).rejects.toThrow(/No existe el listing/);
+    });
+
+    it("rechaza cuando host y roomie son la misma persona", async () => {
+      await expect(
+        service.generarAcuerdo({
+          listingId: listing,
+          hostId: host,
+          roomieId: host,
+        }),
+      ).rejects.toThrow(/no puede figurar/);
+    });
   });
 
-  it("rejects creation with unknown listing or empty rules", async () => {
-    await expect(
-      service.createForListing({
-        listingId: "nope",
-        hostId: "host-1",
-        rulesSnapshot: { r: 1 },
-      }),
-    ).rejects.toMatchObject({ code: "LISTING_NOT_FOUND" });
+  describe("aceptarAcuerdo — EL-12.4 / EL-12.6", () => {
+    it("acepta al anfitrión y al roomie, y queda fullyAccepted", async () => {
+      const agreement = await service.generarAcuerdo({
+        listingId: listing,
+        hostId: host,
+        roomieId: roomie,
+      });
+      const afterHost = await service.aceptarAcuerdo(agreement.id, host);
+      expect(afterHost.isFullyAccepted()).toBe(false);
+      const afterRoomie = await service.aceptarAcuerdo(agreement.id, roomie);
+      expect(afterRoomie.isFullyAccepted()).toBe(true);
+      expect(repo.acceptances).toHaveLength(2);
+    });
 
-    await expect(
-      service.createForListing({
-        listingId: "L1",
-        hostId: "host-1",
-        rulesSnapshot: {},
-      }),
-    ).rejects.toThrow();
+    it("rechaza a un usuario que no es participante (EL-12.6)", async () => {
+      const agreement = await service.generarAcuerdo({
+        listingId: listing,
+        hostId: host,
+        roomieId: roomie,
+      });
+      await expect(
+        service.aceptarAcuerdo(agreement.id, "extrano"),
+      ).rejects.toThrow(/no es anfitrión ni roomie/);
+      expect(repo.acceptances).toHaveLength(0);
+    });
+
+    it("rechaza una doble aceptación del mismo usuario", async () => {
+      const agreement = await service.generarAcuerdo({
+        listingId: listing,
+        hostId: host,
+        roomieId: roomie,
+      });
+      await service.aceptarAcuerdo(agreement.id, host);
+      await expect(
+        service.aceptarAcuerdo(agreement.id, host),
+      ).rejects.toThrow(/ya aceptó/);
+    });
+
+    it("404 cuando el acuerdo no existe", async () => {
+      await expect(
+        service.aceptarAcuerdo("no-existe", host),
+      ).rejects.toThrow(/no encontrado/);
+    });
   });
 
-  it("accept allowed for host or accepted applicant, forbidden otherwise", async () => {
-    const agreement = await service.createForListing({
-      listingId: "L1",
-      hostId: "host-1",
-      rulesSnapshot: { r: 1 },
+  describe("crearNuevaVersion — EL-12.5", () => {
+    it("incrementa la versión y referencia al anterior", async () => {
+      const first = await service.generarAcuerdo({
+        listingId: listing,
+        hostId: host,
+        roomieId: roomie,
+      });
+      const next = await service.crearNuevaVersion(first.id);
+      expect(next.version).toBe(2);
+      expect(next.supersedesAgreementId).toBe(first.id);
+      expect(next.roomieIds).toEqual([roomie]);
+      expect(next.acceptances).toHaveLength(0);
     });
 
-    await expect(service.accept(agreement.id, "random")).rejects.toMatchObject({
-      code: "AGREEMENT_FORBIDDEN",
+    it("re-snapshota las reglas actuales del listing", async () => {
+      const first = await service.generarAcuerdo({
+        listingId: listing,
+        hostId: host,
+        roomieId: roomie,
+      });
+      const updatedSnapshot = buildSnapshot(host);
+      updatedSnapshot.petsAllowed = true;
+      updatedSnapshot.costs = [
+        {
+          kind: "rent",
+          concept: "Renta mensual",
+          amount: 4000,
+          isIncluded: false,
+          isProrated: false,
+        },
+      ];
+      repo.snapshots.set(listing, updatedSnapshot);
+      const next = await service.crearNuevaVersion(first.id);
+      expect(next.rulesSnapshot.petsAllowed).toBe(true);
+      expect(next.rulesSnapshot.costs?.[0]?.amount).toBe(4000);
     });
-
-    const hostAcc = await service.accept(agreement.id, "host-1");
-    expect(hostAcc.isAccepted()).toBe(true);
-
-    const applicantAcc = await service.accept(agreement.id, "applicant-1");
-    expect(applicantAcc.isAccepted()).toBe(true);
-    // AgreementAccepted se emite por cada aceptación fresca (2) + create (1) = 3 eventos.
-    expect(events.filter((e) => e.type === "AgreementAcceptedEvent")).toHaveLength(2);
   });
 
-  it("re-accepting is idempotent and emits no extra event", async () => {
-    const agreement = await service.createForListing({
-      listingId: "L1",
-      hostId: "host-1",
-      rulesSnapshot: { r: 1 },
+  describe("entidad Agreement — invariantes", () => {
+    it("rechaza un snapshot con roomieIds vacíos", () => {
+      const rules: AgreementRuleSet = {
+        hostId: host,
+        roomieIds: [],
+      };
+      expect(
+        () =>
+          new Agreement({
+            id: "a",
+            listingId: listing,
+            rulesSnapshot: rules,
+            acceptances: [],
+            createdAt: new Date(),
+          }),
+      ).toThrow(/al menos un roomie/);
     });
-    await service.accept(agreement.id, "host-1");
-    const second = await service.accept(agreement.id, "host-1");
-    expect(second.isAccepted()).toBe(true);
-    expect(events.filter((e) => e.type === "AgreementAcceptedEvent")).toHaveLength(1);
-  });
 
-  it("only the host can list acceptances", async () => {
-    const agreement = await service.createForListing({
-      listingId: "L1",
-      hostId: "host-1",
-      rulesSnapshot: { r: 1 },
-    });
-    await service.accept(agreement.id, "applicant-1");
-
-    await expect(
-      service.listAcceptances(agreement.id, "applicant-1"),
-    ).rejects.toMatchObject({ code: "AGREEMENT_FORBIDDEN" });
-
-    const list = await service.listAcceptances(agreement.id, "host-1");
-    expect(list).toHaveLength(1);
-    expect(list[0]?.userId).toBe("applicant-1");
-  });
-
-  it("returns 404 for unknown agreement", async () => {
-    await expect(service.getById("nope")).rejects.toMatchObject({
-      code: "AGREEMENT_NOT_FOUND",
-    });
-    await expect(service.accept("nope", "x")).rejects.toMatchObject({
-      code: "AGREEMENT_NOT_FOUND",
+    it("rechaza roomieIds duplicados", () => {
+      const rules: AgreementRuleSet = {
+        hostId: host,
+        roomieIds: [roomie, roomie],
+      };
+      expect(
+        () =>
+          new Agreement({
+            id: "a",
+            listingId: listing,
+            rulesSnapshot: rules,
+            acceptances: [],
+            createdAt: new Date(),
+          }),
+      ).toThrow(/duplicados/);
     });
   });
 });

@@ -23,21 +23,34 @@ Documento vivo. Lista todas las rutas HTTP del backend, su requisito de autentic
 
 ## `/api/v1/profiles`
 
-| Método | Ruta         | Auth        | Notas                                                           |
-|--------|--------------|-------------|-----------------------------------------------------------------|
-| GET    | `/:userId`   | Privada     | Perfil público (DTO sin campos sensibles). Cualquier logueado.  |
-| POST   | `/`          | Privada     | Crea perfil para el `userId` de la sesión.                      |
-| PUT    | `/:userId`   | Self/Admin  | Solo el dueño o admin puede modificar.                          |
+| Método | Ruta                             | Auth        | Notas                                                                 |
+|--------|----------------------------------|-------------|-----------------------------------------------------------------------|
+| GET    | `/:userId`                       | Privada     | Perfil público (DTO sin campos sensibles). Cualquier logueado.        |
+| POST   | `/`                              | Privada     | Crea perfil para el `userId` de la sesión.                            |
+| PUT    | `/:userId`                       | Self/Admin  | Solo el dueño o admin puede modificar.                                |
+| PUT    | `/:userId/socials`               | Self/Admin  | Actualiza enlaces/handles de redes sociales (instagram, facebook).    |
+| GET    | `/:userId/photos`                | Privada     | Lista la galería de fotos del perfil (máximo 6).                      |
+| POST   | `/:userId/photos`                | Self/Admin  | Agrega fotos al perfil (JSON `{url, position?}` o `multipart/form-data`). |
+| DELETE | `/:userId/photos/:photoId`       | Self/Admin  | Elimina una foto del perfil.                                          |
+| PUT    | `/:userId/photos/order`          | Self/Admin  | Reordena fotos (`{order: [{photoId, position}]}` o `{photoIds: [...]}`). |
+| GET    | `/:userId/privacy`               | Self/Admin  | Consulta configuración de privacidad de contacto.                     |
+| PUT    | `/:userId/privacy`               | Self/Admin  | Actualiza privacidad de teléfono, correo y redes para conexiones.     |
+| POST   | `/:userId/verification/request`  | Self/Admin  | Solicita verificación de identidad del perfil.                        |
+| GET    | `/:userId/notifications/preferences` | Self/Admin | Lista preferencias de notificación por tipo.                       |
+| PUT    | `/:userId/notifications/preferences` | Self/Admin | Actualiza preferencia de notificación (`{type, inApp?, email?}`).  |
 
 ## `/api/v1/rooms`
 
 | Método | Ruta                       | Auth    | Notas                                                             |
 |--------|----------------------------|---------|-------------------------------------------------------------------|
 | GET    | `/`                        | Pública | Listado paginado de listings publicados.                          |
+| GET    | `/feed`                    | Pública | Feed paginado de habitaciones publicadas con filtros (`q`, `minRent`, `maxRent`, `excludeHostId`, `page`, `pageSize`). |
 | GET    | `/:id`                     | Pública | Detalle de un listing.                                            |
 | GET    | `/host/:hostId`            | Pública | Listings por anfitrión.                                           |
+| GET    | `/:id/photos/first`        | Pública | Primera foto de un listing.                                       |
 | GET    | `/:id/photos/:photoId`     | Pública | Binario de una foto del listing.                                  |
 | POST   | `/`                        | Privada | Crea listing. `hostId` se toma de la sesión, no del body.         |
+| PATCH  | `/:id`                     | Privada | Actualiza datos y fotos de un listing (solo el host o admin).     |
 | PATCH  | `/:id/publish`             | Privada | Solo el `hostId` del listing (o admin) puede publicar.            |
 | POST   | `/photos`                  | Privada | Subida de fotos.                                                  |
 
@@ -139,25 +152,32 @@ Tipos (`type`): `warning`, `temporary_suspension` (requiere `expiresAt` futuro),
 
 **Evento**: cada emisión publica `SanctionIssuedEvent`; notifications genera una entrada `account_sanction` para el usuario afectado.
 
+## `/api/v1/search`
+
+| Método | Ruta         | Auth    | Notas                                                                                  |
+|--------|--------------|---------|----------------------------------------------------------------------------------------|
+| GET    | `/profiles`  | Privada | Búsqueda avanzada de perfiles de roomies (HU-05: presupuesto, edad, zona, género, etc.). |
+| GET    | `/listings`  | Privada | Búsqueda avanzada de habitaciones publicadas (HU-05: renta, zona, reglas, fecha, etc.). |
+| GET    | `/count`     | Privada | Conteo de resultados para los filtros aplicados (`target=profiles\|listings`).         |
+
 ## `/api/v1/agreements`
 
-| Método | Ruta                 | Auth    | Notas                                                                             |
-|--------|----------------------|---------|-----------------------------------------------------------------------------------|
-| POST   | `/`                  | Privada | Crea acuerdo. Solo el host del listing. Body `{listingId, rules: {...}}`.         |
-| GET    | `/:id`               | Privada | Detalle del acuerdo (incluye `rulesSnapshot` inmutable).                          |
-| POST   | `/:id/accept`        | Privada | Firma. Solo el host o un applicant con status `accepted` del mismo listing.       |
-| GET    | `/:id/acceptances`   | Privada | Lista aceptaciones. Solo el host.                                                 |
-
-- Al crear se publica `AgreementCreatedEvent`.
-- Cada aceptación nueva publica `AgreementAcceptedEvent` (idempotente: re-aceptar no vuelve a emitir).
-- El `rulesSnapshot` se guarda como JSON inmutable; para cambiar reglas se crea otro acuerdo.
+| Método | Ruta                      | Auth    | Notas                                                                             |
+|--------|---------------------------|---------|-----------------------------------------------------------------------------------|
+| POST   | `/`                       | Privada | Crea acuerdo. Body `{listingId, roomieUserId, terms?}` (`hostUserId` de sesión).  |
+| GET    | `/:agreementId`           | Privada | Detalle del acuerdo (incluye `rulesSnapshot` inmutable y aceptaciones).           |
+| POST   | `/:agreementId/accept`    | Privada | Firma digital (EL-12.6: solo participantes del acuerdo pueden aceptar).           |
+| POST   | `/:agreementId/versions`  | Privada | Crea una nueva versión del acuerdo (incrementa `version`).                        |
+| GET    | `/by-listing/:listingId`  | Privada | Lista versiones del acuerdo para un listing.                                      |
+| GET    | `/by-user/:userId`        | Privada | Lista acuerdos donde participa el usuario.                                        |
 
 ## `/api/v1/admin/analytics`
 
 | Método | Ruta              | Auth    | Notas                                                                                     |
 |--------|-------------------|---------|-------------------------------------------------------------------------------------------|
 | POST   | `/recompute?date=YYYY-MM-DD` | Admin | Recalcula y UPSERT por `metricDate`. Idempotente. Rechaza fechas futuras.          |
-| GET    | `/?from=YYYY-MM-DD&to=YYYY-MM-DD` | Admin | Métricas en rango. Devuelve `{ items: [{metricDate, usersRegistered, …}] }`. |
+| GET    | `/?from=YYYY-MM-DD&to=YYYY-MM-DD` | Admin | Métricas diarias en rango. Devuelve `{ items: [{metricDate, usersRegistered, …}] }`. |
+| GET    | `/?start=YYYY-MM-DD&end=YYYY-MM-DD` | Admin | Dashboard web administrativo (rango ≤ 12 meses): devuelve `{ period, kpis, monthlyUsers, monthlyListings }`. |
 
 Métricas por día (UTC): `usersRegistered`, `activeListings`, `connectionsSent`, `connectionsAccepted`, `listingsClosed`, `avgDaysToClose`, `avgAffinityScore`.
 

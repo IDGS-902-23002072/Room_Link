@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 const parsePort = (value: string | undefined, fallback: number): number => {
   const parsed = Number(value ?? fallback);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65_535) {

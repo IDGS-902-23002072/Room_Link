@@ -34,11 +34,35 @@
 - Workflow `.github/workflows/regression.yml` nuevo: triggers `pull_request: [main]`, `push: [main]`, `workflow_dispatch`; service MySQL 8.4; pipeline `typecheck → db:check → db:migrate:bun → test:unit:bun → vitest integration → vitest smoke`; `npm audit` informativo; coverage artifact.
 - Documentada la branch protection rule en `backend/README.md` sección 7.
 
+### Integración completa en `develop` (PRs recientes + `integracion/roberto`)
+- **`integracion/roberto` (y PR #242 / `feature/roberto`)**: integrados los módulos completos de Roberto Vargas bajo la arquitectura endurecida con sesión/autorización:
+  - **Perfil extendido (HU-02)**: galería de fotos (tope 6, soporte de URL y carga `multipart/form-data` en `/uploads/photos`, reordenamiento por `order` o `photoIds`), privacidad de contacto (`ContactPrivacy`), solicitud de verificación de identidad, redes sociales y preferencias de notificación por tipo.
+  - **Search (HU-05)**: módulo `/api/v1/search` (`profiles`, `listings`, `count`) con `DrizzleSearchRepository` y validación de rangos.
+  - **Agreements (HU-12)**: módulo `/api/v1/agreements` con agregado `Agreement`, snapshot inmutable de reglas y costos, firma digital con validación de participantes y versionado.
+- **`feature/omar` (PR #241 y PR #238) + `feature/4-feed-habitaciones` (PR #240)**:
+  - **Rooms Feed (HU-04)**: endpoint público `GET /api/v1/rooms/feed` con búsqueda por texto (`q`), rango de renta (`minRent`, `maxRent`), `excludeHostId` y paginación (`page`, `pageSize`).
+  - **Analytics administrativo dual (`/api/v1/admin/analytics`)**: soporta tanto el corte diario (`GET /?from=&to=` y `POST /recompute?date=`) como el dashboard administrativo web (`GET /?start=&end=` con `kpis`, `monthlyUsers` y `monthlyListings`).
+  - **CORS y configuración**: habilitados orígenes de desarrollo web Vite (`http://localhost:5173`, `http://127.0.0.1:5173`) además de Expo (`8081`), `railway.json` y script de seed/benchmark de compatibilidad (`db:seed:compatibility`, `db:benchmark:compatibility`).
+  - **Frontend móvil y Web**: integrados el rediseño del feed de habitaciones, galería de fotos de perfil y portal web React (cuestionario, recomendaciones y dashboard de métricas).
+- **`feature/cesar`**: integrado ajuste de versión de Bun en `CONTRIBUTING.md`.
+
+### Unificación 100% del Frontend en `frontend/Room_Link` (2026-11-18)
+- **Fase 1 (Auth + Rewire):** sesión (`src/auth/sesion.ts`, `api-auth.ts`, `SesionContext.tsx`, `ui.tsx`), pantallas `app/(auth)/` (login, registro, recuperar), gating en `app/_layout.tsx`, shim web de mapas (`PantallaUbicacion.web.tsx`) y rewire de todos los `api.ts` al token `Bearer` de sesión real.
+- **Fase 3 (Chat HU-10 y Moderación HU-13):** portados `modulos/chats/` (bandeja, sala, historial, envío, lectura, contexto y reporte) y `modulos/moderacion/` (cola, denuncias e historial admin en `/moderacion` + reporte de anuncios en `FichaHabitacion`).
+- **Fase 4 (Notificaciones HU-14 + Sistema Android):** implementado `modulos/notificaciones/` (`/notificaciones`, listado, lectura, marcar todas y preferencias In-App/Email) junto con `permisosSistema.ts` y permisos Android `POST_NOTIFICATIONS` en `app.json` (solicitud runtime en Android 13+, canal nativo, disparo de alertas a nivel sistema y sincronización en segundo plano).
+- **Módulos restantes con UI móvil:** `modulos/acuerdos/` (`/acuerdos` — HU-12), `modulos/conexiones/` (`/conexiones` — gestión de solicitudes entrantes/salientes) y `modulos/sanciones/` (`/sanciones` — panel admin).
+- **Cierre de unificación:** eliminada la app duplicada `frontend/src` y `frontend/App.js`, apuntando scripts, tests unitarios (`frontend/tests/modules.unit.test.js`), E2E (`mobile-auth.e2e.mjs`) y CI (`regression.yml`) a `frontend/Room_Link`.
+
 ### Métricas de calidad al cierre
-- `npm run typecheck` → limpio.
-- `npm run test:unit` → **106/106**.
-- `npm run test:smoke` → **11/11** (sin MySQL, fakes in-memory).
-- `npm run test:integration` → sigue verde contra el servicio MySQL 8.4 en CI (`regression.yml`).
+- `npm run typecheck` / `bun run typecheck` → limpio (0 errores).
+- `npm run db:check` / `bun run db:check` → limpio (`Everything's fine`).
+- `npm run test:unit` / `bun run test:unit:bun` → **154/154** (18 suites unitarias).
+- `npm run test:smoke` → **12/12** (flujo end-to-end in-memory cubriendo los 13 módulos del backend).
+- `DB_PORT=3307 npm run test:integration` → **4/4** contra MySQL 8.4 real.
+- `web` (`npm test`) → **4/4** tests pasando.
+- `frontend` (`vitest run`) → **3/3** tests unitarios pasando (mensajería, moderación y permisos Android `POST_NOTIFICATIONS`).
+- `frontend/Room_Link` (`npx expo export --platform web`) → **24/24** rutas estáticas exportadas.
+- `frontend` E2E (`node --test tests/e2e/mobile-auth.e2e.mjs` con Puppeteer + Chrome real) → **1/1** flujo E2E cross-origin pasando (login → tabs → Chats HU-10 → Perfil → Centro de Notificaciones HU-14 → Conexiones → Acuerdos HU-12).
 
 ## [QUÉ FALTA (Pending)]
 

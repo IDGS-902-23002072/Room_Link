@@ -9,6 +9,13 @@ import {
   type IApplicationRepository,
   type ICompatibilityRepository,
   type IConnectionRepository,
+  type IActivityLogRepository,
+  type IAgreementRepository,
+  type IAnalyticsRepository,
+  type IAnalyticsSource,
+  type INotificationRepository,
+  type ISanctionRepository,
+  type ISearchRepository,
 } from "./domain/index.js";
 import {
   DrizzleUserRepository,
@@ -29,6 +36,7 @@ import {
   DrizzleAgreementRepository,
   DrizzleAnalyticsRepository,
   DrizzleAnalyticsSource,
+  DrizzleSearchRepository,
 } from "./infrastructure/repositories/index.js";
 import {
   AuthService,
@@ -87,14 +95,11 @@ import {
   InProcessEventBus,
   createNotificationsRoutes,
 } from "./modules/notifications/index.js";
-import type {
-  IActivityLogRepository,
-  IAgreementRepository,
-  IAnalyticsRepository,
-  IAnalyticsSource,
-  INotificationRepository,
-  ISanctionRepository,
-} from "./domain/index.js";
+import {
+  SearchService,
+  SearchController,
+  createSearchRoutes,
+} from "./modules/search/index.js";
 import {
   AgreementsService,
   AgreementsController,
@@ -136,6 +141,7 @@ export interface AppDependencies {
   agreementRepo?: IAgreementRepository;
   analyticsRepo?: IAnalyticsRepository;
   analyticsSource?: IAnalyticsSource;
+  searchRepo?: ISearchRepository;
 }
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
@@ -150,20 +156,21 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   });
 
   // Permitir consultar las fotografías almacenadas
-app.use(
-  "/uploads/*",
-  serveStatic({ root: "./" })
-);
-  const allowedOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:8081";
+  app.use("/uploads/*", serveStatic({ root: "./" }));
+
+  const allowedOrigins = new Set([
+    process.env.FRONTEND_ORIGIN ?? "http://localhost:8081",
+    "http://127.0.0.1:8081",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ]);
   app.use(
     "/api/*",
     cors({
-      origin: (origin) =>
-        origin === allowedOrigin || origin === "http://127.0.0.1:8081"
-          ? origin
-          : null,
-      allowHeaders: ["Content-Type"],
-      allowMethods: ["GET", "POST", "PUT", "OPTIONS"],
+      origin: (origin) => (allowedOrigins.has(origin) ? origin : null),
+      allowHeaders: ["Content-Type", "Authorization"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      credentials: true,
       maxAge: 600,
     }),
   );
@@ -307,28 +314,21 @@ app.use(
     createSanctionsRoutes(sanctionsController, authService),
   );
 
-  // 11. Agreements (acuerdos de convivencia)
+  // 11. Agreements (acuerdos de convivencia) — módulo de Roberto
   const agreementsService = new AgreementsService(
     dependencies.agreementRepo ?? new DrizzleAgreementRepository(db),
-    {
-      getListingHostId: async (listingId: string) => {
-        const room = await roomRepo.findById(listingId);
-        return room ? room.hostId : null;
-      },
-      isAcceptedApplicant: async (listingId: string, userId: string) => {
-        const apps = await appRepo.findByApplicantId(userId);
-        return apps.some(
-          (a) => a.listingId === listingId && a.status === "accepted",
-        );
-      },
-    },
-    authDependencies.eventPublisher,
   );
   const agreementsController = new AgreementsController(agreementsService);
   app.route(
     "/api/v1/agreements",
     createAgreementsRoutes(agreementsController, authService),
   );
+
+  // 14. Search Module (HU-05) — módulo de Roberto
+  const searchRepo = dependencies.searchRepo ?? new DrizzleSearchRepository(db);
+  const searchService = new SearchService(searchRepo);
+  const searchController = new SearchController(searchService);
+  app.route("/api/v1/search", createSearchRoutes(searchController, authService));
 
   // 12. Analytics (admin)
   const analyticsService = new AnalyticsService(

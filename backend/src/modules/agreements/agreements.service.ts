@@ -1,118 +1,137 @@
 import { randomUUID } from "node:crypto";
 import {
   Agreement,
-  AgreementAcceptance,
+  type AgreementRuleSet,
   type IAgreementRepository,
 } from "../../domain/index.js";
-import { AppError } from "../../shared/AppError.js";
-import type { DomainEventPublisher } from "../auth/index.js";
-
-/**
- * Policies externas que agreements necesita para validar sin acoplarse a otros módulos.
- */
-export interface AgreementPolicies {
-  /** Devuelve el hostId del listing, o null si no existe. */
-  getListingHostId(listingId: string): Promise<string | null>;
-  /** Indica si `userId` tiene una application `accepted` para `listingId`. */
-  isAcceptedApplicant(listingId: string, userId: string): Promise<boolean>;
-}
 
 export class AgreementsService {
-  constructor(
-    private readonly repo: IAgreementRepository,
-    private readonly policies: AgreementPolicies,
-    private readonly events: DomainEventPublisher,
-    private readonly now: () => Date = () => new Date(),
-  ) {}
+  constructor(private readonly repo: IAgreementRepository) {}
 
-  async createForListing(input: {
+  /**
+   * EL-12.3 — Función: generarAcuerdo(habitacion_id, anfitrion_id, roomie_id).
+   * Toma un snapshot de las reglas y costos del listing y crea un acuerdo v1
+   * entre el anfitrión y el roomie, sin aceptaciones aún.
+   */
+  async generarAcuerdo(input: {
     listingId: string;
     hostId: string;
-    rulesSnapshot: Record<string, unknown>;
+    roomieId: string;
   }): Promise<Agreement> {
-    const owner = await this.policies.getListingHostId(input.listingId);
-    if (!owner) {
-      throw new AppError("Listing no encontrado.", 404, "LISTING_NOT_FOUND");
+    if (!input.listingId || !input.hostId || !input.roomieId) {
+      throw new Error("listingId, hostId y roomieId son obligatorios.");
     }
-    if (owner !== input.hostId) {
-      throw new AppError(
-        "Solo el anfitrión del listing puede crear un acuerdo.",
-        403,
-        "AGREEMENT_FORBIDDEN",
+    if (input.hostId === input.roomieId) {
+      throw new Error("El anfitrión no puede figurar como roomie.");
+    }
+
+    const snapshot = await this.repo.getListingSnapshot(input.listingId);
+    if (!snapshot) {
+      throw new Error(`No existe el listing ${input.listingId}.`);
+    }
+    if (snapshot.hostId !== input.hostId) {
+      throw new Error(
+        "El usuario indicado como anfitrión no coincide con el anfitrión del listing.",
       );
     }
+
+    const rulesSnapshot: AgreementRuleSet = {
+      visitsPolicy: snapshot.visitsPolicy,
+      partiesAllowed: snapshot.partiesAllowed,
+      quietHoursStart: snapshot.quietHoursStart,
+      quietHoursEnd: snapshot.quietHoursEnd,
+      petsAllowed: snapshot.petsAllowed,
+      smokingAllowed: snapshot.smokingAllowed,
+      commonAreasNotes: snapshot.commonAreasNotes,
+      extraRules: snapshot.extraRules,
+      costs: snapshot.costs,
+      listingTitle: snapshot.listingTitle,
+      hostId: input.hostId,
+      roomieIds: [input.roomieId],
+      version: 1,
+      supersedesAgreementId: null,
+    };
+
     const agreement = new Agreement({
       id: randomUUID(),
       listingId: input.listingId,
-      rulesSnapshot: input.rulesSnapshot,
-      createdAt: this.now(),
+      rulesSnapshot,
+      acceptances: [],
+      createdAt: new Date(),
     });
-    const created = await this.repo.create(agreement);
-    await this.events.publish({
-      type: "AgreementCreatedEvent",
-      aggregateId: created.id,
-      payload: {
-        agreementId: created.id,
-        listingId: created.listingId,
-        hostId: input.hostId,
-      },
-    });
-    return created;
+
+    return await this.repo.create(agreement);
   }
 
-  async getById(id: string): Promise<Agreement> {
-    const agreement = await this.repo.findById(id);
+  /** EL-12.4 — Función: aceptarAcuerdo(acuerdo_id, usuario_id). */
+  async aceptarAcuerdo(
+    agreementId: string,
+    userId: string,
+  ): Promise<Agreement> {
+    const agreement = await this.repo.findById(agreementId);
     if (!agreement) {
-      throw new AppError("Acuerdo no encontrado.", 404, "AGREEMENT_NOT_FOUND");
+      throw new Error(`Acuerdo ${agreementId} no encontrado.`);
+    }
+    const now = new Date();
+    // La entidad valida que el usuario sea participante (EL-12.6).
+    agreement.accept(userId, now);
+    await this.repo.recordAcceptance(agreementId, userId, now);
+    return agreement;
+  }
+
+  /** EL-12.5 — Función: crearNuevaVersion(acuerdo_id). */
+  async crearNuevaVersion(agreementId: string): Promise<Agreement> {
+    const previous = await this.repo.findById(agreementId);
+    if (!previous) {
+      throw new Error(`Acuerdo ${agreementId} no encontrado.`);
+    }
+
+    const snapshot = await this.repo.getListingSnapshot(previous.listingId);
+    if (!snapshot) {
+      throw new Error(`No existe el listing ${previous.listingId}.`);
+    }
+
+    const newRules: AgreementRuleSet = {
+      visitsPolicy: snapshot.visitsPolicy,
+      partiesAllowed: snapshot.partiesAllowed,
+      quietHoursStart: snapshot.quietHoursStart,
+      quietHoursEnd: snapshot.quietHoursEnd,
+      petsAllowed: snapshot.petsAllowed,
+      smokingAllowed: snapshot.smokingAllowed,
+      commonAreasNotes: snapshot.commonAreasNotes,
+      extraRules: snapshot.extraRules,
+      costs: snapshot.costs,
+      listingTitle: snapshot.listingTitle,
+      hostId: previous.hostId,
+      roomieIds: previous.roomieIds,
+      version: previous.version + 1,
+      supersedesAgreementId: previous.id,
+    };
+
+    const next = new Agreement({
+      id: randomUUID(),
+      listingId: previous.listingId,
+      rulesSnapshot: newRules,
+      acceptances: [],
+      createdAt: new Date(),
+    });
+
+    return await this.repo.create(next);
+  }
+
+  async getAgreement(agreementId: string): Promise<Agreement> {
+    const agreement = await this.repo.findById(agreementId);
+    if (!agreement) {
+      throw new Error(`Acuerdo ${agreementId} no encontrado.`);
     }
     return agreement;
   }
 
-  async accept(agreementId: string, userId: string): Promise<AgreementAcceptance> {
-    const agreement = await this.getById(agreementId);
-    const hostId = await this.policies.getListingHostId(agreement.listingId);
-    const isHost = hostId === userId;
-    const isApplicant = await this.policies.isAcceptedApplicant(agreement.listingId, userId);
-    if (!isHost && !isApplicant) {
-      throw new AppError(
-        "Solo el anfitrión o un postulante aceptado puede firmar este acuerdo.",
-        403,
-        "AGREEMENT_FORBIDDEN",
-      );
-    }
-    const existing = await this.repo.findAcceptance(agreementId, userId);
-    if (existing?.isAccepted()) {
-      return existing;
-    }
-    const acceptance = await this.repo.upsertAcceptance(
-      new AgreementAcceptance({
-        agreementId,
-        userId,
-        acceptedAt: this.now(),
-      }),
-    );
-    await this.events.publish({
-      type: "AgreementAcceptedEvent",
-      aggregateId: agreementId,
-      payload: {
-        agreementId,
-        userId,
-        listingId: agreement.listingId,
-      },
-    });
-    return acceptance;
+  async listAgreementsForListing(listingId: string): Promise<Agreement[]> {
+    return this.repo.findByListing(listingId);
   }
 
-  async listAcceptances(agreementId: string, requesterId: string) {
-    const agreement = await this.getById(agreementId);
-    const hostId = await this.policies.getListingHostId(agreement.listingId);
-    if (hostId !== requesterId) {
-      throw new AppError(
-        "Solo el anfitrión puede ver las aceptaciones del acuerdo.",
-        403,
-        "AGREEMENT_FORBIDDEN",
-      );
-    }
-    return this.repo.listAcceptances(agreementId);
+  async listAgreementsForUser(userId: string): Promise<Agreement[]> {
+    return this.repo.findByUser(userId);
   }
 }

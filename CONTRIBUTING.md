@@ -78,4 +78,4 @@ Requisitos previos tentativos:
 - `npm` o `pnpm` para el frontend.
 - Expo CLI vía `npx` (no hace falta instalación global).
 - Para builds nativas: Android Studio (emulador) y/o Xcode (iOS, solo macOS).
-- [Bun](https://bun.sh) ≥ 1.1 para el backend.
+- [Bun](https://bun.sh) ≥ 1.2 para el backend.

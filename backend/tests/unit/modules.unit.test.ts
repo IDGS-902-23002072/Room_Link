@@ -20,6 +20,8 @@ import {
   type IUserRepository,
   type IProfileRepository,
   type IRoomListingRepository,
+  type RoomFeedFilters,
+  type RoomFeedItem,
   type IApplicationRepository,
 } from "../../src/domain/index.js";
 import { createAuthFakes } from "../helpers/auth-fakes.js";
@@ -53,22 +55,8 @@ class InMemoryUserRepository implements IUserRepository {
   }
 }
 
-class InMemoryProfileRepository implements IProfileRepository {
-  public profiles: Map<string, Profile> = new Map();
-
-  async findByUserId(userId: string): Promise<Profile | null> {
-    return this.profiles.get(userId) ?? null;
-  }
-
-  async create(profile: Profile): Promise<Profile> {
-    this.profiles.set(profile.userId, profile);
-    return profile;
-  }
-
-  async update(profile: Profile): Promise<void> {
-    this.profiles.set(profile.userId, profile);
-  }
-}
+// Perfil extendido (HU-02, Roberto): fake completo con la interfaz ampliada.
+import { InMemoryExtendedProfileRepository as InMemoryProfileRepository } from "../helpers/in-memory-profile-repo.js";
 
 
 class InMemoryRoomRepository implements IRoomListingRepository {
@@ -78,6 +66,47 @@ class InMemoryRoomRepository implements IRoomListingRepository {
 
   async findById(id: string): Promise<RoomListing | null> {
     return this.rooms.get(id) ?? null;
+  }
+
+  async findPublishedFeed(
+    filters: RoomFeedFilters,
+    limit: number,
+    offset: number,
+  ): Promise<RoomFeedItem[]> {
+    const term = filters.search?.toLocaleLowerCase("es");
+    return Array.from(this.rooms.values())
+      .filter((room) => room.status === "published")
+      .filter((room) => filters.minRent === undefined || room.monthlyRent >= filters.minRent)
+      .filter((room) => filters.maxRent === undefined || room.monthlyRent <= filters.maxRent)
+      .filter((room) => !filters.excludeHostId || room.hostId !== filters.excludeHostId)
+      .filter((room) => {
+        if (!term) return true;
+        const address = room.locationId ? this.locations.get(room.locationId)?.address : "";
+        return `${room.title} ${room.description ?? ""} ${address ?? ""}`
+          .toLocaleLowerCase("es")
+          .includes(term);
+      })
+      .sort(
+        (a, b) =>
+          (b.publishedAt?.getTime() ?? b.createdAt.getTime()) -
+          (a.publishedAt?.getTime() ?? a.createdAt.getTime()),
+      )
+      .slice(offset, offset + limit)
+      .map((room) => ({
+        id: room.id,
+        hostId: room.hostId,
+        hostName: null,
+        title: room.title,
+        description: room.description ?? null,
+        monthlyRent: room.monthlyRent,
+        availableFrom: room.availableFrom ?? null,
+        maxRoommates: room.maxRoommates ?? null,
+        photoCount: room.photoCount,
+        address: room.locationId ? (this.locations.get(room.locationId)?.address ?? null) : null,
+        zone: null,
+        city: null,
+        publishedAt: room.publishedAt ?? null,
+      }));
   }
 
   async findPublished(

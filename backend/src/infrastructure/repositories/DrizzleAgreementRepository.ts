@@ -1,117 +1,168 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import type { MySql2Database } from "drizzle-orm/mysql2";
 import {
-  agreementAcceptances,
+  Agreement,
+  type AgreementAcceptanceProps,
+  type AgreementRuleSet,
+  type IAgreementRepository,
+  type ListingRulesAndCosts,
+} from "../../domain/index.js";
+import {
   agreementAgreements,
+  agreementAcceptances,
 } from "../../db/schema/governance.js";
 import {
-  Agreement,
-  AgreementAcceptance,
-  type IAgreementRepository,
-} from "../../domain/index.js";
+  roomListings,
+  roomRules,
+  roomCostItems,
+} from "../../db/schema/rooms.js";
+
+interface AgreementRow {
+  id: string;
+  listingId: string;
+  rulesSnapshot: unknown;
+  createdAt: Date;
+}
 
 export class DrizzleAgreementRepository implements IAgreementRepository {
-  constructor(private readonly db: MySql2Database<any>) {}
+  constructor(private db: MySql2Database<any>) {}
 
-  async findById(id: string): Promise<Agreement | null> {
-    const rows = await this.db
-      .select()
-      .from(agreementAgreements)
-      .where(eq(agreementAgreements.id, id))
+  async getListingSnapshot(
+    listingId: string,
+  ): Promise<ListingRulesAndCosts | null> {
+    const listingRows = await this.db
+      .select({
+        id: roomListings.id,
+        title: roomListings.title,
+        hostId: roomListings.hostId,
+      })
+      .from(roomListings)
+      .where(eq(roomListings.id, listingId))
       .limit(1);
-    const row = rows[0];
-    return row
-      ? new Agreement({
-          id: row.id,
-          listingId: row.listingId,
-          rulesSnapshot: (row.rulesSnapshot ?? {}) as Record<string, unknown>,
-          createdAt: new Date(row.createdAt),
-        })
-      : null;
+
+    const listing = listingRows[0];
+    if (!listing) return null;
+
+    const ruleRows = await this.db
+      .select()
+      .from(roomRules)
+      .where(eq(roomRules.listingId, listingId))
+      .limit(1);
+
+    const costRows = await this.db
+      .select()
+      .from(roomCostItems)
+      .where(eq(roomCostItems.listingId, listingId));
+
+    const rule = ruleRows[0];
+
+    return {
+      listingTitle: listing.title,
+      hostId: listing.hostId,
+      visitsPolicy: rule?.visitsPolicy ?? null,
+      partiesAllowed: Boolean(rule?.partiesAllowed ?? false),
+      quietHoursStart: rule?.quietHoursStart ?? null,
+      quietHoursEnd: rule?.quietHoursEnd ?? null,
+      petsAllowed: Boolean(rule?.petsAllowed ?? false),
+      smokingAllowed: Boolean(rule?.smokingAllowed ?? false),
+      commonAreasNotes: rule?.commonAreasNotes ?? null,
+      extraRules: rule?.extraRules ?? null,
+      costs: costRows.map((c) => ({
+        kind: c.kind,
+        concept: c.concept,
+        amount: Number(c.amount),
+        isIncluded: Boolean(c.isIncluded),
+        isProrated: Boolean(c.isProrated),
+      })),
+    };
   }
 
-  async listByListingId(listingId: string): Promise<Agreement[]> {
-    const rows = await this.db
+  async findById(agreementId: string): Promise<Agreement | null> {
+    const rows = (await this.db
       .select()
       .from(agreementAgreements)
-      .where(eq(agreementAgreements.listingId, listingId))
-      .orderBy(desc(agreementAgreements.createdAt));
-    return rows.map(
-      (row) =>
-        new Agreement({
-          id: row.id,
-          listingId: row.listingId,
-          rulesSnapshot: (row.rulesSnapshot ?? {}) as Record<string, unknown>,
-          createdAt: new Date(row.createdAt),
-        }),
-    );
+      .where(eq(agreementAgreements.id, agreementId))
+      .limit(1)) as AgreementRow[];
+    const row = rows[0];
+    if (!row) return null;
+    return this.hydrate(row);
+  }
+
+  async findByListing(listingId: string): Promise<Agreement[]> {
+    const rows = (await this.db
+      .select()
+      .from(agreementAgreements)
+      .where(eq(agreementAgreements.listingId, listingId))) as AgreementRow[];
+    const results: Agreement[] = [];
+    for (const row of rows) {
+      results.push(await this.hydrate(row));
+    }
+    return results;
+  }
+
+  async findByUser(userId: string): Promise<Agreement[]> {
+    const acceptanceRows = await this.db
+      .select({ agreementId: agreementAcceptances.agreementId })
+      .from(agreementAcceptances)
+      .where(eq(agreementAcceptances.userId, userId));
+    const ids = acceptanceRows.map((r) => r.agreementId);
+    if (ids.length === 0) return [];
+    const rows = (await this.db
+      .select()
+      .from(agreementAgreements)
+      .where(inArray(agreementAgreements.id, ids))) as AgreementRow[];
+    const results: Agreement[] = [];
+    for (const row of rows) {
+      results.push(await this.hydrate(row));
+    }
+    return results;
   }
 
   async create(agreement: Agreement): Promise<Agreement> {
     await this.db.insert(agreementAgreements).values({
       id: agreement.id,
       listingId: agreement.listingId,
-      rulesSnapshot: agreement.rulesSnapshot,
-      createdAt: agreement.createdAt,
+      rulesSnapshot: agreement.rulesSnapshot as unknown as Record<string, unknown>,
     });
+
+    for (const acceptance of agreement.acceptances) {
+      await this.db.insert(agreementAcceptances).values({
+        agreementId: agreement.id,
+        userId: acceptance.userId,
+        acceptedAt: acceptance.acceptedAt ?? null,
+      });
+    }
     return agreement;
   }
 
-  async findAcceptance(agreementId: string, userId: string): Promise<AgreementAcceptance | null> {
-    const rows = await this.db
-      .select()
-      .from(agreementAcceptances)
-      .where(
-        and(
-          eq(agreementAcceptances.agreementId, agreementId),
-          eq(agreementAcceptances.userId, userId),
-        ),
-      )
-      .limit(1);
-    const row = rows[0];
-    return row
-      ? new AgreementAcceptance({
-          agreementId: row.agreementId,
-          userId: row.userId,
-          acceptedAt: row.acceptedAt ? new Date(row.acceptedAt) : null,
-        })
-      : null;
+  async recordAcceptance(
+    agreementId: string,
+    userId: string,
+    acceptedAt: Date,
+  ): Promise<void> {
+    await this.db
+      .insert(agreementAcceptances)
+      .values({ agreementId, userId, acceptedAt })
+      .onDuplicateKeyUpdate({ set: { acceptedAt } });
   }
 
-  async listAcceptances(agreementId: string): Promise<AgreementAcceptance[]> {
-    const rows = await this.db
+  private async hydrate(row: AgreementRow): Promise<Agreement> {
+    const acceptanceRows = await this.db
       .select()
       .from(agreementAcceptances)
-      .where(eq(agreementAcceptances.agreementId, agreementId));
-    return rows.map(
-      (row) =>
-        new AgreementAcceptance({
-          agreementId: row.agreementId,
-          userId: row.userId,
-          acceptedAt: row.acceptedAt ? new Date(row.acceptedAt) : null,
-        }),
+      .where(eq(agreementAcceptances.agreementId, row.id));
+    const acceptances: AgreementAcceptanceProps[] = acceptanceRows.map(
+      (a) => ({
+        userId: a.userId,
+        acceptedAt: a.acceptedAt ? new Date(a.acceptedAt) : null,
+      }),
     );
-  }
-
-  async upsertAcceptance(acceptance: AgreementAcceptance): Promise<AgreementAcceptance> {
-    const existing = await this.findAcceptance(acceptance.agreementId, acceptance.userId);
-    if (existing) {
-      await this.db
-        .update(agreementAcceptances)
-        .set({ acceptedAt: acceptance.acceptedAt })
-        .where(
-          and(
-            eq(agreementAcceptances.agreementId, acceptance.agreementId),
-            eq(agreementAcceptances.userId, acceptance.userId),
-          ),
-        );
-    } else {
-      await this.db.insert(agreementAcceptances).values({
-        agreementId: acceptance.agreementId,
-        userId: acceptance.userId,
-        acceptedAt: acceptance.acceptedAt,
-      });
-    }
-    return acceptance;
+    return new Agreement({
+      id: row.id,
+      listingId: row.listingId,
+      rulesSnapshot: row.rulesSnapshot as AgreementRuleSet,
+      acceptances,
+      createdAt: new Date(row.createdAt),
+    });
   }
 }

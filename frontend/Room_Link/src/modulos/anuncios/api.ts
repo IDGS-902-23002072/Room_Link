@@ -46,6 +46,19 @@ function validarConfiguracion(): void {
       "Configura EXPO_PUBLIC_API_URL en el archivo .env."
     );
   }
+  if (!obtenerUserId()) {
+    throw new Error("No hay una sesión activa. Iniciá sesión para continuar.");
+  }
+}
+
+/** Cabeceras con Accept + el token de sesión (Bearer) cuando existe. */
+function cabecerasAuth(extra?: Record<string, string>) {
+  const token = obtenerToken();
+  return {
+    Accept: "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
 }
 
 function validarUsuario(): void {
@@ -282,7 +295,7 @@ export async function obtenerMisPublicaciones():
   validarUsuario();
 
   const respuesta = await fetch(
-    `${API_URL}/rooms/host/${encodeURIComponent(USER_ID!)}`,
+    `${API_URL}/api/v1/rooms/host/${encodeURIComponent(obtenerUserId()!)}`,
     {
       method: "GET",
       headers: obtenerHeaders(),
@@ -319,7 +332,7 @@ export function obtenerUrlPrimeraFoto(
 ): string {
   validarConfiguracion();
 
-  return `${API_URL}/rooms/${encodeURIComponent(listingId)}/photos/first`;
+  return `${API_URL}/api/v1/rooms/${encodeURIComponent(listingId)}/photos/first`;
 }
 
 // Obtener la URL de una fotografía específica.
@@ -329,7 +342,7 @@ export function obtenerUrlFoto(
 ): string {
   validarConfiguracion();
 
-  return `${API_URL}/rooms/${encodeURIComponent(listingId)}/photos/${encodeURIComponent(photoId)}`;
+  return `${API_URL}/api/v1/rooms/${encodeURIComponent(listingId)}/photos/${encodeURIComponent(photoId)}`;
 }
 
 // ======================================================
@@ -343,7 +356,7 @@ export async function obtenerAnuncioPorId(
   validarConfiguracion();
 
   const respuesta = await fetch(
-    `${API_URL}/rooms/${encodeURIComponent(listingId)}`,
+    `${API_URL}/api/v1/rooms/${encodeURIComponent(listingId)}`,
     {
       method: "GET",
       headers: obtenerHeaders(),
@@ -478,7 +491,7 @@ export async function actualizarAnuncio(
   );
 
   const respuesta = await fetch(
-    `${API_URL}/rooms/${encodeURIComponent(listingId)}`,
+    `${API_URL}/api/v1/rooms/${encodeURIComponent(listingId)}`,
     {
       method: "PATCH",
       body: formData,
