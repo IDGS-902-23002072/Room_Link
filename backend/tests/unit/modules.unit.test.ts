@@ -216,6 +216,50 @@ class InMemoryRoomRepository implements IRoomListingRepository {
     this.locations.set(room.locationId, location);
     this.photos.set(room.id, fotosActualizadas);
   }
+
+
+  // Cambiar el estado de una publicación de forma controlada.
+  async transitionStatus(
+    id: string,
+    expectedStatus: "draft" | "published" | "paused",
+    newStatus: "published" | "paused" | "closed"
+  ): Promise<boolean> {
+    const room = this.rooms.get(id);
+
+    // Comprobar que exista y que conserve el estado esperado.
+    if (!room || room.status !== expectedStatus) {
+      return false;
+    }
+
+    // Validar y ejecutar únicamente las transiciones permitidas.
+    if (expectedStatus === "draft" && newStatus === "published") {
+      room.setPhotoCount(this.photos.get(id)?.length ?? 0);
+      room.publish();
+    } else if (
+      expectedStatus === "published" &&
+      newStatus === "paused"
+    ) {
+      room.pause();
+    } else if (
+      expectedStatus === "paused" &&
+      newStatus === "published"
+    ) {
+      room.setPhotoCount(this.photos.get(id)?.length ?? 0);
+      room.reactivate();
+    } else if (
+      expectedStatus === "published" &&
+      newStatus === "closed"
+    ) {
+      room.close();
+    } else {
+      return false;
+    }
+
+    this.rooms.set(id, room);
+
+    return true;
+  }
+
 }
 
 

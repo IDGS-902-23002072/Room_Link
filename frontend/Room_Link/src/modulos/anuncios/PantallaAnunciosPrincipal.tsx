@@ -15,6 +15,7 @@ import {
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 
 import BarraInferior from "./componentes/BarraInferior";
@@ -28,6 +29,10 @@ import {
   obtenerUrlPrimeraFoto,
 } from "./api";
 
+// ======================================================
+// TIPOS
+// ======================================================
+
 type Filtro = "Activas" | "Pausadas" | "Cerradas";
 
 type Props = {
@@ -35,20 +40,33 @@ type Props = {
   onEditarPublicacion?: (id: string) => void;
 };
 
-type EstadoBD = "published" | "paused" | "closed";
+type EstadoBD = "draft" | "published" | "paused" | "closed";
+
+// ======================================================
+// CONVERTIR ESTADO DE BASE DE DATOS A ESTADO VISUAL
+// ======================================================
 
 function convertirEstado(
   estado: EstadoBD
-): Publicacion["estado"] {
+): Publicacion["estado"] | null {
   switch (estado) {
     case "published":
       return "Activa";
+
     case "paused":
       return "Pausada";
+
     case "closed":
       return "Cerrada";
+
+    case "draft":
+      return null;
   }
 }
+
+// ======================================================
+// CONVERTIR FILTRO A ESTADO VISUAL
+// ======================================================
 
 function convertirFiltro(
   filtro: Filtro
@@ -56,12 +74,18 @@ function convertirFiltro(
   switch (filtro) {
     case "Activas":
       return "Activa";
+
     case "Pausadas":
       return "Pausada";
+
     case "Cerradas":
       return "Cerrada";
   }
 }
+
+// ======================================================
+// PANTALLA PRINCIPAL
+// ======================================================
 
 export default function PantallaAnunciosPrincipal({
   onCrearPublicacion,
@@ -77,7 +101,10 @@ export default function PantallaAnunciosPrincipal({
 
   const [error, setError] = useState<string | null>(null);
 
-  // Consultar las publicaciones guardadas en MySQL.
+  // ======================================================
+  // CONSULTAR PUBLICACIONES
+  // ======================================================
+
   const cargarPublicaciones = useCallback(async () => {
     setCargando(true);
     setError(null);
@@ -93,19 +120,28 @@ export default function PantallaAnunciosPrincipal({
               habitacion.status === "paused" ||
               habitacion.status === "closed"
           )
-          .map((habitacion) => ({
-            id: habitacion.id,
-            titulo: habitacion.title,
-            precio: `$${Number(
-              habitacion.monthlyRent
-            ).toLocaleString("es-MX")}`,
-            estado: convertirEstado(
+          .map((habitacion) => {
+            const estado = convertirEstado(
               habitacion.status as EstadoBD
-            ),
-            fotosCount: habitacion.photosCount,
-            detalle: `${habitacion.photosCount} fotografías`,
-            imagen: obtenerUrlPrimeraFoto(habitacion.id),
-          }));
+            );
+
+            return {
+              id: habitacion.id,
+              titulo: habitacion.title,
+
+              precio: `$${Number(
+                habitacion.monthlyRent
+              ).toLocaleString("es-MX")}`,
+
+              estado: estado!,
+
+              fotosCount: habitacion.photosCount,
+
+              detalle: `${habitacion.photosCount} fotografías`,
+
+              imagen: obtenerUrlPrimeraFoto(habitacion.id),
+            };
+          });
 
       setPublicaciones(publicacionesConvertidas);
     } catch (error) {
@@ -120,18 +156,81 @@ export default function PantallaAnunciosPrincipal({
     }
   }, []);
 
-  // Cargar publicaciones después de las interacciones iniciales.
+  // ======================================================
+  // CARGAR PUBLICACIONES AL ENTRAR
+  // ======================================================
+
   useEffect(() => {
-    const temporizador = setTimeout(() => {
-      cargarPublicaciones();
-    }, 0);
+    let activo = true;
+
+    const cargar = async () => {
+      setCargando(true);
+      setError(null);
+
+      try {
+        const respuesta = await obtenerMisPublicaciones();
+
+        if (!activo) return;
+
+        const publicacionesConvertidas: Publicacion[] =
+          respuesta
+            .filter(
+              (habitacion) =>
+                habitacion.status === "published" ||
+                habitacion.status === "paused" ||
+                habitacion.status === "closed"
+            )
+            .map((habitacion) => {
+              const estado = convertirEstado(
+                habitacion.status as EstadoBD
+              );
+
+              return {
+                id: habitacion.id,
+                titulo: habitacion.title,
+
+                precio: `$${Number(
+                  habitacion.monthlyRent
+                ).toLocaleString("es-MX")}`,
+
+                estado: estado!,
+
+                fotosCount: habitacion.photosCount,
+
+                detalle: `${habitacion.photosCount} fotografías`,
+
+                imagen: obtenerUrlPrimeraFoto(habitacion.id),
+              };
+            });
+
+        setPublicaciones(publicacionesConvertidas);
+      } catch (error) {
+        if (!activo) return;
+
+        const mensaje =
+          error instanceof Error
+            ? error.message
+            : "Ocurrió un error al cargar tus publicaciones.";
+
+        setError(mensaje);
+      } finally {
+        if (activo) {
+          setCargando(false);
+        }
+      }
+    };
+
+    cargar();
 
     return () => {
-      clearTimeout(temporizador);
+      activo = false;
     };
-  }, [cargarPublicaciones]);
+  }, []);
 
-  // Obtener publicaciones según el filtro seleccionado.
+  // ======================================================
+  // FILTRAR PUBLICACIONES
+  // ======================================================
+
   const publicacionesFiltradas = useMemo(() => {
     const estadoBuscado = convertirFiltro(filtro);
 
@@ -141,18 +240,34 @@ export default function PantallaAnunciosPrincipal({
     );
   }, [publicaciones, filtro]);
 
-  // Contar publicaciones por estado.
+  // ======================================================
+  // CONTAR PUBLICACIONES POR ESTADO
+  // ======================================================
+
   const contar = (estado: Publicacion["estado"]): number => {
     return publicaciones.filter(
       (publicacion) => publicacion.estado === estado
     ).length;
   };
 
+  // ======================================================
+  // ACTUALIZAR AL DESLIZAR HACIA ABAJO
+  // ======================================================
+
+  const actualizar = useCallback(() => {
+    cargarPublicaciones();
+  }, [cargarPublicaciones]);
+
+  // ======================================================
+  // INTERFAZ
+  // ======================================================
+
   return (
     <SafeAreaView style={styles.pantalla}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Encabezado */}
+      {/* ENCABEZADO */}
+
       <View style={styles.encabezado}>
         <Text style={styles.marca}>ROOMLINK / 07</Text>
 
@@ -165,7 +280,8 @@ export default function PantallaAnunciosPrincipal({
         </Text>
       </View>
 
-      {/* Filtros */}
+      {/* FILTROS */}
+
       <View style={styles.pestanas}>
         {(
           ["Activas", "Pausadas", "Cerradas"] as Filtro[]
@@ -195,13 +311,22 @@ export default function PantallaAnunciosPrincipal({
         })}
       </View>
 
-      {/* Lista de publicaciones */}
+      {/* LISTA DE PUBLICACIONES */}
+
       <ScrollView
         style={styles.lista}
         contentContainerStyle={styles.listaContenido}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={cargando}
+            onRefresh={actualizar}
+            tintColor="#806487"
+            colors={["#806487"]}
+          />
+        }
       >
-        {cargando ? (
+        {cargando && publicaciones.length === 0 ? (
           <View style={styles.mensaje}>
             <ActivityIndicator
               size="large"
@@ -212,7 +337,7 @@ export default function PantallaAnunciosPrincipal({
               Cargando tus publicaciones...
             </Text>
           </View>
-        ) : error ? (
+        ) : error && publicaciones.length === 0 ? (
           <View style={styles.mensaje}>
             <Text style={styles.error}>
               {error}
@@ -241,7 +366,8 @@ export default function PantallaAnunciosPrincipal({
           </Text>
         )}
 
-        {/* Crear publicación */}
+        {/* CREAR PUBLICACIÓN */}
+
         <Pressable
           style={styles.botonCrear}
           onPress={onCrearPublicacion}
@@ -256,6 +382,10 @@ export default function PantallaAnunciosPrincipal({
     </SafeAreaView>
   );
 }
+
+// ======================================================
+// ESTILOS
+// ======================================================
 
 const styles = StyleSheet.create({
   pantalla: {
@@ -325,6 +455,7 @@ const styles = StyleSheet.create({
   listaContenido: {
     paddingHorizontal: 16,
     paddingBottom: 18,
+    flexGrow: 1,
   },
 
   vacio: {

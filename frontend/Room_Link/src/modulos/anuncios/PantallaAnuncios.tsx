@@ -8,7 +8,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-
 } from "react-native";
 
 import PantallaPublicarHabitacion, {
@@ -32,6 +31,10 @@ import {
   type FotoEdicion,
 } from "./api";
 
+// ======================================================
+// TIPOS
+// ======================================================
+
 type Vista =
   | "anuncios"
   | "publicar"
@@ -44,7 +47,10 @@ type Coordenadas = {
   longitude: number;
 };
 
-// Valores iniciales para una habitación nueva.
+// ======================================================
+// DATOS INICIALES
+// ======================================================
+
 const datosVacios: DatosHabitacion = {
   titulo: "",
   ubicacion: "",
@@ -53,6 +59,10 @@ const datosVacios: DatosHabitacion = {
   availableFrom: "",
   maxRoommates: "",
 };
+
+// ======================================================
+// COMPONENTE PRINCIPAL
+// ======================================================
 
 export function PantallaAnuncios() {
   const [vista, setVista] = useState<Vista>("anuncios");
@@ -65,21 +75,24 @@ export function PantallaAnuncios() {
 
   const [enviando, setEnviando] = useState(false);
 
-  // Conserva el ID cuando falla la publicación de una habitación nueva.
+  // ID de un borrador nuevo que ya se creó en el backend.
   const [habitacionIdPendiente, setHabitacionIdPendiente] =
     useState<string | null>(null);
 
-  // Indica si estamos creando o editando.
+  // Modo de edición.
   const [modoEdicion, setModoEdicion] = useState(false);
 
-  // ID de la publicación que estamos editando.
+  // ID de la publicación que se está editando.
   const [habitacionIdEdicion, setHabitacionIdEdicion] =
     useState<string | null>(null);
 
-  // Fotografías que ya estaban guardadas en el servidor.
+  // Fotografías existentes en el servidor.
   const [fotosIniciales, setFotosIniciales] = useState<Foto[]>([]);
 
-  // Limpiar el formulario y regresar a las publicaciones.
+  // ====================================================
+  // REINICIAR FORMULARIO
+  // ====================================================
+
   const reiniciarFormulario = () => {
     setDatosHabitacion({ ...datosVacios });
     setCoordenadas(null);
@@ -90,7 +103,10 @@ export function PantallaAnuncios() {
     setVista("anuncios");
   };
 
-  // Comenzar una publicación nueva.
+  // ====================================================
+  // NUEVA PUBLICACIÓN
+  // ====================================================
+
   const iniciarNuevaPublicacion = () => {
     setDatosHabitacion({ ...datosVacios });
     setCoordenadas(null);
@@ -101,7 +117,10 @@ export function PantallaAnuncios() {
     setVista("publicar");
   };
 
-  // Consultar una publicación y cargar sus datos para editarla.
+  // ====================================================
+  // EDITAR PUBLICACIÓN
+  // ====================================================
+
   const editarPublicacion = async (id: string) => {
     try {
       setVista("cargandoEdicion");
@@ -121,7 +140,7 @@ export function PantallaAnuncios() {
             : "",
       });
 
-      // Recuperar las coordenadas guardadas.
+      // Recuperar coordenadas.
       setCoordenadas(
         anuncio.location
           ? {
@@ -131,13 +150,13 @@ export function PantallaAnuncios() {
           : null
       );
 
-      // Guardar el ID de la publicación original.
+      // Guardar el ID original.
       setHabitacionIdEdicion(anuncio.id);
 
-      // Activar el modo edición.
+      // Activar edición.
       setModoEdicion(true);
 
-      // Recuperar las fotografías existentes.
+      // Recuperar fotografías existentes.
       const fotosRecuperadas: Foto[] = anuncio.photos.map((foto) => ({
         id: foto.id,
         uri: obtenerUrlFoto(anuncio.id, foto.id),
@@ -147,7 +166,6 @@ export function PantallaAnuncios() {
 
       setFotosIniciales(fotosRecuperadas);
 
-      // Abrir el formulario con los datos recuperados.
       setVista("publicar");
     } catch (error) {
       const mensaje =
@@ -160,13 +178,160 @@ export function PantallaAnuncios() {
     }
   };
 
-  // Recibir información del formulario.
+  // ====================================================
+  // PREPARAR DATOS PARA EL BACKEND
+  // ====================================================
+
+  const construirDatosAnuncio = (
+    datos: DatosHabitacion,
+    fotos: Foto[]
+  ) => {
+    return {
+      titulo: datos.titulo.trim(),
+      descripcion: datos.descripcion.trim(),
+      renta: datos.renta.trim(),
+
+      ubicacion: datos.ubicacion.trim() || null,
+
+      latitude: coordenadas?.latitude ?? null,
+      longitude: coordenadas?.longitude ?? null,
+
+      availableFrom: datos.availableFrom.trim() || null,
+
+      maxRoommates: datos.maxRoommates.trim()
+        ? Number(datos.maxRoommates)
+        : null,
+
+      fotos,
+    };
+  };
+
+  // ====================================================
+  // CONVERTIR FOTOGRAFÍAS PARA EDICIÓN
+  // ====================================================
+
+  const convertirFotosEdicion = (
+    fotos: Foto[]
+  ): FotoEdicion[] => {
+    return fotos.map((foto) => {
+      const fotoExistente = fotosIniciales.find(
+        (original) => original.id === foto.id
+      );
+
+      if (fotoExistente) {
+        return {
+          type: "existing",
+          id: foto.id,
+        };
+      }
+
+      return {
+        type: "new",
+        foto,
+      };
+    });
+  };
+
+  // ====================================================
+  // GUARDAR BORRADOR
+  // ====================================================
+
+  const guardarBorrador = async (datos: DatosHabitacion) => {
+    if (enviando) return;
+
+    setEnviando(true);
+
+    try {
+      const datosApi = construirDatosAnuncio(datos, []);
+
+      if (modoEdicion && habitacionIdEdicion) {
+        // Al editar, conservar las fotografías existentes.
+        const fotosConservadas: FotoEdicion[] =
+          fotosIniciales.map((foto) => ({
+            type: "existing",
+            id: foto.id,
+          }));
+
+        await actualizarAnuncio(habitacionIdEdicion, {
+          ...datosApi,
+          fotos: fotosConservadas,
+        });
+
+        Alert.alert(
+          "Cambios guardados",
+          "La información de la habitación se actualizó correctamente.",
+          [
+            {
+              text: "Aceptar",
+              onPress: reiniciarFormulario,
+            },
+          ]
+        );
+
+        return;
+      }
+
+      if (habitacionIdPendiente) {
+        // Actualizar el borrador previamente creado.
+        await actualizarAnuncio(habitacionIdPendiente, {
+          ...datosApi,
+          fotos: [],
+        });
+
+        Alert.alert(
+          "¡Borrador actualizado!",
+          "Los cambios se guardaron correctamente.",
+          [
+            {
+              text: "Aceptar",
+              onPress: reiniciarFormulario,
+            },
+          ]
+        );
+
+        return;
+      }
+
+      // Crear un borrador nuevo.
+      const habitacion = await crearAnuncio(datosApi);
+
+      setHabitacionIdPendiente(habitacion.id);
+
+      Alert.alert(
+        "¡Borrador guardado!",
+        "Tu habitación se guardó correctamente. Puedes completar su ubicación y fotografías después.",
+        [
+          {
+            text: "Aceptar",
+            onPress: reiniciarFormulario,
+          },
+        ]
+      );
+    } catch (error) {
+      const mensaje =
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar el borrador.";
+
+      Alert.alert("Error al guardar", mensaje);
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  // ====================================================
+  // RECIBIR DATOS DEL FORMULARIO
+  // ====================================================
+
   const continuarFormulario = (datos: DatosHabitacion) => {
     setDatosHabitacion(datos);
     setVista("ubicacion");
   };
 
-  // Recibir ubicación seleccionada.
+  // ====================================================
+  // RECIBIR UBICACIÓN
+  // ====================================================
+
   const continuarUbicacion = (
     direccion: string,
     ubicacionCoordenadas: Coordenadas
@@ -180,11 +345,14 @@ export function PantallaAnuncios() {
     setVista("fotos");
   };
 
-  // Guardar una habitación nueva o actualizar una existente.
+  // ====================================================
+  // ENVIAR A PUBLICACIÓN
+  // ====================================================
+
   const enviarRevision = async (fotos: Foto[]) => {
     if (enviando) return;
 
-    if (!coordenadas) {
+    if (!coordenadas || !datosHabitacion.ubicacion.trim()) {
       Alert.alert(
         "Ubicación requerida",
         "Selecciona la ubicación de la habitación."
@@ -192,40 +360,28 @@ export function PantallaAnuncios() {
       return;
     }
 
+    if (fotos.length < 3) {
+      Alert.alert(
+        "Fotografías insuficientes",
+        "Debes agregar al menos 3 fotografías para publicar."
+      );
+      return;
+    }
+
     setEnviando(true);
 
     try {
+      const datosApi = construirDatosAnuncio(
+        datosHabitacion,
+        fotos
+      );
+
       if (modoEdicion && habitacionIdEdicion) {
-        // Identificar cuáles fotografías ya existen
-        // y cuáles son nuevas.
-        const fotosParaGuardar: FotoEdicion[] = fotos.map((foto) => {
-          const fotoExistente = fotosIniciales.find(
-            (original) => original.id === foto.id
-          );
+        // Identificar fotografías existentes y nuevas.
+        const fotosParaGuardar = convertirFotosEdicion(fotos);
 
-          if (fotoExistente) {
-            return {
-              type: "existing",
-              id: foto.id,
-            };
-          }
-
-          return {
-            type: "new",
-            foto,
-          };
-        });
-
-        // Actualizar la publicación original.
         await actualizarAnuncio(habitacionIdEdicion, {
-          titulo: datosHabitacion.titulo,
-          descripcion: datosHabitacion.descripcion,
-          renta: datosHabitacion.renta,
-          ubicacion: datosHabitacion.ubicacion,
-          latitude: coordenadas.latitude,
-          longitude: coordenadas.longitude,
-          availableFrom: datosHabitacion.availableFrom,
-          maxRoommates: Number(datosHabitacion.maxRoommates),
+          ...datosApi,
           fotos: fotosParaGuardar,
         });
 
@@ -239,43 +395,42 @@ export function PantallaAnuncios() {
             },
           ]
         );
-      } else {
-        // Crear una habitación nueva.
-        let habitacionId = habitacionIdPendiente;
 
-        if (!habitacionId) {
-          const habitacion = await crearAnuncio({
-            titulo: datosHabitacion.titulo,
-            descripcion: datosHabitacion.descripcion,
-            renta: datosHabitacion.renta,
-            ubicacion: datosHabitacion.ubicacion,
-            latitude: coordenadas.latitude,
-            longitude: coordenadas.longitude,
-            availableFrom: datosHabitacion.availableFrom,
-            maxRoommates: Number(datosHabitacion.maxRoommates),
-            fotos,
-          });
-
-          habitacionId = habitacion.id;
-          setHabitacionIdPendiente(habitacion.id);
-        }
-
-        // Publicar la habitación guardada.
-        await publicarAnuncio(habitacionId);
-
-        Alert.alert(
-          "¡Publicación exitosa!",
-          `Tu habitación "${datosHabitacion.titulo}" se guardó y publicó correctamente.
-
-Fotografías almacenadas: ${fotos.length}`,
-          [
-            {
-              text: "Aceptar",
-              onPress: reiniciarFormulario,
-            },
-          ]
-        );
+        return;
       }
+
+      let habitacionId = habitacionIdPendiente;
+
+      if (!habitacionId) {
+        // Crear una publicación nueva.
+        const habitacion = await crearAnuncio(datosApi);
+
+        habitacionId = habitacion.id;
+
+        setHabitacionIdPendiente(habitacion.id);
+      } else {
+        // Actualizar el borrador que ya existía.
+        const fotosParaGuardar = convertirFotosEdicion(fotos);
+
+        await actualizarAnuncio(habitacionId, {
+          ...datosApi,
+          fotos: fotosParaGuardar,
+        });
+      }
+
+      // Publicar el borrador.
+      await publicarAnuncio(habitacionId);
+
+      Alert.alert(
+        "¡Publicación exitosa!",
+        `Tu habitación "${datosHabitacion.titulo}" se guardó y publicó correctamente.\n\nFotografías almacenadas: ${fotos.length}`,
+        [
+          {
+            text: "Aceptar",
+            onPress: reiniciarFormulario,
+          },
+        ]
+      );
     } catch (error) {
       const mensaje =
         error instanceof Error
@@ -291,7 +446,10 @@ Fotografías almacenadas: ${fotos.length}`,
     }
   };
 
-  // Pantalla de carga mientras recuperamos una publicación.
+  // ====================================================
+  // PANTALLA DE CARGA
+  // ====================================================
+
   if (vista === "cargandoEdicion") {
     return (
       <SafeAreaView style={styles.pantallaCarga}>
@@ -309,7 +467,10 @@ Fotografías almacenadas: ${fotos.length}`,
     );
   }
 
-  // Pantalla para publicar o editar una habitación.
+  // ====================================================
+  // PANTALLA DE FORMULARIO
+  // ====================================================
+
   if (vista === "publicar") {
     return (
       <PantallaPublicarHabitacion
@@ -317,11 +478,15 @@ Fotografías almacenadas: ${fotos.length}`,
         datosIniciales={datosHabitacion}
         onVolver={() => setVista("anuncios")}
         onElegirUbicacion={continuarFormulario}
+        onGuardarBorrador={guardarBorrador}
       />
     );
   }
 
-  // Pantalla del mapa.
+  // ====================================================
+  // PANTALLA DE UBICACIÓN
+  // ====================================================
+
   if (vista === "ubicacion") {
     return (
       <PantallaUbicacion
@@ -332,7 +497,10 @@ Fotografías almacenadas: ${fotos.length}`,
     );
   }
 
-  // Pantalla de fotografías.
+  // ====================================================
+  // PANTALLA DE FOTOGRAFÍAS
+  // ====================================================
+
   if (vista === "fotos") {
     return (
       <PantallaFotos
@@ -344,7 +512,10 @@ Fotografías almacenadas: ${fotos.length}`,
     );
   }
 
-  // Pantalla principal de anuncios.
+  // ====================================================
+  // PANTALLA PRINCIPAL
+  // ====================================================
+
   return (
     <PantallaAnunciosPrincipal
       onCrearPublicacion={iniciarNuevaPublicacion}
@@ -352,6 +523,10 @@ Fotografías almacenadas: ${fotos.length}`,
     />
   );
 }
+
+// ======================================================
+// ESTILOS
+// ======================================================
 
 const styles = StyleSheet.create({
   pantallaCarga: {

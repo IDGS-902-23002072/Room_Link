@@ -92,62 +92,127 @@ export class InMemoryProfileRepository implements IProfileRepository {
   }
 }
 
+
 export class InMemoryRoomRepository implements IRoomListingRepository {
   readonly rooms = new Map<string, RoomListing>();
   readonly photos = new Map<string, RoomPhotoRecord[]>();
   readonly locations = new Map<string, RoomLocationInput>();
 
+  // ======================================================
+  // CONSULTAR PUBLICACIONES
+  // ======================================================
+
   async findById(id: string) {
     return this.rooms.get(id) ?? null;
   }
+
   async findPublished(limit = 20, offset = 0) {
     return [...this.rooms.values()]
-      .filter((r) => r.status === "published")
+      .filter((room) => room.status === "published")
       .slice(offset, offset + limit);
   }
+
   async findByHostId(hostId: string) {
-    return [...this.rooms.values()].filter((r) => r.hostId === hostId);
+    return [...this.rooms.values()].filter(
+      (room) => room.hostId === hostId
+    );
   }
+
+  // ======================================================
+  // CREAR PUBLICACIÓN
+  // ======================================================
+
+  // Crear una publicación básica.
+  // Permite guardar borradores sin ubicación ni fotografías.
   async create(room: RoomListing) {
+    room.setPhotoCount(this.photos.get(room.id)?.length ?? 0);
+
     this.rooms.set(room.id, room);
+
     return room;
   }
+
+
   async createWithLocationAndPhotos(
     room: RoomListing,
-    _location: { address: string; latitude: number; longitude: number },
-    photos: RoomPhotoInput[],
-  ) {
-    room.setPhotoCount(photos.length);
-    this.rooms.set(room.id, room);
+    location: RoomLocationInput | null,
+    photos: RoomPhotoInput[]
+  ): Promise<RoomListing> {
+    if (photos.length > 10) {
+      throw new Error("No se permiten más de 10 fotografías");
+    }
+
+    // Si hay ubicación, reutilizar su ID o generar uno nuevo.
+    // Si no hay ubicación, guardar locationId como null.
+    const locationId = location
+      ? room.locationId ?? randomUUID()
+      : null;
+
+    const roomWithData = new RoomListing({
+      id: room.id,
+      hostId: room.hostId,
+      locationId,
+      title: room.title,
+      description: room.description,
+      monthlyRent: room.monthlyRent,
+      availableFrom: room.availableFrom,
+      maxRoommates: room.maxRoommates,
+      status: room.status,
+      photoCount: photos.length,
+      publishedAt: room.publishedAt,
+      closedAt: room.closedAt,
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt,
+    });
+
+    this.rooms.set(room.id, roomWithData);
+
+    // Guardar ubicación únicamente cuando exista.
+    if (location && locationId) {
+      this.locations.set(locationId, location);
+    }
+
+    // Guardar fotografías, incluso si la lista está vacía.
     this.photos.set(
       room.id,
-      photos.map((p, index) => ({
+      photos.map((photo, index) => ({
         id: randomUUID(),
         listingId: room.id,
         position: index + 1,
-        ...p,
-      })),
+        ...photo,
+      }))
     );
-    return room;
+
+    return roomWithData;
   }
+
+
+  // ======================================================
+  // ACTUALIZAR PUBLICACIÓN
+  // ======================================================
+
   async update(room: RoomListing) {
     this.rooms.set(room.id, room);
   }
+
+  // ======================================================
+  // FOTOGRAFÍAS
+  // ======================================================
+
   async countPhotos(listingId: string) {
     return this.photos.get(listingId)?.length ?? 0;
   }
+
   async findPhotoById(listingId: string, photoId: string) {
-    return this.photos.get(listingId)?.find((p) => p.id === photoId) ?? null;
+    return (
+      this.photos.get(listingId)?.find(
+        (photo) => photo.id === photoId
+      ) ?? null
+    );
   }
 
   async findFirstPhotoByListingId(listingId: string) {
     return this.photos.get(listingId)?.[0] ?? null;
-  }
-
-  async findLocationById(
-    id: string
-  ): Promise<RoomLocationInput | null> {
-    return this.locations.get(id) ?? null;
   }
 
   async findPhotosByListingId(
@@ -164,15 +229,26 @@ export class InMemoryRoomRepository implements IRoomListingRepository {
     }));
   }
 
+  // ======================================================
+  // UBICACIÓN
+  // ======================================================
+
+  async findLocationById(
+    id: string
+  ): Promise<RoomLocationInput | null> {
+    return this.locations.get(id) ?? null;
+  }
+
+  // ======================================================
+  // ACTUALIZAR UBICACIÓN Y FOTOGRAFÍAS
+  // ======================================================
+
+
   async updateWithLocationAndPhotos(
     room: RoomListing,
-    location: RoomLocationInput,
+    location: RoomLocationInput | null,
     photos: RoomPhotoUpdateItem[]
   ): Promise<void> {
-    if (!room.locationId) {
-      throw new Error("La habitación no tiene una ubicación asociada");
-    }
-
     if (photos.length > 10) {
       throw new Error("No se permiten más de 10 fotografías");
     }
@@ -180,8 +256,19 @@ export class InMemoryRoomRepository implements IRoomListingRepository {
     const currentPhotos = this.photos.get(room.id) ?? [];
     const updatedPhotos: RoomPhotoRecord[] = [];
 
+    const existingIds = new Set<string>();
+
+    // Preparar las fotografías respetando el orden recibido.
     for (const [index, item] of photos.entries()) {
       if (item.type === "existing") {
+        if (existingIds.has(item.id)) {
+          throw new Error(
+            "No puedes agregar dos veces la misma fotografía."
+          );
+        }
+
+        existingIds.add(item.id);
+
         const existingPhoto = currentPhotos.find(
           (photo) => photo.id === item.id
         );
@@ -206,13 +293,106 @@ export class InMemoryRoomRepository implements IRoomListingRepository {
       }
     }
 
-    room.setPhotoCount(updatedPhotos.length);
+    // Si se proporciona ubicación, conservar su ID o generar uno.
+    // Si llega null, la publicación queda sin ubicación.
+    const previousLocationId = room.locationId;
 
-    this.rooms.set(room.id, room);
-    this.locations.set(room.locationId, location);
+    const locationId = location
+      ? previousLocationId ?? randomUUID()
+      : null;
+
+    // Reconstruir la entidad con el locationId actualizado.
+    const updatedRoom = new RoomListing({
+      id: room.id,
+      hostId: room.hostId,
+      locationId,
+      title: room.title,
+      description: room.description,
+      monthlyRent: room.monthlyRent,
+      availableFrom: room.availableFrom,
+      maxRoommates: room.maxRoommates,
+      status: room.status,
+      photoCount: updatedPhotos.length,
+      publishedAt: room.publishedAt,
+      closedAt: room.closedAt,
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt,
+    });
+
+    // Guardar la ubicación si existe.
+    if (location && locationId) {
+      this.locations.set(locationId, location);
+    }
+
+    // Si se quitó la ubicación, eliminar su registro en memoria.
+    if (!location && previousLocationId) {
+      this.locations.delete(previousLocationId);
+    }
+
+    this.rooms.set(room.id, updatedRoom);
     this.photos.set(room.id, updatedPhotos);
   }
+
+  // ======================================================
+  // CAMBIAR ESTADO DE UNA PUBLICACIÓN
+  // ======================================================
+
+  async transitionStatus(
+    id: string,
+    expectedStatus: "draft" | "published" | "paused",
+    newStatus: "published" | "paused" | "closed"
+  ): Promise<boolean> {
+    const room = this.rooms.get(id);
+
+    if (!room || room.status !== expectedStatus) {
+      return false;
+    }
+
+    // BORRADOR -> PUBLICADA
+    if (
+      expectedStatus === "draft" &&
+      newStatus === "published"
+    ) {
+      room.setPhotoCount(this.photos.get(id)?.length ?? 0);
+      room.publish();
+    }
+
+    // PUBLICADA -> PAUSADA
+    else if (
+      expectedStatus === "published" &&
+      newStatus === "paused"
+    ) {
+      room.pause();
+    }
+
+    // PAUSADA -> PUBLICADA
+    else if (
+      expectedStatus === "paused" &&
+      newStatus === "published"
+    ) {
+      room.setPhotoCount(this.photos.get(id)?.length ?? 0);
+      room.reactivate();
+    }
+
+    // PUBLICADA -> CERRADA
+    else if (
+      expectedStatus === "published" &&
+      newStatus === "closed"
+    ) {
+      room.close();
+    }
+
+    // Cualquier otra transición está prohibida.
+    else {
+      return false;
+    }
+
+    this.rooms.set(id, room);
+
+    return true;
+  }
 }
+
 
 
 
