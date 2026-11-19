@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { Card, CardLabel } from '../../../shared/components';
 import { colors, typography } from '../../../shared/theme';
-import { SavedProfile } from '../types';
+import { SavedProfile } from '../../../modules/m06-compatibilidad/types';
 
 type Props = { profile: SavedProfile; onPress?: () => void };
 

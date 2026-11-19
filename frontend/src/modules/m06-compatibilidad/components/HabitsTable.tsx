@@ -1,9 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing } from '../../../shared/theme';
-import { Habit } from '../types';
+import { HabitComparison } from '../../../modules/m06-compatibilidad/types';
 
-type Props = { habits: Habit[]; otherName: string };
+type Props = { habits: HabitComparison[]; otherName: string };
 
 export function HabitsTable({ habits, otherName }: Props) {
   return (
@@ -15,7 +15,7 @@ export function HabitsTable({ habits, otherName }: Props) {
       </View>
       {habits.map((h) => (
         <View key={h.id} style={styles.row}>
-          <Text style={[styles.cell, styles.muted]}>{h.label}</Text>
+          <Text style={[styles.cell, styles.muted]}>{h.habit}</Text>
           <Text style={[styles.cell, styles.value]}>{h.you}</Text>
           <Text style={[styles.cell, styles.value]}>{h.other}</Text>
         </View>

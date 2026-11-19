@@ -1,9 +1,9 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import CompatibilityScreen from '../screens/CompatibilityScreen';
-import SharedPointsScreen from '../screens/SharedPointsScreen';
-import SavedProfilesScreen from '../screens/SavedProfilesScreen';
-import { M06StackParamList } from './types';
+import CompatibilityScreen from '../modules/m06-compatibilidad/screens/CompatibilityScreen';
+import SharedPointsScreen from '../modules/m06-compatibilidad/screens/SharedPointsScreen';
+import SavedProfilesScreen from '../modules/m06-compatibilidad/screens/SavedProfilesScreen';
+import { M06StackParamList } from '../modules/m06-compatibilidad/types';
 
 const Stack = createNativeStackNavigator<M06StackParamList>();
 

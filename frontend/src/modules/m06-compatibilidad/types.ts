@@ -1,34 +1,45 @@
-export type Habit = {
-  id: string;
-  label: string;
-  you: string;
-  other: string;
-};
-
-export type Roomie = {
+export interface Roomie {
   id: string;
   name: string;
   zone: string;
-  affinity: number;
-};
+  affinity: number; // 0 a 100
+}
 
-export type CompatibilityResult = {
+export interface HabitComparison {
+  id: string;
+  habit: string; // Limpieza, Horario, Mascotas, Visitas
+  you: string;
+  other: string;
+}
+
+export interface TitledMessage {
+  title: string;
+  description: string;
+}
+
+export interface CompatibilityResult {
   roomie: Roomie;
-  affinity: number;
-  summary: string;
-  habits: Habit[];
-  commonPoints: { count: number; description: string };
-  talkingPoint: { title: string; description: string };
-  suggestion: { title: string; description: string };
-};
+  affinityMessage: string;
+  habits: HabitComparison[];
+  commonPointsCount: number;
+  commonPointsSummary: string;
+  talkingPoint: TitledMessage;
+  suggestion: TitledMessage;
+}
 
-export type SavedStatus = 'saved' | 'discarded';
+export type SavedProfileStatus = 'saved' | 'discarded';
 
-export type SavedProfile = {
+export interface SavedProfile {
   id: string;
   name: string;
-  status: SavedStatus;
-  affinity?: number;
+  status: SavedProfileStatus;
+  affinity?: number; // los descartados no la muestran
   detail: string;
-  actionLabel: string;
+  actionLabel: string; // "Ver perfil" | "Restaurar"
+}
+
+export type M06StackParamList = {
+  Compatibility: undefined;
+  SharedPoints: undefined;
+  SavedProfiles: undefined;
 };

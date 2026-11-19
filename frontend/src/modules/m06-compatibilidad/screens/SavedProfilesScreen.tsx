@@ -4,7 +4,7 @@ import { Button, ScreenLayout } from '../../../shared/components';
 import { ProfileListItem } from '../components/ProfileListItem';
 import { SegmentedTabs } from '../components/SegmentedTabs';
 import { discardedCount, savedCount, savedProfilesMock } from '../data/mock';
-import { M06StackParamList } from '../navigation/types';
+import { M06StackParamList } from '../../../modules/m06-compatibilidad/types';
 
 type Props = NativeStackScreenProps<M06StackParamList, 'SavedProfiles'>;
 

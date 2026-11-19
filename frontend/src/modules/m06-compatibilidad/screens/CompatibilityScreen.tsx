@@ -5,7 +5,7 @@ import { Button, ScreenLayout } from '../../../shared/components';
 import { AffinityCard } from '../components/AffinityCard';
 import { HabitsTable } from '../components/HabitsTable';
 import { compatibilityMock as data } from '../data/mock';
-import { M06StackParamList } from '../navigation/types';
+import { M06StackParamList } from '../../../modules/m06-compatibilidad/types';
 
 type Props = NativeStackScreenProps<M06StackParamList, 'Compatibility'>;
 

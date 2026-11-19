@@ -4,7 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Card, CardLabel, ScreenLayout } from '../../../shared/components';
 import { colors, typography } from '../../../shared/theme';
 import { compatibilityMock as data } from '../data/mock';
-import { M06StackParamList } from '../navigation/types';
+import { M06StackParamList } from '../../../modules/m06-compatibilidad/types';
 
 type Props = NativeStackScreenProps<M06StackParamList, 'SharedPoints'>;
 
@@ -17,10 +17,10 @@ export default function SharedPointsScreen({ navigation }: Props) {
     >
       <Card tone="mint">
         <Text style={[typography.bodyStrong, { color: colors.textStrong }]}>
-          {data.commonPoints.count} puntos en común
+          {data.commonPointsCount} puntos en común
         </Text>
         <Text style={[typography.body, { marginTop: 6 }]}>
-          {data.commonPoints.description}
+          {data.commonPointsSummary}
         </Text>
       </Card>
 

@@ -1,19 +1,16 @@
-import { CompatibilityResult, SavedProfile } from '../types';
+import { CompatibilityResult, SavedProfile } from '../../m06-compatibilidad/types';
 
 export const compatibilityMock: CompatibilityResult = {
   roomie: { id: 'r1', name: 'Andrea', zone: 'Zona Universidad', affinity: 92 },
-  affinity: 92,
-  summary: 'Una buena base para conversar.',
+  affinityMessage: 'Una buena base para conversar.',
   habits: [
-    { id: 'h1', label: 'Limpieza', you: 'Diaria', other: 'Diaria' },
-    { id: 'h2', label: 'Horario', you: '7:00 h', other: '7:30 h' },
-    { id: 'h3', label: 'Mascotas', you: 'Sí', other: 'Sí' },
-    { id: 'h4', label: 'Visitas', you: 'Pocas', other: 'Frecuentes' },
+    { id: 'h1', habit: 'Limpieza', you: 'Diaria', other: 'Diaria' },
+    { id: 'h2', habit: 'Horario', you: '7:00 h', other: '7:30 h' },
+    { id: 'h3', habit: 'Mascotas', you: 'Sí', other: 'Sí' },
+    { id: 'h4', habit: 'Visitas', you: 'Pocas', other: 'Frecuentes' },
   ],
-  commonPoints: {
-    count: 3,
-    description: 'Ambos valoran el orden, aceptan mascotas y no fuman.',
-  },
+  commonPointsCount: 3,
+  commonPointsSummary: 'Ambos valoran el orden, aceptan mascotas y no fuman.',
   talkingPoint: {
     title: 'Frecuencia de visitas',
     description: 'Tú prefieres pocas; Andrea suele recibir amistades.',
