@@ -104,10 +104,12 @@ Verificado end-to-end (login real contra backend+MySQL, 0 errores de consola).
   la sesión y accesible desde `PantallaPerfil` (junto con cierre de sesión y galería), además de
   reporte de anuncios desde `FichaHabitacion`.
 
-### Fase 4 — Notificaciones (HU-14)  ← objetivo original
-- Construir pantalla/centro de notificaciones consumiendo `GET /api/v1/notifications`.
-- El backend ya emite notificaciones por evento (event bus). Falta la UI para verlas.
-- Decidir si va como 5º tab o como icono/campana en el header.
+### ✅ HECHO — Fase 4: Notificaciones (HU-14)
+- ✅ **Centro de notificaciones (`/notificaciones`) — HECHO:** `modulos/notificaciones/api.ts` +
+  `modulos/notificaciones/PantallaNotificaciones.tsx` consumiendo `GET /api/v1/notifications`,
+  `PATCH /api/v1/notifications/:id/read`, `POST /api/v1/notifications/mark-all-read` y
+  `GET/PUT /api/v1/notifications/preferences`.
+- Accesible desde campana en el header de exploración (`PantallaExploracion`) y desde `PantallaPerfil`.
 
 ### Otros módulos sin frontend (backend ya al 100%)
 - **Acuerdos de convivencia (HU-12):** `/api/v1/agreements` — pantalla para crear/firmar acuerdo.
@@ -125,7 +127,7 @@ Verificado end-to-end (login real contra backend+MySQL, 0 errores de consola).
 ---
 
 ## 5. Orden sugerido para el 100% del frontend
-1. **Notificaciones (HU-14)** — el objetivo pedido, ya sobre base autenticada.
+1. ✅ **Notificaciones (HU-14)** — el objetivo pedido, ya sobre base autenticada (completado).
 2. ✅ **Chat real** (reemplaza el placeholder — completado).
 3. ✅ **Moderación** (admin + denuncia de anuncios — completado).
 4. **Acuerdos** → **Conexiones (gestión)** → **Sanciones (admin)**.

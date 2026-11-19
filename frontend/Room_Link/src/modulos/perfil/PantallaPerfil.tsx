@@ -364,6 +364,19 @@ export function PantallaPerfil() {
 
             <View style={styles.tarjeta}>
               <Text style={styles.tituloSeccion}>Acciones y cuenta</Text>
+              <Link href="/notificaciones" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonSecundario,
+                    pressed && styles.botonPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonSecundario}>
+                    Centro de notificaciones (HU-14)
+                  </Text>
+                </Pressable>
+              </Link>
+
               <Link href="/galeria-fotos" asChild>
                 <Pressable
                   accessibilityRole="button"

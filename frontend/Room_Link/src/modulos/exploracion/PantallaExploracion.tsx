@@ -226,7 +226,17 @@ export function PantallaExploracion() {
         contentContainerStyle={[styles.contenido, { width: anchoContenido }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
-        <Text style={styles.marca}>ROOMLINK / 04</Text>
+        <View style={styles.filaSuperior}>
+          <Text style={styles.marca}>ROOMLINK / 04</Text>
+          <Link href="/notificaciones" asChild>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Centro de notificaciones"
+              style={styles.botonCampana}>
+              <Text style={styles.textoCampana}>🔔 Avisos</Text>
+            </Pressable>
+          </Link>
+        </View>
 
         {vista === 'resultados' ? (
           <>
@@ -369,12 +379,28 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 92,
   },
+  filaSuperior: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  botonCampana: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#E9DAEC',
+  },
+  textoCampana: {
+    color: '#6F5B76',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   marca: {
     color: '#817987',
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.2,
-    marginBottom: 4,
   },
   titulo: {
     color: '#28232D',
