@@ -59,7 +59,7 @@ function obtenerModuloExpoNotifications(): ModuloExpoNotifications | null {
 }
 
 const PERMISO_ANDROID_POST_NOTIFICATIONS =
-  PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS ??
+  PermissionsAndroid?.PERMISSIONS?.POST_NOTIFICATIONS ??
   'android.permission.POST_NOTIFICATIONS';
 
 /**
@@ -177,9 +177,11 @@ export async function solicitarPermisoNotificacionesSistema(): Promise<EstadoPer
       );
 
       const estado: EstadoPermisoNotificacion =
-        resultado === PermissionsAndroid.RESULTS.GRANTED
+        resultado === PermissionsAndroid?.RESULTS?.GRANTED ||
+        resultado === 'granted'
           ? 'granted'
-          : resultado === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN
+          : resultado === PermissionsAndroid?.RESULTS?.NEVER_ASK_AGAIN ||
+              resultado === 'never_ask_again'
             ? 'never_ask_again'
             : 'denied';
 

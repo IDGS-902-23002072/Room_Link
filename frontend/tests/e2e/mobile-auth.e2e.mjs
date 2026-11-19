@@ -13,11 +13,26 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import puppeteer from "puppeteer-core";
 
 const WEB_URL = process.env.E2E_WEB_URL ?? "http://localhost:8081";
 const API_URL = process.env.E2E_API_URL ?? "http://localhost:3000/api/v1";
-const CHROME_PATH = process.env.CHROME_PATH ?? "/usr/bin/google-chrome";
+
+function resolveChromePath() {
+  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
+  const candidates = [
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium-browser",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+  ];
+  return candidates.find((p) => fs.existsSync(p)) ?? "/usr/bin/google-chrome";
+}
+
+const CHROME_PATH = resolveChromePath();
 
 const clickByText = (page, label) =>
   page.evaluate((t) => {
@@ -115,6 +130,57 @@ test("móvil: login real cross-origin y llegada a la pantalla autenticada", asyn
         bodyText.includes("Anuncios") ||
         bodyText.includes("Descubrir"),
       "Tras el login se debe ver la pantalla autenticada",
+    );
+
+    // Navegar al tab Chats y verificar que carga la bandeja real de HU-10
+    await clickByText(page, "Chats");
+    await page.waitForFunction(
+      () => document.body.innerText.includes("Tus conversaciones"),
+      { timeout: 10000 },
+    );
+
+    // Navegar al tab Perfil y verificar los enlaces a Notificaciones, Conexiones y Acuerdos
+    await clickByText(page, "Perfil");
+    await page.waitForFunction(
+      () =>
+        document.body.innerText.includes("Mi perfil") &&
+        document.body.innerText.includes("Centro de notificaciones (HU-14)") &&
+        document.body.innerText.includes("Solicitudes de conexión") &&
+        document.body.innerText.includes("Acuerdos de convivencia (HU-12)"),
+      { timeout: 10000 },
+    );
+
+    // Abrir el Centro de Notificaciones (HU-14) y verificar que carga notificaciones y permisos del sistema
+    await clickByText(page, "Centro de notificaciones (HU-14)");
+    await page.waitForFunction(
+      () =>
+        document.body.innerText.includes("ROOMLINK / 14") &&
+        document.body.innerText.includes("Notificaciones del sistema"),
+      { timeout: 10000 },
+    );
+
+    // Volver a Perfil y abrir Solicitudes de conexión
+    await clickByText(page, "‹");
+    await page.waitForFunction(
+      () => document.body.innerText.includes("Solicitudes de conexión"),
+      { timeout: 10000 },
+    );
+    await clickByText(page, "Solicitudes de conexión");
+    await page.waitForFunction(
+      () => document.body.innerText.includes("ROOMLINK / CONEXIONES"),
+      { timeout: 10000 },
+    );
+
+    // Volver a Perfil y abrir Acuerdos de convivencia (HU-12)
+    await clickByText(page, "‹");
+    await page.waitForFunction(
+      () => document.body.innerText.includes("Acuerdos de convivencia (HU-12)"),
+      { timeout: 10000 },
+    );
+    await clickByText(page, "Acuerdos de convivencia (HU-12)");
+    await page.waitForFunction(
+      () => document.body.innerText.includes("ROOMLINK / 12"),
+      { timeout: 10000 },
     );
   } finally {
     await browser.close();
