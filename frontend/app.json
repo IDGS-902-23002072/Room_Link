@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "RoomLink",
+    "slug": "roomlink",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {},
+    "plugins": [
+      "expo-status-bar",
+      "expo-font"
+    ]
+  }
+}
