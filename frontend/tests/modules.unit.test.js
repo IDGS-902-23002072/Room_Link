@@ -26,9 +26,11 @@ describe("reglas de moderación unificada (Room_Link)", () => {
 describe("permisos y configuración de notificaciones Android (Room_Link)", () => {
   it("declara POST_NOTIFICATIONS, VIBRATE y RECEIVE_BOOT_COMPLETED en app.json", async () => {
     const fs = await import("node:fs");
+    const url = await import("node:url");
     const path = await import("node:path");
+    const dir = path.dirname(url.fileURLToPath(import.meta.url));
     const appJson = JSON.parse(
-      fs.readFileSync(path.resolve("Room_Link/app.json"), "utf8"),
+      fs.readFileSync(path.resolve(dir, "../Room_Link/app.json"), "utf8"),
     );
     const perms = appJson?.expo?.android?.permissions ?? [];
     expect(perms).toContain("android.permission.POST_NOTIFICATIONS");

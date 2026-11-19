@@ -158,6 +158,8 @@ Verificado end-to-end (login real contra backend+MySQL, 0 errores de consola).
 - **Base URL:** `EXPO_PUBLIC_API_URL` = **origen** (`http://localhost:3000`), los paths llevan `/api/v1`.
 - **RNF-01.2:** el backend deriva el `userId` del token de sesión (no del body/URL). El cliente
   manda `Authorization: Bearer <token>`.
-- **Testing del cliente:** un smoke por `curl` NO prueba CORS; usar un navegador real
-  (ver el E2E en `frontend/tests/e2e/` y `docs/testing.md`). El E2E de regresión corre dev→main.
+- **Testing del cliente (Verificado ✅):**
+  - Unitarias frontend (`vitest run` sobre `frontend/tests/modules.unit.test.js`): **3/3 pasando** (reglas de chat, reglas de moderación y permisos Android `POST_NOTIFICATIONS` en `app.json`).
+  - Build web estático (`npx expo export --platform web` en `frontend/Room_Link`): **24 rutas estáticas exportadas** sin errores (fix de `PermissionsAndroid?.PERMISSIONS` para SSR en `react-native-web`).
+  - E2E en navegador real (`frontend/tests/e2e/mobile-auth.e2e.mjs` con `puppeteer-core` + Chrome): **1/1 pasando** (registro, login cross-origin `:8081` → `:3000`, navegación a Chats HU-10, Perfil, Centro de Notificaciones HU-14 con tarjeta de permisos del sistema, Solicitudes de conexión y Acuerdos de convivencia HU-12).
 - **Mapas:** `react-native-maps` solo en nativo; en web hay shim.

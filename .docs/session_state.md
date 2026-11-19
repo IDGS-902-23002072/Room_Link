@@ -60,6 +60,9 @@
 - `npm run test:smoke` → **12/12** (flujo end-to-end in-memory cubriendo los 13 módulos del backend).
 - `DB_PORT=3307 npm run test:integration` → **4/4** contra MySQL 8.4 real.
 - `web` (`npm test`) → **4/4** tests pasando.
+- `frontend` (`vitest run`) → **3/3** tests unitarios pasando (mensajería, moderación y permisos Android `POST_NOTIFICATIONS`).
+- `frontend/Room_Link` (`npx expo export --platform web`) → **24/24** rutas estáticas exportadas.
+- `frontend` E2E (`node --test tests/e2e/mobile-auth.e2e.mjs` con Puppeteer + Chrome real) → **1/1** flujo E2E cross-origin pasando (login → tabs → Chats HU-10 → Perfil → Centro de Notificaciones HU-14 → Conexiones → Acuerdos HU-12).
 
 ## [QUÉ FALTA (Pending)]
 
