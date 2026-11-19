@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'expo-router';
 import {
   Pressable,
   ScrollView,
@@ -8,6 +9,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { cerrarSesion } from '@/auth/api-auth';
+import { useSesion } from '@/auth/SesionContext';
 
 import {
   actualizarPerfil,
@@ -86,6 +90,8 @@ function normalizarPerfil(perfil: PerfilFormulario): PerfilFormulario {
 }
 
 export function PantallaPerfil() {
+  const { sesion } = useSesion();
+  const esAdmin = Boolean(sesion?.usuario.roles?.includes('admin'));
   const [perfil, setPerfil] = useState<PerfilFormulario>(PERFIL_VACIO);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -355,6 +361,49 @@ export function PantallaPerfil() {
                 {guardando ? 'Guardando…' : 'Guardar'}
               </Text>
             </Pressable>
+
+            <View style={styles.tarjeta}>
+              <Text style={styles.tituloSeccion}>Acciones y cuenta</Text>
+              <Link href="/galeria-fotos" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonSecundario,
+                    pressed && styles.botonPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonSecundario}>
+                    Gestionar galería de fotos
+                  </Text>
+                </Pressable>
+              </Link>
+
+              {esAdmin && (
+                <Link href="/moderacion" asChild>
+                  <Pressable
+                    accessibilityRole="button"
+                    style={({ pressed }) => [
+                      styles.botonAdmin,
+                      pressed && styles.botonPresionado,
+                    ]}>
+                    <Text style={styles.textoBotonAdmin}>
+                      Panel de moderación (Admin)
+                    </Text>
+                  </Pressable>
+                </Link>
+              )}
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  void cerrarSesion();
+                }}
+                style={({ pressed }) => [
+                  styles.botonCerrarSesion,
+                  pressed && styles.botonPresionado,
+                ]}>
+                <Text style={styles.textoCerrarSesion}>Cerrar sesión</Text>
+              </Pressable>
+            </View>
           </>
         )}
       </ScrollView>
@@ -521,6 +570,47 @@ const styles = StyleSheet.create({
   },
   textoBoton: {
     color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  botonSecundario: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+    backgroundColor: '#F6F1F7',
+    borderWidth: 1,
+    borderColor: '#E9DAEC',
+    marginTop: 10,
+  },
+  textoBotonSecundario: {
+    color: '#6F5B76',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  botonAdmin: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+    backgroundColor: '#E9DAEC',
+    marginTop: 8,
+  },
+  textoBotonAdmin: {
+    color: '#5E4466',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  botonCerrarSesion: {
+    minHeight: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+    backgroundColor: '#FCE8E8',
+    marginTop: 8,
+  },
+  textoCerrarSesion: {
+    color: '#8A3030',
     fontSize: 12,
     fontWeight: '600',
   },

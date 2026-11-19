@@ -38,6 +38,7 @@ function Navegacion() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(pestanas)" />
         <Stack.Screen name="encuesta" />
+        <Stack.Screen name="moderacion" />
       </Stack>
     </ThemeProvider>
   );
