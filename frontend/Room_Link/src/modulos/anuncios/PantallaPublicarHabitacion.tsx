@@ -10,7 +10,12 @@ import {
   StyleSheet,
   StatusBar,
   Alert,
+  Platform,
 } from "react-native";
+
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 
 import CampoFormulario from "./componentes/CampoFormulario";
 import IndicadorPasos from "./componentes/IndicadorPasos";
@@ -35,26 +40,21 @@ type Props = {
 
   onVolver?: () => void;
 
-  // Continuar con el proceso de publicación.
   onElegirUbicacion?: (
     datos: DatosHabitacion,
     intencion: IntencionPublicacion
   ) => void;
 
-  // Guardar la información como borrador.
   onGuardarBorrador?: (
     datos: DatosHabitacion
   ) => void;
 };
 
 // ======================================================
-// VALIDACIONES DE FECHA
+// FUNCIONES DE FECHA
 // ======================================================
 
-/**
- * Obtiene la fecha actual de México.
- * Formato: YYYY-MM-DD.
- */
+// Obtiene la fecha actual de México en YYYY-MM-DD.
 function obtenerFechaActualMexico(): string {
   const partes = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Mexico_City",
@@ -70,23 +70,13 @@ function obtenerFechaActualMexico(): string {
   return `${obtenerParte("year")}-${obtenerParte("month")}-${obtenerParte("day")}`;
 }
 
-/**
- * Comprueba que la fecha exista realmente.
- */
+// Comprueba que la fecha exista realmente.
 function fechaValida(fecha: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
     return false;
   }
 
   const [year, month, day] = fecha.split("-").map(Number);
-
-  if (
-    year === undefined ||
-    month === undefined ||
-    day === undefined
-  ) {
-    return false;
-  }
 
   const fechaUTC = new Date(
     Date.UTC(year, month - 1, day)
@@ -97,6 +87,38 @@ function fechaValida(fecha: string): boolean {
     fechaUTC.getUTCMonth() === month - 1 &&
     fechaUTC.getUTCDate() === day
   );
+}
+
+// Convierte Date a YYYY-MM-DD sin problemas de zona horaria.
+function convertirFechaAFormato(fecha: Date): string {
+  const anio = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getDate()).padStart(2, "0");
+
+  return `${anio}-${mes}-${dia}`;
+}
+
+// Convierte YYYY-MM-DD a Date sin alterar el día.
+function convertirFormatoAFecha(valor: string): Date | null {
+  if (!valor) {
+    return null;
+  }
+
+  if (!fechaValida(valor)) {
+    return null;
+  }
+
+  const [anio, mes, dia] = valor.split("-").map(Number);
+
+  return new Date(anio, mes - 1, dia);
+}
+
+// Obtiene la fecha local de México para usarla como mínimo.
+function obtenerFechaMinima(): Date {
+  const fechaMexico = obtenerFechaActualMexico();
+  const [anio, mes, dia] = fechaMexico.split("-").map(Number);
+
+  return new Date(anio, mes - 1, dia);
 }
 
 // ======================================================
@@ -118,9 +140,9 @@ export default function PantallaPublicarHabitacion({
     datosIniciales?.titulo ?? ""
   );
 
-  const [ubicacion, setUbicacion] = useState(
-    datosIniciales?.ubicacion ?? ""
-  );
+  // const [ubicacion, setUbicacion] = useState(
+  //  datosIniciales?.ubicacion ?? ""
+  // );
 
   const [renta, setRenta] = useState(
     datosIniciales?.renta ?? ""
@@ -138,13 +160,43 @@ export default function PantallaPublicarHabitacion({
     datosIniciales?.maxRoommates ?? ""
   );
 
+  const [mostrarCalendario, setMostrarCalendario] = useState(false);
+
+  // Fecha que se muestra actualmente en el calendario.
+  const fechaSeleccionada =
+    convertirFormatoAFecha(availableFrom) ?? obtenerFechaMinima();
+
+  // ====================================================
+  // MANEJAR SELECCIÓN DEL CALENDARIO
+  // ====================================================
+
+  const manejarCambioFecha = (
+    evento: DateTimePickerEvent,
+    fecha?: Date
+  ) => {
+
+    if (evento.type === "dismissed") {
+      setMostrarCalendario(false);
+      return;
+    }
+
+    if (fecha) {
+      setAvailableFrom(convertirFechaAFormato(fecha));
+    }
+
+    // Android cierra el calendario después de seleccionar.
+    if (Platform.OS === "android") {
+      setMostrarCalendario(false);
+    }
+  };
+
   // ====================================================
   // OBTENER DATOS DEL FORMULARIO
   // ====================================================
 
   const obtenerDatos = (): DatosHabitacion => ({
     titulo: titulo.trim(),
-    ubicacion: ubicacion.trim(),
+    ubicacion: '',
     renta: renta.trim(),
     descripcion: descripcion.trim(),
     availableFrom: availableFrom.trim(),
@@ -159,9 +211,7 @@ export default function PantallaPublicarHabitacion({
     intencion: IntencionPublicacion
   ): boolean => {
 
-    // -----------------------------------------------
     // TÍTULO
-    // -----------------------------------------------
 
     if (!titulo.trim()) {
       Alert.alert(
@@ -182,9 +232,7 @@ export default function PantallaPublicarHabitacion({
       return false;
     }
 
-    // -----------------------------------------------
     // RENTA
-    // -----------------------------------------------
 
     if (!renta.trim()) {
       Alert.alert(
@@ -210,9 +258,7 @@ export default function PantallaPublicarHabitacion({
       return false;
     }
 
-    // -----------------------------------------------
     // DESCRIPCIÓN
-    // -----------------------------------------------
 
     if (descripcion.trim().length > 5000) {
       Alert.alert(
@@ -222,18 +268,15 @@ export default function PantallaPublicarHabitacion({
       return false;
     }
 
-    // -----------------------------------------------
     // FECHA DE DISPONIBILIDAD
-    // -----------------------------------------------
 
     const fecha = availableFrom.trim();
 
-    // Si se proporciona una fecha, siempre debe ser válida.
     if (fecha) {
       if (!fechaValida(fecha)) {
         Alert.alert(
           "Fecha incorrecta",
-          "Ingresa una fecha real con formato AAAA-MM-DD. Ejemplo: 2026-12-01."
+          "Selecciona una fecha válida en el calendario."
         );
         return false;
       }
@@ -247,14 +290,10 @@ export default function PantallaPublicarHabitacion({
       }
     }
 
-    // -----------------------------------------------
     // MÁXIMO DE COMPAÑEROS
-    // -----------------------------------------------
 
     const cantidadTexto = maxRoommates.trim();
 
-    // El campo es opcional, pero si se proporciona
-    // debe contener un entero entre 1 y 100.
     if (cantidadTexto) {
       const cantidad = Number(cantidadTexto);
 
@@ -272,22 +311,14 @@ export default function PantallaPublicarHabitacion({
       }
     }
 
-    // -----------------------------------------------
     // VALIDACIONES PARA BORRADOR
-    // -----------------------------------------------
 
-    // Para guardar un borrador no exigimos ubicación,
-    // descripción, fecha ni fotografías.
     if (intencion === "draft") {
       return true;
     }
 
-    // -----------------------------------------------
-    // VALIDACIONES PARA CONTINUAR
-    // -----------------------------------------------
+    // VALIDACIONES PARA PUBLICAR
 
-    // La ubicación se selecciona en el siguiente paso.
-    // La fecha sí es obligatoria antes de publicar.
     if (!fecha) {
       Alert.alert(
         "Campo requerido",
@@ -411,13 +442,13 @@ export default function PantallaPublicarHabitacion({
 
         {/* UBICACIÓN */}
 
-        <CampoFormulario
+        {/* <CampoFormulario
           etiqueta="Ubicación"
           value={ubicacion}
           onChangeText={setUbicacion}
           placeholder="Se seleccionará en el siguiente paso"
           editable={false}
-        />
+        />*/}
 
         {/* RENTA */}
 
@@ -439,14 +470,68 @@ export default function PantallaPublicarHabitacion({
           multiline
         />
 
-        {/* FECHA */}
+        {/* FECHA DE DISPONIBILIDAD */}
 
-        <CampoFormulario
-          etiqueta="Disponible a partir de"
-          value={availableFrom}
-          onChangeText={setAvailableFrom}
-          placeholder="AAAA-MM-DD (Ej. 2026-12-01)"
-        />
+        <Text style={styles.etiquetaFecha}>
+          Disponible a partir de
+        </Text>
+
+        <Pressable
+          style={styles.campoFecha}
+          onPress={() => setMostrarCalendario(true)}
+        >
+          <Text style={styles.iconoCalendario}>
+            📅
+          </Text>
+
+          <Text style={styles.textoFecha}>
+            {availableFrom
+              ? fechaSeleccionada.toLocaleDateString("es-MX", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })
+              : "Seleccionar fecha"}
+          </Text>
+
+          <Text style={styles.textoCambiarFecha}>
+            Elegir
+          </Text>
+        </Pressable>
+
+        {/* CALENDARIO */}
+
+        {mostrarCalendario && (
+          <View style={styles.contenedorCalendario}>
+
+            <DateTimePicker
+              value={fechaSeleccionada}
+              mode="date"
+              display={
+                Platform.OS === "android"
+                  ? "calendar"
+                  : "spinner"
+              }
+              minimumDate={obtenerFechaMinima()}
+              onChange={manejarCambioFecha}
+              locale="es-MX"
+            />
+
+            {/* BOTÓN PARA CERRAR EN IOS */}
+
+            {Platform.OS === "ios" && (
+              <Pressable
+                style={styles.botonListoFecha}
+                onPress={() => setMostrarCalendario(false)}
+              >
+                <Text style={styles.textoBotonListo}>
+                  Listo
+                </Text>
+              </Pressable>
+            )}
+
+          </View>
+        )}
 
         {/* MÁXIMO DE COMPAÑEROS */}
 
@@ -544,6 +629,68 @@ const styles = StyleSheet.create({
     marginTop: -4,
     marginBottom: 13,
   },
+
+  // FECHA
+
+  etiquetaFecha: {
+    color: "#4A3B50",
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 7,
+    marginTop: 12,
+  },
+
+  campoFecha: {
+    minHeight: 48,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5DCE8",
+    borderRadius: 10,
+    paddingHorizontal: 13,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  iconoCalendario: {
+    fontSize: 19,
+    marginRight: 10,
+  },
+
+  textoFecha: {
+    flex: 1,
+    color: "#493B50",
+    fontSize: 13,
+  },
+
+  textoCambiarFecha: {
+    color: "#806487",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  contenedorCalendario: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#E5DCE8",
+  },
+
+  botonListoFecha: {
+    backgroundColor: "#806487",
+    borderRadius: 9,
+    padding: 11,
+    alignItems: "center",
+    marginTop: 8,
+  },
+
+  textoBotonListo: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+
+  // BOTONES
 
   botonBorrador: {
     height: 45,

@@ -2,6 +2,24 @@
 import type { ListingStatus } from "./User.js";
 
 // ======================================================
+// FUNCION AUXILIAR PARA FORMATEAR FECHAS
+// ======================================================
+
+function formatearFecha(
+  fecha: Date | null | undefined
+): string | null {
+  if (!fecha || Number.isNaN(fecha.getTime())) {
+    return null;
+  }
+
+  const anio = fecha.getUTCFullYear();
+  const mes = String(fecha.getUTCMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getUTCDate()).padStart(2, "0");
+
+  return `${anio}-${mes}-${dia}`;
+}
+
+// ======================================================
 // PROPIEDADES DE LA PUBLICACIÓN
 // ======================================================
 
@@ -92,10 +110,6 @@ export class RoomListing {
     return this.props.maxRoommates;
   }
 
-  get publishedAt(): Date | null | undefined {
-    return this.props.publishedAt;
-  }
-
   get closedAt(): Date | null | undefined {
     return this.props.closedAt;
   }
@@ -147,7 +161,7 @@ export class RoomListing {
       data.description.length > 5000
     ) {
       throw new Error(
-        "La descripción no puede superar los 5000 caracteres.",
+        "La descripción no puede superar los 5000 caracteres."
       );
     }
 
@@ -166,19 +180,19 @@ export class RoomListing {
   public publish(): void {
     if (this.props.status !== "draft") {
       throw new Error(
-        "Solamente se pueden publicar habitaciones en estado borrador.",
+        "Solamente se pueden publicar habitaciones en estado borrador."
       );
     }
 
     if (!this.canPublish()) {
       throw new Error(
-        "Una habitación requiere al menos 3 fotografías para poder publicarse.",
+        "Una habitación requiere al menos 3 fotografías para poder publicarse."
       );
     }
 
     if (!this.props.locationId) {
       throw new Error(
-        "No puedes publicar una habitación sin ubicación.",
+        "No puedes publicar una habitación sin ubicación."
       );
     }
 
@@ -194,7 +208,7 @@ export class RoomListing {
   public pause(): void {
     if (this.props.status !== "published") {
       throw new Error(
-        "Solamente se pueden pausar publicaciones activas.",
+        "Solamente se pueden pausar publicaciones activas."
       );
     }
 
@@ -209,19 +223,19 @@ export class RoomListing {
   public reactivate(): void {
     if (this.props.status !== "paused") {
       throw new Error(
-        "Solamente se pueden reactivar publicaciones pausadas.",
+        "Solamente se pueden reactivar publicaciones pausadas."
       );
     }
 
     if (!this.canPublish()) {
       throw new Error(
-        "Se necesitan al menos 3 fotografías para reactivar la publicación.",
+        "Se necesitan al menos 3 fotografías para reactivar la publicación."
       );
     }
 
     if (!this.props.locationId) {
       throw new Error(
-        "No puedes reactivar una publicación sin ubicación.",
+        "No puedes reactivar una publicación sin ubicación."
       );
     }
 
@@ -236,7 +250,7 @@ export class RoomListing {
   public close(): void {
     if (this.props.status !== "published") {
       throw new Error(
-        "Solamente se pueden cerrar publicaciones activas.",
+        "Solamente se pueden cerrar publicaciones activas."
       );
     }
 
@@ -259,8 +273,10 @@ export class RoomListing {
       monthlyRent: this.props.monthlyRent,
       status: this.props.status,
       photoCount: this.photoCount,
-      availableFrom:
-        this.props.availableFrom?.toISOString().split("T")[0] ?? null,
+
+      // Fecha en formato YYYY-MM-DD
+      availableFrom: formatearFecha(this.props.availableFrom),
+
       maxRoommates: this.props.maxRoommates ?? null,
       publishedAt: this.props.publishedAt ?? null,
       closedAt: this.props.closedAt ?? null,
@@ -276,7 +292,7 @@ export class RoomListing {
   private ensureNotClosed(): void {
     if (this.props.status === "closed") {
       throw new Error(
-        "Una publicación cerrada no puede modificarse.",
+        "Una publicación cerrada no puede modificarse."
       );
     }
   }
@@ -290,7 +306,7 @@ export class RoomListing {
       Math.round(rent * 100) !== rent * 100
     ) {
       throw new Error(
-        "La renta mensual debe ser positiva y tener máximo dos decimales.",
+        "La renta mensual debe ser positiva y tener máximo dos decimales."
       );
     }
   }
@@ -302,7 +318,7 @@ export class RoomListing {
       title.trim().length > 200
     ) {
       throw new Error(
-        "El título debe tener entre 5 y 200 caracteres.",
+        "El título debe tener entre 5 y 200 caracteres."
       );
     }
   }
@@ -317,7 +333,7 @@ export class RoomListing {
       )
     ) {
       throw new Error(
-        "El número máximo de habitantes debe ser un entero entre 1 y 100.",
+        "El número máximo de habitantes debe ser un entero entre 1 y 100."
       );
     }
   }

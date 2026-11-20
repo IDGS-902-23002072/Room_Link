@@ -16,6 +16,7 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 
 import BarraInferior from "./componentes/BarraInferior";
@@ -27,6 +28,9 @@ import TarjetaPublicacion, {
 import {
   obtenerMisPublicaciones,
   obtenerUrlPrimeraFoto,
+  pausarAnuncio,
+  reactivarAnuncio,
+  cerrarAnuncio,
 } from "./api";
 
 // ======================================================
@@ -101,9 +105,51 @@ export default function PantallaAnunciosPrincipal({
 
   const [error, setError] = useState<string | null>(null);
 
-  // ======================================================
+  const [procesando, setProcesando] =
+    useState<string | null>(null);
+
+  // ====================================================
+  // CONVERTIR RESPUESTA DEL BACKEND
+  // ====================================================
+
+  const convertirPublicaciones = useCallback(
+    (respuesta: Awaited<ReturnType<typeof obtenerMisPublicaciones>>) => {
+      return respuesta
+        .filter(
+          (habitacion) =>
+            habitacion.status === "published" ||
+            habitacion.status === "paused" ||
+            habitacion.status === "closed"
+        )
+        .map((habitacion) => {
+          const estado = convertirEstado(
+            habitacion.status as EstadoBD
+          );
+
+          return {
+            id: habitacion.id,
+            titulo: habitacion.title,
+
+            precio: `$${Number(
+              habitacion.monthlyRent
+            ).toLocaleString("es-MX")}`,
+
+            estado: estado!,
+
+            fotosCount: habitacion.photosCount,
+
+            detalle: `${habitacion.photosCount} fotografías`,
+
+            imagen: obtenerUrlPrimeraFoto(habitacion.id),
+          };
+        });
+    },
+    []
+  );
+
+  // ====================================================
   // CONSULTAR PUBLICACIONES
-  // ======================================================
+  // ====================================================
 
   const cargarPublicaciones = useCallback(async () => {
     setCargando(true);
@@ -112,36 +158,8 @@ export default function PantallaAnunciosPrincipal({
     try {
       const respuesta = await obtenerMisPublicaciones();
 
-      const publicacionesConvertidas: Publicacion[] =
-        respuesta
-          .filter(
-            (habitacion) =>
-              habitacion.status === "published" ||
-              habitacion.status === "paused" ||
-              habitacion.status === "closed"
-          )
-          .map((habitacion) => {
-            const estado = convertirEstado(
-              habitacion.status as EstadoBD
-            );
-
-            return {
-              id: habitacion.id,
-              titulo: habitacion.title,
-
-              precio: `$${Number(
-                habitacion.monthlyRent
-              ).toLocaleString("es-MX")}`,
-
-              estado: estado!,
-
-              fotosCount: habitacion.photosCount,
-
-              detalle: `${habitacion.photosCount} fotografías`,
-
-              imagen: obtenerUrlPrimeraFoto(habitacion.id),
-            };
-          });
+      const publicacionesConvertidas =
+        convertirPublicaciones(respuesta);
 
       setPublicaciones(publicacionesConvertidas);
     } catch (error) {
@@ -154,82 +172,166 @@ export default function PantallaAnunciosPrincipal({
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [convertirPublicaciones]);
 
-  // ======================================================
+  // ====================================================
   // CARGAR PUBLICACIONES AL ENTRAR
-  // ======================================================
+  // ====================================================
 
   useEffect(() => {
-    let activo = true;
+  let activo = true;
 
-    const cargar = async () => {
-      setCargando(true);
-      setError(null);
+  const cargar = async () => {
+    setError(null);
 
-      try {
-        const respuesta = await obtenerMisPublicaciones();
+    try {
+      const respuesta = await obtenerMisPublicaciones();
 
-        if (!activo) return;
+      if (!activo) return;
 
-        const publicacionesConvertidas: Publicacion[] =
-          respuesta
-            .filter(
-              (habitacion) =>
-                habitacion.status === "published" ||
-                habitacion.status === "paused" ||
-                habitacion.status === "closed"
-            )
-            .map((habitacion) => {
-              const estado = convertirEstado(
-                habitacion.status as EstadoBD
-              );
+      setPublicaciones(convertirPublicaciones(respuesta));
+    } catch (error) {
+      if (!activo) return;
 
-              return {
-                id: habitacion.id,
-                titulo: habitacion.title,
+      const mensaje =
+        error instanceof Error
+          ? error.message
+          : "Ocurrió un error al cargar tus publicaciones.";
 
-                precio: `$${Number(
-                  habitacion.monthlyRent
-                ).toLocaleString("es-MX")}`,
-
-                estado: estado!,
-
-                fotosCount: habitacion.photosCount,
-
-                detalle: `${habitacion.photosCount} fotografías`,
-
-                imagen: obtenerUrlPrimeraFoto(habitacion.id),
-              };
-            });
-
-        setPublicaciones(publicacionesConvertidas);
-      } catch (error) {
-        if (!activo) return;
-
-        const mensaje =
-          error instanceof Error
-            ? error.message
-            : "Ocurrió un error al cargar tus publicaciones.";
-
-        setError(mensaje);
-      } finally {
-        if (activo) {
-          setCargando(false);
-        }
+      setError(mensaje);
+    } finally {
+      if (activo) {
+        setCargando(false);
       }
-    };
+    }
+  };
 
-    cargar();
+  cargar();
 
-    return () => {
-      activo = false;
-    };
-  }, []);
+  return () => {
+    activo = false;
+  };
+}, [convertirPublicaciones]);
 
-  // ======================================================
+  // ====================================================
+  // CAMBIAR ESTADO DE UNA PUBLICACIÓN
+  // ====================================================
+
+  const ejecutarAccion = async (
+    id: string,
+    accion: () => Promise<unknown>,
+    mensajeExito: string
+  ) => {
+    if (procesando) return;
+
+    setProcesando(id);
+
+    try {
+      await accion();
+
+      // Consultar nuevamente los estados desde MySQL.
+      const respuesta = await obtenerMisPublicaciones();
+
+      setPublicaciones(convertirPublicaciones(respuesta));
+
+      Alert.alert("Operación exitosa", mensajeExito);
+    } catch (error) {
+      const mensaje =
+        error instanceof Error
+          ? error.message
+          : "No se pudo actualizar la publicación.";
+
+      Alert.alert("Error", mensaje);
+    } finally {
+      setProcesando(null);
+    }
+  };
+
+  // ====================================================
+  // PAUSAR PUBLICACIÓN
+  // ====================================================
+
+  const confirmarPausar = (id: string) => {
+    Alert.alert(
+      "Pausar publicación",
+      "¿Estás segura de que deseas pausar esta publicación? Dejará de estar disponible para quienes buscan habitación.",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Pausar",
+          onPress: () => {
+            void ejecutarAccion(
+              id,
+              () => pausarAnuncio(id),
+              "La publicación se movió a la sección Pausadas."
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  // ====================================================
+  // REACTIVAR PUBLICACIÓN
+  // ====================================================
+
+  const confirmarReactivar = (id: string) => {
+    Alert.alert(
+      "Reactivar publicación",
+      "¿Deseas volver a publicar esta habitación?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Reactivar",
+          onPress: () => {
+            void ejecutarAccion(
+              id,
+              () => reactivarAnuncio(id),
+              "La publicación volvió a estar activa."
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  // ====================================================
+  // CERRAR PUBLICACIÓN
+  // ====================================================
+
+  const confirmarCerrar = (id: string) => {
+    Alert.alert(
+      "Cerrar publicación",
+      "¿Estás segura de que deseas cerrar esta publicación? Esta acción cambiará su estado a cerrada.",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Cerrar publicación",
+          style: "destructive",
+          onPress: () => {
+            void ejecutarAccion(
+              id,
+              () => cerrarAnuncio(id),
+              "La publicación se movió a la sección Cerradas."
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  // ====================================================
   // FILTRAR PUBLICACIONES
-  // ======================================================
+  // ====================================================
 
   const publicacionesFiltradas = useMemo(() => {
     const estadoBuscado = convertirFiltro(filtro);
@@ -240,9 +342,9 @@ export default function PantallaAnunciosPrincipal({
     );
   }, [publicaciones, filtro]);
 
-  // ======================================================
+  // ====================================================
   // CONTAR PUBLICACIONES POR ESTADO
-  // ======================================================
+  // ====================================================
 
   const contar = (estado: Publicacion["estado"]): number => {
     return publicaciones.filter(
@@ -250,17 +352,17 @@ export default function PantallaAnunciosPrincipal({
     ).length;
   };
 
-  // ======================================================
+  // ====================================================
   // ACTUALIZAR AL DESLIZAR HACIA ABAJO
-  // ======================================================
+  // ====================================================
 
   const actualizar = useCallback(() => {
-    cargarPublicaciones();
+    void cargarPublicaciones();
   }, [cargarPublicaciones]);
 
-  // ======================================================
+  // ====================================================
   // INTERFAZ
-  // ======================================================
+  // ====================================================
 
   return (
     <SafeAreaView style={styles.pantalla}>
@@ -291,6 +393,7 @@ export default function PantallaAnunciosPrincipal({
           return (
             <Pressable
               key={item}
+              disabled={procesando !== null}
               onPress={() => setFiltro(item)}
               style={[
                 styles.pestana,
@@ -358,6 +461,9 @@ export default function PantallaAnunciosPrincipal({
               key={publicacion.id}
               publicacion={publicacion}
               onEditar={onEditarPublicacion}
+              onPausar={confirmarPausar}
+              onReactivar={confirmarReactivar}
+              onCerrar={confirmarCerrar}
             />
           ))
         ) : (
@@ -371,6 +477,7 @@ export default function PantallaAnunciosPrincipal({
         <Pressable
           style={styles.botonCrear}
           onPress={onCrearPublicacion}
+          disabled={procesando !== null}
         >
           <Text style={styles.textoBoton}>
             + Crear publicación

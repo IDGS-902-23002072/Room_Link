@@ -90,18 +90,26 @@ function esObjeto(
   );
 }
 
-// ==========================================
-// VALIDACIÓN DE FECHAS
-// ==========================================
+
 
 function obtenerFechaHoy(): string {
-  return new Intl.DateTimeFormat("en-CA", {
+  const partes = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Mexico_City",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).formatToParts(new Date());
+
+  const obtenerParte = (tipo: string): string => {
+    return partes.find(
+      (parte) => parte.type === tipo
+    )?.value ?? "";
+  };
+
+  return `${obtenerParte("year")}-${obtenerParte("month")}-${obtenerParte("day")}`;
 }
+
+
 
 function fechaValida(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -118,17 +126,55 @@ function fechaValida(value: string): boolean {
     return false;
   }
 
-  const date = new Date(year, month - 1, day);
+  const fecha = new Date(
+    Date.UTC(year, month - 1, day)
+  );
 
   return (
-    date.getFullYear() === year &&
-    date.getMonth() === month - 1 &&
-    date.getDate() === day
+    fecha.getUTCFullYear() === year &&
+    fecha.getUTCMonth() === month - 1 &&
+    fecha.getUTCDate() === day
   );
 }
 
 function fechaNoAnteriorAHoy(value: string): boolean {
   return value >= obtenerFechaHoy();
+}
+
+function obtenerFechaComoYYYYMMDD(
+  value: unknown
+): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const texto = value.trim();
+
+    if (!texto) {
+      return null;
+    }
+
+    const fecha = texto.slice(0, 10);
+
+    return fechaValida(fecha) ? fecha : null;
+  }
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      return null;
+    }
+
+    const anio = value.getUTCFullYear();
+    const mes = String(value.getUTCMonth() + 1).padStart(2, "0");
+    const dia = String(value.getUTCDate()).padStart(2, "0");
+
+    const fecha = `${anio}-${mes}-${dia}`;
+
+    return fechaValida(fecha) ? fecha : null;
+  }
+
+  return null;
 }
 
 // ==========================================
@@ -156,7 +202,6 @@ function validarTexto(
 function validarDatosHabitacion(
   body: FormBody
 ): { datos?: DatosHabitacion; error?: string } {
-
   const titleValue =
     obtenerTexto(obtenerValor(body, "titulo")) ??
     obtenerTexto(obtenerValor(body, "title"));
@@ -261,9 +306,6 @@ function validarDatosHabitacion(
     longitude: number | null;
   };
 
-  // Los tres campos vacíos permiten guardar
-  // un borrador sin ubicación.
-
   if (
     !tieneAddress &&
     !tieneLatitude &&
@@ -275,10 +317,6 @@ function validarDatosHabitacion(
       longitude: null,
     };
   } else {
-
-    // Si se proporciona ubicación, deben
-    // enviarse los tres campos.
-
     if (
       !tieneAddress ||
       !tieneLatitude ||
@@ -328,16 +366,18 @@ function validarDatosHabitacion(
     availableFromValue !== undefined &&
     availableFromValue.trim() !== ""
   ) {
+    const fecha = availableFromValue.trim();
+
     if (
-      !fechaValida(availableFromValue) ||
-      !fechaNoAnteriorAHoy(availableFromValue)
+      !fechaValida(fecha) ||
+      !fechaNoAnteriorAHoy(fecha)
     ) {
       return {
         error: "La fecha de disponibilidad debe ser hoy o una fecha futura.",
       };
     }
 
-    availableFrom = availableFromValue;
+    availableFrom = fecha;
   }
 
   // ------------------------------------------
@@ -393,7 +433,6 @@ async function procesarFotografias(
   photos?: RoomPhotoInput[];
   error?: string;
 }> {
-
   if (files.length > MAXIMO_FOTOGRAFIAS) {
     return {
       error: "No puedes enviar más de 10 fotografías.",
@@ -403,7 +442,6 @@ async function procesarFotografias(
   const photos: RoomPhotoInput[] = [];
 
   for (const file of files) {
-
     if (
       typeof file === "string" ||
       !TIPOS_IMAGEN.includes(file.type)
@@ -423,7 +461,8 @@ async function procesarFotografias(
     }
 
     const fileName =
-      file.name.split(/[\\/]/).pop() || `${randomUUID()}.jpg`;
+      file.name.split(/[\\/]/).pop() ||
+      `${randomUUID()}.jpg`;
 
     if (fileName.length > 255) {
       return {
@@ -446,10 +485,9 @@ async function procesarFotografias(
 // ==========================================
 
 export class RoomsController {
-
   constructor(
     private roomsService: RoomsService
-  ) {}
+  ) { }
 
   // ==========================================
   // LISTAR HABITACIONES PUBLICADAS
@@ -457,7 +495,6 @@ export class RoomsController {
 
   list = async (c: Context) => {
     try {
-
       const limitValue = c.req.query("limit") ?? "20";
       const offsetValue = c.req.query("offset") ?? "0";
 
@@ -493,9 +530,7 @@ export class RoomsController {
       );
 
       return c.json(RoomView.toList(rooms), 200);
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message
@@ -511,8 +546,8 @@ export class RoomsController {
 
   listByHost = async (c: AuthContext) => {
     try {
-
       const hostId = c.req.param("hostId");
+      const principal = c.get("auth");
 
       if (!hostId?.trim()) {
         return c.json(
@@ -521,12 +556,25 @@ export class RoomsController {
         );
       }
 
+      // Un usuario solo puede consultar sus publicaciones.
+      // El administrador puede consultar las de cualquier anfitrión.
+      if (
+        hostId !== principal.userId &&
+        !principal.roles.includes("admin")
+      ) {
+        return c.json(
+          {
+            error: "No tienes permiso para consultar estas publicaciones.",
+            code: "FORBIDDEN",
+          },
+          403
+        );
+      }
+
       const rooms = await this.roomsService.listByHost(hostId);
 
       return c.json(RoomView.toList(rooms), 200);
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message
@@ -542,7 +590,6 @@ export class RoomsController {
 
   getById = async (c: Context) => {
     try {
-
       const id = c.req.param("id");
 
       if (!id?.trim()) {
@@ -567,9 +614,7 @@ export class RoomsController {
         },
         200
       );
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message
@@ -585,7 +630,6 @@ export class RoomsController {
 
   getPhoto = async (c: Context) => {
     try {
-
       const listingId = c.req.param("id");
       const photoId = c.req.param("photoId");
 
@@ -611,9 +655,7 @@ export class RoomsController {
           "Cache-Control": "private, max-age=3600",
         }
       );
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message
@@ -629,7 +671,6 @@ export class RoomsController {
 
   getFirstPhoto = async (c: AuthContext) => {
     try {
-
       const listingId = c.req.param("id");
 
       if (!listingId) {
@@ -653,9 +694,7 @@ export class RoomsController {
           "Cache-Control": "private, max-age=3600",
         }
       );
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message
@@ -671,7 +710,6 @@ export class RoomsController {
 
   uploadPhotos = async (c: AuthContext) => {
     try {
-
       const body = await c.req.parseBody({
         all: true,
       }) as FormBody;
@@ -701,9 +739,7 @@ export class RoomsController {
         },
         200
       );
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message
@@ -719,7 +755,6 @@ export class RoomsController {
 
   create = async (c: AuthContext) => {
     try {
-
       const body = await c.req.parseBody({
         all: true,
       }) as FormBody;
@@ -763,13 +798,9 @@ export class RoomsController {
         monthlyRent: datos.monthlyRent,
         availableFrom: datos.availableFrom,
         maxRoommates: datos.maxRoommates,
-
-        // IMPORTANTE:
-        // Enviar null explícitamente y no undefined.
         address: datos.address,
         latitude: datos.latitude,
         longitude: datos.longitude,
-
         photos: resultadoFotos.photos ?? [],
       });
 
@@ -780,9 +811,7 @@ export class RoomsController {
         },
         201
       );
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message
@@ -798,7 +827,6 @@ export class RoomsController {
 
   update = async (c: AuthContext) => {
     try {
-
       const id = c.req.param("id");
 
       if (!id?.trim()) {
@@ -852,7 +880,6 @@ export class RoomsController {
       // deben conservar ubicación y fecha.
 
       if (existing.status !== "draft") {
-
         if (
           datos.address === null ||
           datos.latitude === null ||
@@ -939,7 +966,6 @@ export class RoomsController {
       const usedPhotoIds = new Set<string>();
 
       for (const rawItem of photosOrder) {
-
         if (!esObjeto(rawItem)) {
           return c.json(
             { error: "La información de una fotografía no es válida." },
@@ -952,7 +978,6 @@ export class RoomsController {
           typeof rawItem.id === "string" &&
           rawItem.id.trim().length > 0
         ) {
-
           const photoId = rawItem.id.trim();
 
           if (usedPhotoIds.has(photoId)) {
@@ -979,7 +1004,6 @@ export class RoomsController {
           rawItem.fileIndex >= 0 &&
           rawItem.fileIndex < newPhotos.length
         ) {
-
           const index = rawItem.fileIndex;
 
           if (usedFileIndexes.has(index)) {
@@ -1053,12 +1077,9 @@ export class RoomsController {
           monthlyRent: datos.monthlyRent,
           availableFrom: datos.availableFrom,
           maxRoommates: datos.maxRoommates,
-
-          // Enviar null explícitamente.
           address: datos.address,
           latitude: datos.latitude,
           longitude: datos.longitude,
-
           photos,
         }
       );
@@ -1070,9 +1091,7 @@ export class RoomsController {
         },
         200
       );
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message
@@ -1088,7 +1107,6 @@ export class RoomsController {
 
   publish = async (c: AuthContext) => {
     try {
-
       const id = c.req.param("id");
 
       if (!id?.trim()) {
@@ -1146,15 +1164,15 @@ export class RoomsController {
         );
       }
 
-      if (!existing.availableFrom) {
+      const fechaDisponibilidad =
+        obtenerFechaComoYYYYMMDD(existing.availableFrom);
+
+      if (!fechaDisponibilidad) {
         return c.json(
-          { error: "Debes registrar una fecha de disponibilidad antes de publicar." },
+          { error: "Debes registrar una fecha de disponibilidad válida antes de publicar." },
           400
         );
       }
-
-      const fechaDisponibilidad =
-        existing.availableFrom.toISOString().slice(0, 10);
 
       if (
         !fechaValida(fechaDisponibilidad) ||
@@ -1175,9 +1193,7 @@ export class RoomsController {
         },
         200
       );
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message
@@ -1193,7 +1209,6 @@ export class RoomsController {
 
   pause = async (c: AuthContext) => {
     try {
-
       const id = c.req.param("id");
 
       if (!id?.trim()) {
@@ -1232,9 +1247,7 @@ export class RoomsController {
         },
         200
       );
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message
@@ -1250,7 +1263,6 @@ export class RoomsController {
 
   close = async (c: AuthContext) => {
     try {
-
       const id = c.req.param("id");
 
       if (!id?.trim()) {
@@ -1289,9 +1301,7 @@ export class RoomsController {
         },
         200
       );
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message
@@ -1307,7 +1317,6 @@ export class RoomsController {
 
   reactivate = async (c: AuthContext) => {
     try {
-
       const id = c.req.param("id");
 
       if (!id?.trim()) {
@@ -1339,7 +1348,7 @@ export class RoomsController {
         );
       }
 
-      if (!existing.locationId || !existing.availableFrom) {
+      if (!existing.locationId) {
         return c.json(
           { error: "La publicación tiene datos incompletos." },
           400
@@ -1347,7 +1356,14 @@ export class RoomsController {
       }
 
       const fechaDisponibilidad =
-        existing.availableFrom.toISOString().slice(0, 10);
+        obtenerFechaComoYYYYMMDD(existing.availableFrom);
+
+      if (!fechaDisponibilidad) {
+        return c.json(
+          { error: "La publicación no tiene una fecha de disponibilidad válida." },
+          400
+        );
+      }
 
       if (
         !fechaValida(fechaDisponibilidad) ||
@@ -1370,9 +1386,7 @@ export class RoomsController {
         },
         200
       );
-
     } catch (err: unknown) {
-
       const message =
         err instanceof Error
           ? err.message

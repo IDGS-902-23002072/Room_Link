@@ -47,6 +47,36 @@ export interface RoomLocationInput {
 }
 
 // ======================================================
+// FILTROS DEL CATÁLOGO DE PUBLICACIONES
+// ======================================================
+
+export interface RoomFeedFilters {
+  minRent?: number;
+  maxRent?: number;
+  excludeHostId?: string;
+  search?: string;
+}
+
+// ======================================================
+// ELEMENTO DEL CATÁLOGO DE PUBLICACIONES
+// ======================================================
+
+export interface RoomFeedItem {
+  id: string;
+  hostId: string;
+  hostName: string | null;
+  title: string;
+  description: string | null;
+  monthlyRent: number;
+  availableFrom: Date | null;
+  maxRoommates: number | null;
+  photoCount: number;
+  address: string | null;
+  zone: string | null;
+  city: string | null;
+  publishedAt: Date | null;
+}
+// ======================================================
 // REPOSITORIO DE PUBLICACIONES
 // ======================================================
 

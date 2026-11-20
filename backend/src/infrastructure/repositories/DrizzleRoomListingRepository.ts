@@ -45,9 +45,7 @@ export class DrizzleRoomListingRepository
       monthlyRent: Number(row.monthlyRent),
       status: row.status,
       photoCount: photoTotal,
-      availableFrom: row.availableFrom
-        ? new Date(`${row.availableFrom}T00:00:00`)
-        : null,
+      availableFrom: convertirFechaMySQL(row.availableFrom),
       maxRoommates: row.maxRoommates,
       publishedAt: row.publishedAt
         ? new Date(row.publishedAt)
@@ -169,9 +167,7 @@ export class DrizzleRoomListingRepository
       title: row.title,
       description: row.description ?? null,
       monthlyRent: Number(row.monthlyRent),
-      availableFrom: row.availableFrom
-        ? new Date(`${row.availableFrom}T00:00:00`)
-        : null,
+      availableFrom: convertirFechaMySQL(row.availableFrom),
       maxRoommates: row.maxRoommates ?? null,
       photoCount: Number(row.photoCount),
       address: row.address ?? null,
@@ -657,4 +653,28 @@ export class DrizzleRoomListingRepository
       position: photo.position,
     };
   }
+}
+
+// ======================================================
+// CONVERSIÓN DE FECHAS DE MYSQL
+// ======================================================
+
+function convertirFechaMySQL(
+  fecha: string | Date | null
+): Date | null {
+  if (fecha === null) {
+    return null;
+  }
+
+  if (fecha instanceof Date) {
+    return new Date(
+      Date.UTC(
+        fecha.getUTCFullYear(),
+        fecha.getUTCMonth(),
+        fecha.getUTCDate(),
+      ),
+    );
+  }
+
+  return new Date(`${fecha.slice(0, 10)}T00:00:00.000Z`);
 }

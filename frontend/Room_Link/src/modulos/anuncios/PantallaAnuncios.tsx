@@ -488,14 +488,15 @@ export function PantallaAnuncios() {
   // ====================================================
 
   if (vista === "ubicacion") {
-    return (
-      <PantallaUbicacion
-        ubicacionInicial={datosHabitacion.ubicacion}
-        onVolver={() => setVista("publicar")}
-        onContinuar={continuarUbicacion}
-      />
-    );
-  }
+  return (
+    <PantallaUbicacion
+      ubicacionInicial={datosHabitacion.ubicacion}
+      coordenadasIniciales={coordenadas}
+      onVolver={() => setVista("publicar")}
+      onContinuar={continuarUbicacion}
+    />
+  );
+}
 
   // ====================================================
   // PANTALLA DE FOTOGRAFÍAS

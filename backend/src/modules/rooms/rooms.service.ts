@@ -82,19 +82,17 @@ function obtenerFechaActualMexico(): string {
   }).formatToParts(new Date());
 
   const obtenerParte = (tipo: string): string => {
-    return partes.find((parte) => parte.type === tipo)?.value ?? "";
+    return partes.find(
+      (parte) => parte.type === tipo
+    )?.value ?? "";
   };
 
-  const year = obtenerParte("year");
-  const month = obtenerParte("month");
-  const day = obtenerParte("day");
-
-  return `${year}-${month}-${day}`;
+  return `${obtenerParte("year")}-${obtenerParte("month")}-${obtenerParte("day")}`;
 }
 
 /**
- * Comprueba que una fecha tenga el formato YYYY-MM-DD
- * y que realmente exista en el calendario.
+ * Comprueba que la fecha tenga formato YYYY-MM-DD
+ * y que exista realmente en el calendario.
  */
 function fechaValida(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -111,12 +109,14 @@ function fechaValida(value: string): boolean {
     return false;
   }
 
-  const date = new Date(year, month - 1, day);
+  const fechaUTC = new Date(
+    Date.UTC(year, month - 1, day)
+  );
 
   return (
-    date.getFullYear() === year &&
-    date.getMonth() === month - 1 &&
-    date.getDate() === day
+    fechaUTC.getUTCFullYear() === year &&
+    fechaUTC.getUTCMonth() === month - 1 &&
+    fechaUTC.getUTCDate() === day
   );
 }
 
@@ -125,7 +125,7 @@ function fechaValida(value: string): boolean {
  * Permite null para guardar borradores incompletos.
  */
 function validarFechaDisponibilidad(
-  fecha: string | null | undefined,
+  fecha: string | null | undefined
 ): Date | null {
   if (fecha === null || fecha === undefined || fecha === "") {
     return null;
@@ -133,7 +133,7 @@ function validarFechaDisponibilidad(
 
   if (!fechaValida(fecha)) {
     throw new Error(
-      "La fecha de disponibilidad no tiene un formato válido.",
+      "La fecha de disponibilidad no tiene un formato válido."
     );
   }
 
@@ -141,29 +141,34 @@ function validarFechaDisponibilidad(
 
   if (fecha < hoy) {
     throw new Error(
-      "La habitación no puede estar disponible desde una fecha pasada.",
+      "La habitación no puede estar disponible desde una fecha pasada."
     );
   }
 
+  // Guardamos la fecha como medianoche UTC.
   return new Date(`${fecha}T00:00:00.000Z`);
 }
 
 /**
- * Comprueba que una publicación tenga una fecha de disponibilidad
- * válida antes de publicarse o reactivarse.
+ * Comprueba que exista una fecha de disponibilidad válida
+ * antes de publicar o reactivar.
  */
 function validarFechaRequerida(fecha: Date | null): void {
   if (!fecha || Number.isNaN(fecha.getTime())) {
     throw new Error(
-      "Debes registrar una fecha de disponibilidad antes de publicar.",
+      "Debes registrar una fecha de disponibilidad antes de publicar."
     );
   }
 
-  const fechaTexto = fecha.toISOString().slice(0, 10);
+  const anio = fecha.getUTCFullYear();
+  const mes = String(fecha.getUTCMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getUTCDate()).padStart(2, "0");
+
+  const fechaTexto = `${anio}-${mes}-${dia}`;
 
   if (fechaTexto < obtenerFechaActualMexico()) {
     throw new Error(
-      "La habitación no puede estar disponible desde una fecha pasada.",
+      "La habitación no puede estar disponible desde una fecha pasada."
     );
   }
 }

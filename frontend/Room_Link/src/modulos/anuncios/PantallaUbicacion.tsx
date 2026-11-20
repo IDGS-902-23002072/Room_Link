@@ -35,7 +35,7 @@ type Coordenadas = {
 
 type Props = {
   ubicacionInicial?: string;
-
+  coordenadasIniciales?: Coordenadas | null;
   onVolver?: () => void;
 
   onContinuar?: (
@@ -61,6 +61,7 @@ const REGION_INICIAL: Region = {
 
 export default function PantallaUbicacion({
   ubicacionInicial,
+  coordenadasIniciales,
   onVolver,
   onContinuar,
 }: Props) {
@@ -69,12 +70,16 @@ export default function PantallaUbicacion({
   // ESTADOS
   // ====================================================
 
-  const [region, setRegion] = useState<Region>(
-    REGION_INICIAL
-  );
+  const [region, setRegion] = useState<Region>(() => ({
+    ...REGION_INICIAL,
+    ...(coordenadasIniciales ?? {}),
+  }));
+
 
   const [coordenadas, setCoordenadas] =
-    useState<Coordenadas | null>(null);
+    useState<Coordenadas | null>(
+      coordenadasIniciales ?? null
+    );
 
   const [direccion, setDireccion] = useState(
     ubicacionInicial ?? ""
@@ -95,6 +100,14 @@ export default function PantallaUbicacion({
       ...actual,
       ...punto,
     }));
+  };
+
+  const manejarCambioDireccion = (texto: string) => {
+    setDireccion(texto);
+
+    // Si cambia la dirección, las coordenadas anteriores
+    // dejan de considerarse confirmadas.
+    setCoordenadas(null);
   };
 
   // ====================================================
@@ -235,7 +248,7 @@ export default function PantallaUbicacion({
 
     Keyboard.dismiss();
     setCargando(true);
-
+    setCoordenadas(null);
     try {
       const resultados = await Location.geocodeAsync(
         direccionBuscada
@@ -394,7 +407,7 @@ export default function PantallaUbicacion({
         <TextInput
           style={styles.inputDireccion}
           value={direccion}
-          onChangeText={setDireccion}
+          onChangeText={manejarCambioDireccion}
           placeholder="Escribe calle, número, colonia y ciudad..."
           placeholderTextColor="#A99BAE"
           multiline
