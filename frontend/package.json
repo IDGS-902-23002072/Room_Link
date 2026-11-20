@@ -9,8 +9,9 @@
     "ios": "npm --prefix Room_Link run ios",
     "web": "npm --prefix Room_Link run web",
     "build:web": "npm --prefix Room_Link run build:web",
-    "test": "vitest run",
+    "test": "vitest run tests/modules.unit.test.js",
     "test:e2e": "node --test tests/e2e/*.e2e.mjs",
+    "test:e2e:pw": "playwright test",
     "check": "npm test && npm run build:web"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
     "react-native-web": "~0.21.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "puppeteer-core": "^25.18.1",
     "vitest": "5.1.0"
   }
