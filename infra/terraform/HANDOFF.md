@@ -5,14 +5,15 @@
 
 ---
 
-## ✅ Lo que YA está desplegado (en Azure, canadacentral)
-El `terraform apply` creó, en el grupo `rg-roomlink-prod`:
+## ✅ Lo que YA está desplegado (en Azure, canadacentral) — **TERRAFORM COMPLETO**
+`terraform apply` terminó con **"Apply complete"**. En el grupo `rg-roomlink-prod` quedó creado y en el state:
 - Resource group, VNet, subnet, IP pública estática, NIC.
-- **VM `vm-roomlink-prod`** — `Standard_B2pls_v2` (ARM Ampere, 2 vCPU / 4 GiB), Ubuntu 24.04 `server-arm64`. **Creada OK.**
-- El NSG `nsg-roomlink-prod` **existe en Azure** pero **NO está en el state de Terraform** (falló con "already exists" / bug transitorio del provider). Hay que **importarlo** (ver abajo).
+- **VM `vm-roomlink-prod`** — `Standard_B2pls_v2` (ARM Ampere, 2 vCPU / 4 GiB), Ubuntu 24.04 `server-arm64`. ✅
+- **NSG `nsg-roomlink-prod`** — importado al state ✅ y **asociado a la NIC** ✅.
 
-La VM, al bootear, corre el `custom_data` (cloud-init) que instala: swap 2 GB, Docker, **MySQL 8.4** (contenedor, buffer pool 512M), **Node 22**, **Caddy** (HTTPS automático). Eso tarda unos minutos tras crearse la VM. El código de la app lo sube después el CD (GitHub Actions), no el cloud-init.
+La VM, al bootear, corre el `custom_data` (cloud-init) que instala: swap 2 GB, Docker, **MySQL 8.4** (contenedor, buffer pool 512M), **Node 22**, **Caddy** (HTTPS automático). Eso tarda ~3-5 min tras crearse la VM. El código de la app lo sube después el CD (GitHub Actions), no el cloud-init.
 
+- **IP pública:** `20.220.190.162`
 - **FQDN (estable):** `roomlink-prod-xdg80v.canadacentral.cloudapp.azure.com`
 - **API URL:** `https://roomlink-prod-xdg80v.canadacentral.cloudapp.azure.com`
 - La móvil ya apunta ahí (`frontend/Room_Link/.env.production`).
@@ -21,26 +22,18 @@ La VM, al bootear, corre el `custom_data` (cloud-init) que instala: swap 2 GB, D
 
 ## ⬜ Lo que FALTA (en orden)
 
-### 1. Terminar Terraform (importar NSG + crear la asociación)
+> Terraform YA terminó (NSG importado + asociación creada). Se arranca directo desde aquí.
+
+### 1. Confirmar que la VM terminó el cloud-init (esperá ~3-5 min tras crear la VM)
 ```bash
-cd infra/terraform
-
-terraform import azurerm_network_security_group.vm \
-  "/subscriptions/e2641be1-af9a-4d98-a264-208a2adbec72/resourceGroups/rg-roomlink-prod/providers/Microsoft.Network/networkSecurityGroups/nsg-roomlink-prod"
-
-terraform apply -auto-approve   # crea la última pieza: NIC↔NSG association
-```
-Al terminar, `terraform apply` debe decir "Apply complete" sin errores.
-
-### 2. Confirmar que la VM terminó el cloud-init
-```bash
-terraform output -raw ssh_private_key > /tmp/roomlink_key && chmod 600 /tmp/roomlink_key
+terraform -chdir=infra/terraform output -raw ssh_private_key > /tmp/roomlink_key && chmod 600 /tmp/roomlink_key
 ssh -i /tmp/roomlink_key azureuser@roomlink-prod-xdg80v.canadacentral.cloudapp.azure.com \
   'sudo docker ps; systemctl is-enabled roomlink; ls /opt/roomlink'
 # Debe verse el contenedor roomlink-mysql corriendo y el .env en /opt/roomlink.
+# Si SSH rechaza al toque, esperá 1-2 min más (la VM recién arranca).
 ```
 
-### 3. Cargar GitHub Secrets (para el CD `release.yml`)
+### 2. Cargar GitHub Secrets (para el CD `release.yml`)
 ```bash
 gh secret set AZURE_API_URL    --body "$(terraform -chdir=infra/terraform output -raw api_url)"
 gh secret set AZURE_VM_HOST    --body "$(terraform -chdir=infra/terraform output -raw vm_fqdn)"
@@ -48,14 +41,14 @@ gh secret set AZURE_VM_USER    --body "azureuser"
 gh secret set AZURE_VM_SSH_KEY --body "$(terraform -chdir=infra/terraform output -raw ssh_private_key)"
 ```
 
-### 4. Disparar el despliegue del código (lo hace el usuario)
+### 3. Disparar el despliegue del código (lo hace el usuario)
 `release.yml` corre al pushear un tag:
 ```bash
 git tag v1.0.0 && git push origin v1.0.0
 ```
 El workflow: build web (`expo export` → `backend/public`) → `scp`+`ssh` a la VM → migraciones → health-check.
 
-### 5. Verificar
+### 4. Verificar
 ```bash
 curl -sf https://roomlink-prod-xdg80v.canadacentral.cloudapp.azure.com/ready
 # espera {"ready":true,...}. Caddy tarda ~1 min la 1ª vez en emitir el cert TLS.
