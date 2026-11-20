@@ -1,6 +1,31 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { solicitud } from '@/modulos/compatibilidad/api';
+
+export type RoomCostKind =
+  | 'rent'
+  | 'service'
+  | 'deposit'
+  | 'maintenance'
+  | 'other';
+
+export interface ReglasInmuebleBackend {
+  visitsPolicy: string | null;
+  partiesAllowed: boolean;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+  petsAllowed: boolean;
+  smokingAllowed: boolean;
+  commonAreasNotes: string | null;
+  extraRules: string | null;
+}
+
+export interface CostoInmuebleBackend {
+  id?: string;
+  kind: RoomCostKind;
+  concept: string;
+  amount: number;
+  isIncluded: boolean;
+  isProrated: boolean;
+}
 
 export interface DetalleInmuebleBackend {
   id: string;
@@ -22,33 +47,9 @@ export interface DetalleInmuebleBackend {
     fileName: string;
     position: number;
   }[];
+  rules: ReglasInmuebleBackend | null;
+  costItems: CostoInmuebleBackend[];
 }
-
-export interface ConfiguracionM08 {
-  reglas: {
-    visitas: string;
-    ruido: string;
-    mascotas: string;
-    tabaco: string;
-  };
-  reglasAdicionales: string;
-  deposito: string;
-  serviciosIncluidos: string;
-  lugaresCercanos: string;
-}
-
-export const CONFIG_M08_DEFAULT: ConfiguracionM08 = {
-  reglas: {
-    visitas: 'con-aviso',
-    ruido: '23h',
-    mascotas: 'consultar',
-    tabaco: 'no',
-  },
-  reglasAdicionales: 'Mantener áreas comunes ordenadas después de usarlas.',
-  deposito: '',
-  serviciosIncluidos: 'Agua e internet incluidos (confirmar con anfitrión).',
-  lugaresCercanos: '',
-};
 
 export function obtenerDetalleInmueble(listingId: string) {
   return solicitud<DetalleInmuebleBackend>(
@@ -56,31 +57,28 @@ export function obtenerDetalleInmueble(listingId: string) {
   );
 }
 
-const claveM08 = (listingId: string) => `@roomlink/m08-inmueble:${listingId}`;
-
-export async function cargarConfiguracionM08(
+export function guardarReglasInmueble(
   listingId: string,
-): Promise<ConfiguracionM08> {
-  try {
-    const raw = await AsyncStorage.getItem(claveM08(listingId));
-    if (!raw) return CONFIG_M08_DEFAULT;
-    const parsed = JSON.parse(raw) as Partial<ConfiguracionM08>;
-    return {
-      ...CONFIG_M08_DEFAULT,
-      ...parsed,
-      reglas: {
-        ...CONFIG_M08_DEFAULT.reglas,
-        ...(parsed.reglas ?? {}),
-      },
-    };
-  } catch {
-    return CONFIG_M08_DEFAULT;
-  }
+  rules: ReglasInmuebleBackend,
+) {
+  return solicitud<{ listingId: string; rules: ReglasInmuebleBackend }>(
+    `/api/v1/rooms/${encodeURIComponent(listingId)}/rules`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(rules),
+    },
+  );
 }
 
-export async function guardarConfiguracionM08(
+export function guardarCostosInmueble(
   listingId: string,
-  config: ConfiguracionM08,
-): Promise<void> {
-  await AsyncStorage.setItem(claveM08(listingId), JSON.stringify(config));
+  items: Omit<CostoInmuebleBackend, 'id'>[],
+) {
+  return solicitud<{ listingId: string; items: CostoInmuebleBackend[] }>(
+    `/api/v1/rooms/${encodeURIComponent(listingId)}/costs`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ items }),
+    },
+  );
 }

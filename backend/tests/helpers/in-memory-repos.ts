@@ -35,6 +35,9 @@ import {
   type RoomLocationInput,
   type RoomPhotoMetadata,
   type RoomPhotoUpdateItem,
+  type RoomRulesRecord,
+  type RoomCostItemInput,
+  type RoomCostItemRecord,
   type CompatibilityFeedCandidate,
   type ConnectionRequest,
   type ActivityLogFilter,
@@ -91,6 +94,31 @@ export class InMemoryRoomRepository implements IRoomListingRepository {
   readonly rooms = new Map<string, RoomListing>();
   readonly photos = new Map<string, RoomPhotoRecord[]>();
   readonly locations = new Map<string, RoomLocationInput>();
+  readonly rules = new Map<string, RoomRulesRecord>();
+  readonly costItems = new Map<string, RoomCostItemRecord[]>();
+
+  async findRulesByListingId(listingId: string) {
+    return this.rules.get(listingId) ?? null;
+  }
+
+  async upsertRules(listingId: string, rules: RoomRulesRecord) {
+    this.rules.set(listingId, rules);
+    return rules;
+  }
+
+  async findCostItemsByListingId(listingId: string) {
+    return this.costItems.get(listingId) ?? [];
+  }
+
+  async replaceCostItems(listingId: string, items: RoomCostItemInput[]) {
+    const created: RoomCostItemRecord[] = items.map((item) => ({
+      ...item,
+      id: randomUUID(),
+      listingId,
+    }));
+    this.costItems.set(listingId, created);
+    return created;
+  }
 
   // ======================================================
   // CONSULTAR PUBLICACIONES

@@ -13,11 +13,16 @@ import {
   type RoomLocationInput,
   type RoomFeedFilters,
   type RoomFeedItem,
+  type RoomRulesRecord,
+  type RoomCostItemInput,
+  type RoomCostItemRecord,
 } from "../../domain/index.js";
 
 import {
   roomListings,
   roomPhotos,
+  roomRules,
+  roomCostItems,
   type RoomListingRow,
   type NewRoomListing,
 } from "../../db/schema/rooms.js";
@@ -652,6 +657,113 @@ export class DrizzleRoomListingRepository
       imageData: photo.imageData,
       position: photo.position,
     };
+  }
+
+  async findRulesByListingId(listingId: string): Promise<RoomRulesRecord | null> {
+    const rows = await this.db
+      .select()
+      .from(roomRules)
+      .where(eq(roomRules.listingId, listingId))
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) return null;
+
+    return {
+      visitsPolicy: row.visitsPolicy ?? null,
+      partiesAllowed: row.partiesAllowed,
+      quietHoursStart: row.quietHoursStart ?? null,
+      quietHoursEnd: row.quietHoursEnd ?? null,
+      petsAllowed: row.petsAllowed,
+      smokingAllowed: row.smokingAllowed,
+      commonAreasNotes: row.commonAreasNotes ?? null,
+      extraRules: row.extraRules ?? null,
+    };
+  }
+
+  async upsertRules(
+    listingId: string,
+    rules: RoomRulesRecord
+  ): Promise<RoomRulesRecord> {
+    await this.db
+      .insert(roomRules)
+      .values({
+        listingId,
+        visitsPolicy: rules.visitsPolicy,
+        partiesAllowed: rules.partiesAllowed,
+        quietHoursStart: rules.quietHoursStart,
+        quietHoursEnd: rules.quietHoursEnd,
+        petsAllowed: rules.petsAllowed,
+        smokingAllowed: rules.smokingAllowed,
+        commonAreasNotes: rules.commonAreasNotes,
+        extraRules: rules.extraRules,
+      })
+      .onDuplicateKeyUpdate({
+        set: {
+          visitsPolicy: rules.visitsPolicy,
+          partiesAllowed: rules.partiesAllowed,
+          quietHoursStart: rules.quietHoursStart,
+          quietHoursEnd: rules.quietHoursEnd,
+          petsAllowed: rules.petsAllowed,
+          smokingAllowed: rules.smokingAllowed,
+          commonAreasNotes: rules.commonAreasNotes,
+          extraRules: rules.extraRules,
+        },
+      });
+
+    return rules;
+  }
+
+  async findCostItemsByListingId(listingId: string): Promise<RoomCostItemRecord[]> {
+    const rows = await this.db
+      .select()
+      .from(roomCostItems)
+      .where(eq(roomCostItems.listingId, listingId));
+
+    return rows.map((row) => ({
+      id: row.id,
+      listingId: row.listingId,
+      kind: row.kind,
+      concept: row.concept,
+      amount: Number(row.amount),
+      isIncluded: row.isIncluded,
+      isProrated: row.isProrated,
+    }));
+  }
+
+  async replaceCostItems(
+    listingId: string,
+    items: RoomCostItemInput[]
+  ): Promise<RoomCostItemRecord[]> {
+    return await this.db.transaction(async (tx) => {
+      await tx.delete(roomCostItems).where(eq(roomCostItems.listingId, listingId));
+
+      if (items.length === 0) return [];
+
+      const created: RoomCostItemRecord[] = items.map((item) => ({
+        id: randomUUID(),
+        listingId,
+        kind: item.kind,
+        concept: item.concept,
+        amount: item.amount,
+        isIncluded: item.isIncluded,
+        isProrated: item.isProrated,
+      }));
+
+      await tx.insert(roomCostItems).values(
+        created.map((item) => ({
+          id: item.id,
+          listingId: item.listingId,
+          kind: item.kind,
+          concept: item.concept,
+          amount: item.amount.toFixed(2),
+          isIncluded: item.isIncluded,
+          isProrated: item.isProrated,
+        }))
+      );
+
+      return created;
+    });
   }
 }
 

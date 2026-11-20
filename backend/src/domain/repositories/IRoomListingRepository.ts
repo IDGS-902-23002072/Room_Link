@@ -46,6 +46,37 @@ export interface RoomLocationInput {
   longitude: number;
 }
 
+export type RoomCostKind =
+  | "rent"
+  | "service"
+  | "deposit"
+  | "maintenance"
+  | "other";
+
+export interface RoomRulesRecord {
+  visitsPolicy: string | null;
+  partiesAllowed: boolean;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+  petsAllowed: boolean;
+  smokingAllowed: boolean;
+  commonAreasNotes: string | null;
+  extraRules: string | null;
+}
+
+export interface RoomCostItemInput {
+  kind: RoomCostKind;
+  concept: string;
+  amount: number;
+  isIncluded: boolean;
+  isProrated: boolean;
+}
+
+export interface RoomCostItemRecord extends RoomCostItemInput {
+  id: string;
+  listingId: string;
+}
+
 // ======================================================
 // FILTROS DEL CATÁLOGO DE PUBLICACIONES
 // ======================================================
@@ -150,4 +181,15 @@ export interface IRoomListingRepository {
     expectedStatus: "draft" | "published" | "paused",
     newStatus: "published" | "paused" | "closed"
   ): Promise<boolean>;
+
+  // Reglas de la casa (HU-06 / M08).
+  findRulesByListingId?(listingId: string): Promise<RoomRulesRecord | null>;
+  upsertRules?(listingId: string, rules: RoomRulesRecord): Promise<RoomRulesRecord>;
+
+  // Desglose de costos: servicios, depósito, mantenimiento (HU-06 / M08).
+  findCostItemsByListingId?(listingId: string): Promise<RoomCostItemRecord[]>;
+  replaceCostItems?(
+    listingId: string,
+    items: RoomCostItemInput[]
+  ): Promise<RoomCostItemRecord[]>;
 }

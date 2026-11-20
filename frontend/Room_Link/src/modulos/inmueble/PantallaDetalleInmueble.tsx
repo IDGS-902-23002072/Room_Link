@@ -14,60 +14,41 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSesion } from '@/auth/SesionContext';
 import {
-  cargarConfiguracionM08,
-  CONFIG_M08_DEFAULT,
-  guardarConfiguracionM08,
+  guardarCostosInmueble,
+  guardarReglasInmueble,
   obtenerDetalleInmueble,
-  type ConfiguracionM08,
+  type CostoInmuebleBackend,
   type DetalleInmuebleBackend,
+  type ReglasInmuebleBackend,
 } from './api';
 
 type TabM08 = 'reglas' | 'costos' | 'zona';
 
-const GRUPOS_REGLAS = [
-  {
-    id: 'visitas' as const,
-    titulo: 'Visitas',
-    opciones: [
-      { id: 'permitidas', etiqueta: 'Permitidas' },
-      { id: 'con-aviso', etiqueta: 'Con aviso' },
-      { id: 'no', etiqueta: 'No permitidas' },
-    ],
-  },
-  {
-    id: 'ruido' as const,
-    titulo: 'Horario de silencio',
-    opciones: [
-      { id: '22h', etiqueta: 'Desde 22:00' },
-      { id: '23h', etiqueta: 'Desde 23:00' },
-      { id: 'flexible', etiqueta: 'Flexible' },
-    ],
-  },
-  {
-    id: 'mascotas' as const,
-    titulo: 'Mascotas',
-    opciones: [
-      { id: 'si', etiqueta: 'Permitidas' },
-      { id: 'consultar', etiqueta: 'A consultar' },
-      { id: 'no', etiqueta: 'No permitidas' },
-    ],
-  },
-  {
-    id: 'tabaco' as const,
-    titulo: 'Fumar en casa',
-    opciones: [
-      { id: 'no', etiqueta: 'No se fuma' },
-      { id: 'exterior', etiqueta: 'Solo exterior' },
-      { id: 'si', etiqueta: 'Permitido' },
-    ],
-  },
-];
+const REGLAS_DEFAULT: ReglasInmuebleBackend = {
+  visitsPolicy: 'Con aviso previo',
+  partiesAllowed: false,
+  quietHoursStart: '23:00',
+  quietHoursEnd: '07:00',
+  petsAllowed: false,
+  smokingAllowed: false,
+  commonAreasNotes: 'Mantener áreas comunes limpias y ordenadas.',
+  extraRules: null,
+};
 
 const moneda = new Intl.NumberFormat('es-MX', {
   style: 'currency',
   currency: 'MXN',
   maximumFractionDigits: 0,
 });
+
+function extraerMonto(items: CostoInmuebleBackend[], kind: CostoInmuebleBackend['kind']): string {
+  const encontrado = items.find((i) => i.kind === kind);
+  return encontrado ? String(encontrado.amount) : '';
+}
+
+function extraerIncluido(items: CostoInmuebleBackend[], kind: CostoInmuebleBackend['kind']): boolean {
+  return items.find((i) => i.kind === kind)?.isIncluded ?? false;
+}
 
 export function PantallaDetalleInmueble({
   listingId,
@@ -81,8 +62,17 @@ export function PantallaDetalleInmueble({
 
   const [tab, setTab] = useState<TabM08>(tabInicial);
   const [inmueble, setInmueble] = useState<DetalleInmuebleBackend | null>(null);
-  const [config, setConfig] = useState<ConfiguracionM08>(CONFIG_M08_DEFAULT);
+  const [reglas, setReglas] = useState<ReglasInmuebleBackend>(REGLAS_DEFAULT);
+
+  // Desglose HU-06: servicios, depósito y mantenimiento (persistidos en room_cost_items)
+  const [deposito, setDeposito] = useState('');
+  const [servicios, setServicios] = useState('');
+  const [serviciosIncluidos, setServiciosIncluidos] = useState(true);
+  const [mantenimiento, setMantenimiento] = useState('');
+  const [mantenimientoIncluido, setMantenimientoIncluido] = useState(true);
+
   const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
@@ -99,12 +89,27 @@ export function PantallaDetalleInmueble({
     setCargando(true);
     setError(null);
     try {
-      const [detalle, cfg] = await Promise.all([
-        obtenerDetalleInmueble(listingId),
-        cargarConfiguracionM08(listingId),
-      ]);
+      const detalle = await obtenerDetalleInmueble(listingId);
       setInmueble(detalle);
-      setConfig(cfg);
+      if (detalle.rules) {
+        setReglas({
+          ...REGLAS_DEFAULT,
+          ...detalle.rules,
+          quietHoursStart: detalle.rules.quietHoursStart?.slice(0, 5) ?? null,
+          quietHoursEnd: detalle.rules.quietHoursEnd?.slice(0, 5) ?? null,
+        });
+      } else {
+        setReglas(REGLAS_DEFAULT);
+      }
+
+      const items = detalle.costItems ?? [];
+      setDeposito(extraerMonto(items, 'deposit'));
+      setServicios(extraerMonto(items, 'service'));
+      setServiciosIncluidos(items.some((i) => i.kind === 'service') ? extraerIncluido(items, 'service') : true);
+      setMantenimiento(extraerMonto(items, 'maintenance'));
+      setMantenimientoIncluido(
+        items.some((i) => i.kind === 'maintenance') ? extraerIncluido(items, 'maintenance') : true,
+      );
     } catch (err) {
       setError(
         err instanceof Error
@@ -120,9 +125,67 @@ export function PantallaDetalleInmueble({
     void cargar();
   }, [cargar]);
 
-  const guardar = async (mensaje: string) => {
-    await guardarConfiguracionM08(listingId, config);
-    setAviso(mensaje);
+  const manejarGuardarReglas = async () => {
+    setGuardando(true);
+    setError(null);
+    setAviso(null);
+    try {
+      const res = await guardarReglasInmueble(listingId, reglas);
+      setReglas({
+        ...REGLAS_DEFAULT,
+        ...res.rules,
+        quietHoursStart: res.rules.quietHoursStart?.slice(0, 5) ?? null,
+        quietHoursEnd: res.rules.quietHoursEnd?.slice(0, 5) ?? null,
+      });
+      setAviso('Reglas de la casa guardadas en el servidor.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudieron guardar las reglas.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const manejarGuardarCostos = async () => {
+    setGuardando(true);
+    setError(null);
+    setAviso(null);
+    try {
+      const parseNum = (v: string) => {
+        const n = Number(v.replace(/[^\d.]/g, ''));
+        return Number.isFinite(n) && n >= 0 ? n : 0;
+      };
+
+      const items = [
+        {
+          kind: 'deposit' as const,
+          concept: 'Depósito de garantía',
+          amount: parseNum(deposito || String(inmueble?.monthlyRent ?? 0)),
+          isIncluded: false,
+          isProrated: false,
+        },
+        {
+          kind: 'service' as const,
+          concept: 'Servicios (agua, luz, internet)',
+          amount: serviciosIncluidos ? 0 : parseNum(servicios),
+          isIncluded: serviciosIncluidos,
+          isProrated: false,
+        },
+        {
+          kind: 'maintenance' as const,
+          concept: 'Mantenimiento',
+          amount: mantenimientoIncluido ? 0 : parseNum(mantenimiento),
+          isIncluded: mantenimientoIncluido,
+          isProrated: false,
+        },
+      ];
+
+      await guardarCostosInmueble(listingId, items);
+      setAviso('Desglose de costos guardado en el servidor.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudieron guardar los costos.');
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const abrirMapaExterno = () => {
@@ -134,10 +197,10 @@ export function PantallaDetalleInmueble({
   };
 
   const renta = inmueble?.monthlyRent ?? 0;
-  const depositoNumerico = config.deposito.trim()
-    ? Number(config.deposito.replace(/[^\d.]/g, ''))
-    : renta;
-  const depositoMostrar = Number.isFinite(depositoNumerico) ? depositoNumerico : renta;
+  const montoServicios = serviciosIncluidos ? 0 : Number(servicios) || 0;
+  const montoMantenimiento = mantenimientoIncluido ? 0 : Number(mantenimiento) || 0;
+  const montoDeposito = deposito.trim() ? Number(deposito) || 0 : renta;
+  const totalMensual = renta + montoServicios + montoMantenimiento;
 
   return (
     <SafeAreaView style={styles.pantalla} edges={['top']}>
@@ -174,6 +237,7 @@ export function PantallaDetalleInmueble({
               onPress={() => {
                 setTab(id);
                 setAviso(null);
+                setError(null);
               }}
               style={[styles.tab, tab === id && styles.tabActiva]}
             >
@@ -189,7 +253,7 @@ export function PantallaDetalleInmueble({
             <ActivityIndicator size="large" color="#84658D" />
             <Text style={styles.subtitulo}>Cargando detalles del inmueble…</Text>
           </View>
-        ) : error ? (
+        ) : error && !inmueble ? (
           <View style={styles.avisoError}>
             <Text style={styles.textoError}>{error}</Text>
             <Pressable style={styles.botonSecundario} onPress={() => void cargar()}>
@@ -203,69 +267,98 @@ export function PantallaDetalleInmueble({
               Haz claras las expectativas desde el inicio.
             </Text>
 
-            {GRUPOS_REGLAS.map((grupo) => (
-              <View key={grupo.id} style={styles.tarjeta}>
-                <Text style={styles.etiqueta}>{grupo.titulo}</Text>
-                <View style={styles.filaOpciones}>
-                  {grupo.opciones.map((op) => {
-                    const activa = config.reglas[grupo.id] === op.id;
-                    return (
-                      <Pressable
-                        key={op.id}
-                        disabled={!esAnfitrion}
-                        onPress={() =>
-                          setConfig((prev) => ({
-                            ...prev,
-                            reglas: { ...prev.reglas, [grupo.id]: op.id },
-                          }))
-                        }
-                        style={[
-                          styles.opcion,
-                          activa && styles.opcionActiva,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.textoOpcion,
-                            activa && styles.textoOpcionActiva,
-                          ]}
-                        >
-                          {op.etiqueta}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+            <View style={styles.tarjeta}>
+              <Text style={styles.etiqueta}>Visitas</Text>
+              <View style={styles.filaOpciones}>
+                {['Permitidas', 'Con aviso previo', 'No permitidas'].map((op) => {
+                  const activa = reglas.visitsPolicy === op;
+                  return (
+                    <Pressable
+                      key={op}
+                      disabled={!esAnfitrion}
+                      onPress={() => setReglas((p) => ({ ...p, visitsPolicy: op }))}
+                      style={[styles.opcion, activa && styles.opcionActiva]}
+                    >
+                      <Text style={[styles.textoOpcion, activa && styles.textoOpcionActiva]}>
+                        {op}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
-            ))}
+            </View>
 
             <View style={styles.tarjeta}>
-              <Text style={styles.etiqueta}>Reglas adicionales</Text>
+              <Text style={styles.etiqueta}>Convivencia rápida</Text>
+              <View style={styles.filaOpciones}>
+                {(
+                  [
+                    ['petsAllowed', 'Mascotas'],
+                    ['smokingAllowed', 'Fumar'],
+                    ['partiesAllowed', 'Fiestas'],
+                  ] as const
+                ).map(([campo, label]) => {
+                  const activo = reglas[campo];
+                  return (
+                    <Pressable
+                      key={campo}
+                      disabled={!esAnfitrion}
+                      onPress={() => setReglas((p) => ({ ...p, [campo]: !p[campo] }))}
+                      style={[styles.opcion, activo && styles.opcionActiva]}
+                    >
+                      <Text style={[styles.textoOpcion, activo && styles.textoOpcionActiva]}>
+                        {label}: {activo ? 'Sí' : 'No'}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.tarjeta}>
+              <Text style={styles.etiqueta}>Horario de silencio</Text>
+              <View style={styles.filaOpciones}>
+                {['22:00', '23:00', '00:00'].map((hora) => {
+                  const activa = reglas.quietHoursStart === hora;
+                  return (
+                    <Pressable
+                      key={hora}
+                      disabled={!esAnfitrion}
+                      onPress={() => setReglas((p) => ({ ...p, quietHoursStart: hora }))}
+                      style={[styles.opcion, activa && styles.opcionActiva]}
+                    >
+                      <Text style={[styles.textoOpcion, activa && styles.textoOpcionActiva]}>
+                        Desde {hora}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.tarjeta}>
+              <Text style={styles.etiqueta}>Áreas comunes y reglas adicionales</Text>
               {esAnfitrion ? (
                 <TextInput
-                  value={config.reglasAdicionales}
-                  onChangeText={(reglasAdicionales) =>
-                    setConfig((prev) => ({ ...prev, reglasAdicionales }))
-                  }
+                  value={reglas.extraRules ?? ''}
+                  onChangeText={(extraRules) => setReglas((p) => ({ ...p, extraRules }))}
                   multiline
                   style={styles.input}
-                  placeholder="Escribe una regla adicional"
+                  placeholder="Escribe reglas adicionales para tus roomies…"
                   placeholderTextColor="#9A909E"
                 />
               ) : (
                 <Text style={styles.valor}>
-                  {config.reglasAdicionales || 'Sin reglas adicionales registradas.'}
+                  {reglas.extraRules || reglas.commonAreasNotes || 'Sin reglas adicionales.'}
                 </Text>
               )}
             </View>
 
-            {inmueble.description ? (
-              <View style={styles.tarjeta}>
-                <Text style={styles.etiqueta}>Descripción de la publicación</Text>
-                <Text style={styles.valor}>{inmueble.description}</Text>
+            {error && (
+              <View style={styles.avisoError}>
+                <Text style={styles.textoError}>{error}</Text>
               </View>
-            ) : null}
-
+            )}
             {aviso && (
               <View style={styles.avisoExito}>
                 <Text style={styles.textoExito}>{aviso}</Text>
@@ -274,10 +367,13 @@ export function PantallaDetalleInmueble({
 
             {esAnfitrion && (
               <Pressable
-                style={styles.botonPrincipal}
-                onPress={() => void guardar('Reglas de la casa guardadas.')}
+                disabled={guardando}
+                style={[styles.botonPrincipal, guardando && styles.deshabilitado]}
+                onPress={() => void manejarGuardarReglas()}
               >
-                <Text style={styles.textoPrincipal}>Guardar reglas</Text>
+                <Text style={styles.textoPrincipal}>
+                  {guardando ? 'Guardando…' : 'Guardar reglas'}
+                </Text>
               </Pressable>
             )}
           </>
@@ -285,7 +381,7 @@ export function PantallaDetalleInmueble({
           <>
             <Text style={styles.tituloSeccion}>Costos claros</Text>
             <Text style={styles.subtitulo}>
-              Desglose transparente basado en la publicación real.
+              Renta, servicios, depósito y mantenimiento sin sorpresas.
             </Text>
 
             <View style={styles.tarjeta}>
@@ -294,54 +390,142 @@ export function PantallaDetalleInmueble({
             </View>
 
             <View style={styles.tarjeta}>
-              <Text style={styles.etiqueta}>Depósito de garantía estimado</Text>
+              <Text style={styles.etiqueta}>Depósito de garantía</Text>
               {esAnfitrion ? (
                 <TextInput
-                  value={config.deposito}
-                  onChangeText={(deposito) =>
-                    setConfig((prev) => ({ ...prev, deposito }))
-                  }
+                  value={deposito}
+                  onChangeText={setDeposito}
                   keyboardType="numeric"
                   style={styles.input}
-                  placeholder={`${renta} (equivalente a 1 mes)`}
+                  placeholder={`${renta} (1 mes de renta)`}
                   placeholderTextColor="#9A909E"
                 />
               ) : (
-                <Text style={styles.valor}>{moneda.format(depositoMostrar)}</Text>
+                <Text style={styles.valor}>{moneda.format(montoDeposito)}</Text>
               )}
             </View>
 
             <View style={styles.tarjeta}>
-              <Text style={styles.etiqueta}>Servicios y condiciones</Text>
+              <Text style={styles.etiqueta}>Servicios (agua, luz, internet)</Text>
               {esAnfitrion ? (
-                <TextInput
-                  value={config.serviciosIncluidos}
-                  onChangeText={(serviciosIncluidos) =>
-                    setConfig((prev) => ({ ...prev, serviciosIncluidos }))
-                  }
-                  multiline
-                  style={styles.input}
-                  placeholder="Ej. Agua, luz, internet…"
-                  placeholderTextColor="#9A909E"
-                />
+                <>
+                  <View style={styles.filaOpciones}>
+                    <Pressable
+                      onPress={() => setServiciosIncluidos(true)}
+                      style={[styles.opcion, serviciosIncluidos && styles.opcionActiva]}
+                    >
+                      <Text
+                        style={[
+                          styles.textoOpcion,
+                          serviciosIncluidos && styles.textoOpcionActiva,
+                        ]}
+                      >
+                        Incluidos en renta
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setServiciosIncluidos(false)}
+                      style={[styles.opcion, !serviciosIncluidos && styles.opcionActiva]}
+                    >
+                      <Text
+                        style={[
+                          styles.textoOpcion,
+                          !serviciosIncluidos && styles.textoOpcionActiva,
+                        ]}
+                      >
+                        Costo adicional
+                      </Text>
+                    </Pressable>
+                  </View>
+                  {!serviciosIncluidos && (
+                    <TextInput
+                      value={servicios}
+                      onChangeText={setServicios}
+                      keyboardType="numeric"
+                      style={styles.input}
+                      placeholder="Monto mensual estimado en MXN"
+                      placeholderTextColor="#9A909E"
+                    />
+                  )}
+                </>
               ) : (
-                <Text style={styles.valor}>{config.serviciosIncluidos}</Text>
+                <Text style={styles.valor}>
+                  {serviciosIncluidos
+                    ? 'Incluidos en la renta'
+                    : `${moneda.format(montoServicios)} / mes`}
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.tarjeta}>
+              <Text style={styles.etiqueta}>Mantenimiento</Text>
+              {esAnfitrion ? (
+                <>
+                  <View style={styles.filaOpciones}>
+                    <Pressable
+                      onPress={() => setMantenimientoIncluido(true)}
+                      style={[styles.opcion, mantenimientoIncluido && styles.opcionActiva]}
+                    >
+                      <Text
+                        style={[
+                          styles.textoOpcion,
+                          mantenimientoIncluido && styles.textoOpcionActiva,
+                        ]}
+                      >
+                        Incluido / $0
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setMantenimientoIncluido(false)}
+                      style={[styles.opcion, !mantenimientoIncluido && styles.opcionActiva]}
+                    >
+                      <Text
+                        style={[
+                          styles.textoOpcion,
+                          !mantenimientoIncluido && styles.textoOpcionActiva,
+                        ]}
+                      >
+                        Costo adicional
+                      </Text>
+                    </Pressable>
+                  </View>
+                  {!mantenimientoIncluido && (
+                    <TextInput
+                      value={mantenimiento}
+                      onChangeText={setMantenimiento}
+                      keyboardType="numeric"
+                      style={styles.input}
+                      placeholder="Cuota mensual de mantenimiento en MXN"
+                      placeholderTextColor="#9A909E"
+                    />
+                  )}
+                </>
+              ) : (
+                <Text style={styles.valor}>
+                  {mantenimientoIncluido
+                    ? 'Incluido ($0)'
+                    : `${moneda.format(montoMantenimiento)} / mes`}
+                </Text>
               )}
             </View>
 
             <View style={styles.tarjetaMenta}>
               <Text style={styles.tituloMenta}>
-                Total mensual estimado · {moneda.format(renta)}
+                Total mensual estimado · {moneda.format(totalMensual)}
               </Text>
               <Text style={styles.textoMenta}>
+                Depósito estimado: {moneda.format(montoDeposito)}.
                 {inmueble.availableFrom
-                  ? `Disponible desde ${inmueble.availableFrom}. `
+                  ? ` Disponible desde ${inmueble.availableFrom}.`
                   : ''}
-                Sin comisiones ocultas de RoomLink. Confirma el detalle final en tu
-                Acuerdo de convivencia.
               </Text>
             </View>
 
+            {error && (
+              <View style={styles.avisoError}>
+                <Text style={styles.textoError}>{error}</Text>
+              </View>
+            )}
             {aviso && (
               <View style={styles.avisoExito}>
                 <Text style={styles.textoExito}>{aviso}</Text>
@@ -350,10 +534,13 @@ export function PantallaDetalleInmueble({
 
             {esAnfitrion && (
               <Pressable
-                style={styles.botonPrincipal}
-                onPress={() => void guardar('Desglose de costos guardado.')}
+                disabled={guardando}
+                style={[styles.botonPrincipal, guardando && styles.deshabilitado]}
+                onPress={() => void manejarGuardarCostos()}
               >
-                <Text style={styles.textoPrincipal}>Guardar desglose</Text>
+                <Text style={styles.textoPrincipal}>
+                  {guardando ? 'Guardando…' : 'Guardar desglose'}
+                </Text>
               </Pressable>
             )}
           </>
@@ -385,27 +572,6 @@ export function PantallaDetalleInmueble({
               )}
             </View>
 
-            <View style={styles.tarjeta}>
-              <Text style={styles.etiqueta}>Referencias cercanas</Text>
-              {esAnfitrion ? (
-                <TextInput
-                  value={config.lugaresCercanos}
-                  onChangeText={(lugaresCercanos) =>
-                    setConfig((prev) => ({ ...prev, lugaresCercanos }))
-                  }
-                  multiline
-                  style={styles.input}
-                  placeholder="Ej. A 10 min del campus, parada de transporte a 2 cuadras…"
-                  placeholderTextColor="#9A909E"
-                />
-              ) : (
-                <Text style={styles.valor}>
-                  {config.lugaresCercanos ||
-                    'Consulta con el anfitrión por rutas de transporte y servicios cercanos.'}
-                </Text>
-              )}
-            </View>
-
             <View style={styles.tarjetaMenta}>
               <Text style={styles.tituloMenta}>Privacidad de ubicación</Text>
               <Text style={styles.textoMenta}>
@@ -413,21 +579,6 @@ export function PantallaDetalleInmueble({
                 confirmar una visita o aceptar la postulación.
               </Text>
             </View>
-
-            {aviso && (
-              <View style={styles.avisoExito}>
-                <Text style={styles.textoExito}>{aviso}</Text>
-              </View>
-            )}
-
-            {esAnfitrion && (
-              <Pressable
-                style={styles.botonPrincipal}
-                onPress={() => void guardar('Referencias de la zona guardadas.')}
-              >
-                <Text style={styles.textoPrincipal}>Guardar referencias</Text>
-              </Pressable>
-            )}
           </>
         )}
       </ScrollView>
@@ -531,6 +682,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   textoSecundario: { color: '#654C6D', fontSize: 13, fontWeight: '700' },
+  deshabilitado: { opacity: 0.6 },
   avisoExito: { backgroundColor: '#DCF0E8', borderRadius: 12, padding: 12 },
   textoExito: { color: '#1F6F60', fontSize: 13, fontWeight: '600' },
   avisoError: {

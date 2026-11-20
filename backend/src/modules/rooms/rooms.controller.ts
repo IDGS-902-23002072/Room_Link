@@ -650,9 +650,11 @@ export class RoomsController {
 
       const room = await this.roomsService.getById(id);
 
-      const [location, photos] = await Promise.all([
+      const [location, photos, rules, costItems] = await Promise.all([
         this.roomsService.getLocation(id),
         this.roomsService.getPhotos(id),
+        this.roomsService.getRules(id),
+        this.roomsService.getCostItems(id),
       ]);
 
       return c.json(
@@ -660,6 +662,8 @@ export class RoomsController {
           ...RoomView.toDetail(room),
           location,
           photos,
+          rules,
+          costItems,
         },
         200
       );
@@ -1459,6 +1463,97 @@ export class RoomsController {
           ? err.message
           : "Error al reactivar la publicación.";
 
+      return c.json({ error: message }, 400);
+    }
+  };
+
+  // ==========================================
+  // REGLAS DE LA CASA (HU-06 / M08)
+  // ==========================================
+
+  getRules = async (c: Context) => {
+    try {
+      const id = c.req.param("id");
+      if (!id?.trim()) return c.json({ error: "El ID es obligatorio." }, 400);
+      const rules = await this.roomsService.getRules(id);
+      return c.json({ listingId: id, rules }, 200);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Error al consultar las reglas.";
+      return c.json({ error: message }, 404);
+    }
+  };
+
+  updateRules = async (c: AuthContext) => {
+    try {
+      const id = c.req.param("id");
+      if (!id?.trim()) return c.json({ error: "El ID es obligatorio." }, 400);
+
+      const existing = await this.roomsService.getById(id);
+      const principal = c.get("auth");
+      if (
+        existing.hostId !== principal.userId &&
+        !principal.roles.includes("admin")
+      ) {
+        return c.json(
+          { error: "No tienes permiso para modificar las reglas de esta habitación." },
+          403,
+        );
+      }
+
+      const body = await c.req.json();
+      const rules = await this.roomsService.saveRules(id, body);
+      return c.json({ listingId: id, rules }, 200);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Error al guardar las reglas.";
+      return c.json({ error: message }, 400);
+    }
+  };
+
+  // ==========================================
+  // DESGLOSE DE COSTOS (HU-06 / M08)
+  // ==========================================
+
+  getCostItems = async (c: Context) => {
+    try {
+      const id = c.req.param("id");
+      if (!id?.trim()) return c.json({ error: "El ID es obligatorio." }, 400);
+      const items = await this.roomsService.getCostItems(id);
+      return c.json({ listingId: id, items }, 200);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Error al consultar los costos.";
+      return c.json({ error: message }, 404);
+    }
+  };
+
+  updateCostItems = async (c: AuthContext) => {
+    try {
+      const id = c.req.param("id");
+      if (!id?.trim()) return c.json({ error: "El ID es obligatorio." }, 400);
+
+      const existing = await this.roomsService.getById(id);
+      const principal = c.get("auth");
+      if (
+        existing.hostId !== principal.userId &&
+        !principal.roles.includes("admin")
+      ) {
+        return c.json(
+          { error: "No tienes permiso para modificar los costos de esta habitación." },
+          403,
+        );
+      }
+
+      const body = await c.req.json();
+      const items = await this.roomsService.saveCostItems(
+        id,
+        Array.isArray(body) ? body : body?.items ?? [],
+      );
+      return c.json({ listingId: id, items }, 200);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Error al guardar los costos.";
       return c.json({ error: message }, 400);
     }
   };

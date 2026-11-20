@@ -376,6 +376,38 @@ test.describe("Flujo 5 · HU-06 y M08 Publicar habitación y ciclo de vida", () 
     expect((await apiJson(`/rooms/${roomId}/pause`, { method: "PATCH", token: host.token })).status).toBe(200);
     expect((await apiJson(`/rooms/${roomId}/reactivate`, { method: "PATCH", token: host.token })).status).toBe(200);
 
+    // Persistencia real de reglas y costos (servicios, depósito, mantenimiento) + negativos
+    expect(
+      (await apiJson(`/rooms/${roomId}/rules`, { method: "PUT", token: other.token, body: { petsAllowed: true } })).status,
+    ).toBe(403);
+    expect(
+      (await apiJson(`/rooms/${roomId}/costs`, {
+        method: "PUT",
+        token: host.token,
+        body: { items: [{ kind: "service", concept: "Luz", amount: -10, isIncluded: false, isProrated: false }] },
+      })).status,
+    ).toBe(400);
+    expect(
+      (await apiJson(`/rooms/${roomId}/rules`, {
+        method: "PUT",
+        token: host.token,
+        body: { visitsPolicy: "Con aviso previo", petsAllowed: true, quietHoursStart: "23:00" },
+      })).status,
+    ).toBe(200);
+    expect(
+      (await apiJson(`/rooms/${roomId}/costs`, {
+        method: "PUT",
+        token: host.token,
+        body: {
+          items: [
+            { kind: "deposit", concept: "Depósito", amount: 3800, isIncluded: false, isProrated: false },
+            { kind: "service", concept: "Internet y agua", amount: 350, isIncluded: false, isProrated: false },
+            { kind: "maintenance", concept: "Mantenimiento", amount: 200, isIncluded: false, isProrated: false },
+          ],
+        },
+      })).status,
+    ).toBe(200);
+
     // Abrir M08 en UI móvil real con la habitación publicada
     await loginInBrowser(page, host.email, host.password);
     await page.goto(`${WEB_URL}/inmueble-detalle?listingId=${roomId}`, { waitUntil: "networkidle" });
