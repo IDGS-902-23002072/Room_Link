@@ -1,4 +1,4 @@
-name: Release & Deploy (Azure Free Tier VM)
+name: Release & Deploy (Azure)
 
 on:
   push:
@@ -7,12 +7,18 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: roomlink-production
+  cancel-in-progress: false
 
 jobs:
   deploy-azure:
-    name: Deploy Backend + Web Móvil a Azure (Standard_B1s Free Tier)
+    name: Publicar API y Expo Web en Azure
     runs-on: ubuntu-latest
+    outputs:
+      api_url: ${ steps.production.outputs.api_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,78 +28,78 @@ jobs:
         with:
           node-version: 22
 
+      - name: Leer URL pública de producción
+        id: production
+        run: |
+          node --env-file=frontend/Room_Link/.env.production --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const value = process.env.EXPO_PUBLIC_API_URL;
+          const url = new URL(value);
+          if (url.protocol !== 'https:' || value !== url.origin) {
+            throw new Error('EXPO_PUBLIC_API_URL debe ser un origen HTTPS sin ruta ni barra final');
+          }
+          appendFileSync(process.env.GITHUB_OUTPUT, 'api_url=' + value + '\n');
+          NODE
+
       - name: Instalar y compilar backend
         working-directory: backend
         run: |
           npm ci
           npm run build
 
-      - name: Compilar cliente móvil (Expo Web) apuntando a Azure
+      - name: Compilar Expo Web para producción
         working-directory: frontend/Room_Link
         env:
-          EXPO_PUBLIC_API_URL: ${{ secrets.AZURE_API_URL }}
+          EXPO_PUBLIC_API_URL: ${ steps.production.outputs.api_url }}
           EXPO_NO_TELEMETRY: "1"
         run: |
           npm ci
-          npx expo export --platform web --output-dir ../../backend/public
+          npm run build:web -- --output-dir ../../backend/public
+          test -s ../../backend/public/index.html
 
-      - name: Empaquetar release de producción
+      - name: Empaquetar release
         run: |
-          mkdir -p deploy_pkg
-          cp -r backend/dist backend/drizzle backend/public backend/package.json backend/package-lock.json deploy_pkg/
-          cd deploy_pkg
-          npm ci --omit=dev
-          cd ..
-          tar -czf roomlink-release.tar.gz -C deploy_pkg .
+          test -s backend/dist/src/server.js
+          test -s backend/dist/src/db/migrate.js
+          tar -czf roomlink-release.tar.gz -C backend dist drizzle public package.json package-lock.json
 
-      - name: Desplegar por SSH y aplicar migraciones en Azure VM
+      - name: Desplegar por SSH
         env:
-          SSH_HOST: ${{ secrets.AZURE_VM_HOST }}
-          SSH_USER: ${{ secrets.AZURE_VM_USER }}
-          SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          SSH_HOST: ${ secrets.AZURE_VM_HOST }}
+          SSH_USER: ${ secrets.AZURE_VM_USER }}
+          SSH_KEY: ${ secrets.AZURE_VM_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${ secrets.AZURE_VM_KNOWN_HOSTS }}
         run: |
+          set -euo pipefail
+          : "${SSH_HOST:?Falta AZURE_VM_HOST}"
+          : "${SSH_USER:?Falta AZURE_VM_USER}"
+          : "${SSH_KEY:?Falta AZURE_VM_SSH_KEY}"
+          : "${SSH_KNOWN_HOSTS:?Falta AZURE_VM_KNOWN_HOSTS}"
           install -m 700 -d ~/.ssh
+          umask 077
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/id_deploy' EXIT
+          target="$SSH_USER@$SSH_HOST"
+          options=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -i "$HOME/.ssh/id_deploy")
+          scp "${options[@]}" roomlink-release.tar.gz "$target:/opt/roomlink/roomlink-release.tar.gz"
+          ssh "${options[@]}" "$target" 'bash -s' < scripts/deploy-azure-release.sh
 
-          scp -i ~/.ssh/id_deploy roomlink-release.tar.gz "$SSH_USER@$SSH_HOST:/opt/roomlink/roomlink-release.tar.gz"
-
-          ssh -i ~/.ssh/id_deploy "$SSH_USER@$SSH_HOST" 'bash -s' <<'REMOTE'
-            set -euo pipefail
-            mkdir -p /opt/roomlink/next
-            tar -xzf /opt/roomlink/roomlink-release.tar.gz -C /opt/roomlink/next
-            rm -rf /opt/roomlink/previous
-            if [ -d /opt/roomlink/current ]; then mv /opt/roomlink/current /opt/roomlink/previous; fi
-            mv /opt/roomlink/next /opt/roomlink/current
-            rm -f /opt/roomlink/roomlink-release.tar.gz
-
-            cd /opt/roomlink/current
-            set -a && source /opt/roomlink/.env && set +a
-            for i in $(seq 1 30); do
-              if node dist/src/db/migrate.js; then
-                break
-              fi
-              echo "Esperando a MySQL ($i/30)..."
-              sleep 3
-            done
-
-            sudo systemctl restart roomlink
-            sudo systemctl is-active --quiet roomlink
-          REMOTE
-
-      - name: Verificar salud HTTPS (/health y /ready)
+      - name: Verificar HTTPS, API y Expo Web
         env:
-          API_URL: ${{ secrets.AZURE_API_URL }}
+          API_URL: ${ steps.production.outputs.api_url }}
         run: |
-          for i in $(seq 1 20); do
-            if curl -sf "$API_URL/ready" | grep -q '"ready"'; then
-              echo "✅ Despliegue operativo y conectado a MySQL: $API_URL"
+          for attempt in $(seq 1 20); do
+            if curl -fsS --max-time 10 "$API_URL/health" \
+                 | jq -e '.status == "ok" and .service == "room-link-backend"' >/dev/null \
+              && curl -fsS --max-time 10 "$API_URL/ready" \
+                 | jq -e '.status == "ready" and .database == "connected"' >/dev/null \
+              && curl -fsS --max-time 10 "$API_URL/" -o /dev/null; then
               exit 0
             fi
             sleep 5
           done
-          echo "❌ /ready no respondió ready a tiempo" >&2
+          echo "El despliegue no pasó la verificación HTTPS." >&2
           exit 1
 
   github-release:
@@ -101,11 +107,12 @@ jobs:
     needs: deploy-azure
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Publicar Release en GitHub
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           body: |
-            Despliegue automático en Azure (Capa Gratuita Standard_B1s + MySQL 8.4 + Caddy HTTPS).
-            - URL producción (API + App Web): ${{ secrets.AZURE_API_URL }}
+            API y Expo Web en Azure: ${ needs.deploy-azure.outputs.api_url }}

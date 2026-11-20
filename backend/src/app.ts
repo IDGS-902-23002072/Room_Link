@@ -403,10 +403,18 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     }
   });
 
-  // En producción (Azure App Service), sirve el build web de Expo desde ./public
+  // Sirve la exportación estática de Expo Web desde ./public.
   app.use("/*", async (c, next) => {
     if (c.req.path.startsWith("/api/")) return next();
     return serveStatic({ root: "./public" })(c, next);
+  });
+  const serveExpoPage = serveStatic({
+    root: "./public",
+    rewriteRequestPath: (path) => path.replace(/\/$/, "") + ".html",
+  });
+  app.get("/*", async (c, next) => {
+    if (c.req.path.startsWith("/api/")) return next();
+    return serveExpoPage(c, next);
   });
   app.get("/*", async (c, next) => {
     if (c.req.path.startsWith("/api/")) return next();
