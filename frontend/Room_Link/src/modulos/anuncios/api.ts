@@ -2,30 +2,183 @@
 import { File } from "expo-file-system";
 import { fetch } from "expo/fetch";
 
-import { obtenerToken, obtenerUserId } from "@/auth/sesion";
+import {
+  obtenerToken,
+  obtenerUserId,
+} from "@/auth/sesion";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
+// ======================================================
+// CONFIGURACIÓN
+// ======================================================
 
-function validarConfiguracion() {
+const API_URL = process.env.EXPO_PUBLIC_API_URL
+  ?.trim()
+  .replace(/\/+$/, "");
+
+const PREFIJO_API = "/api/v1";
+
+const URL_BASE = API_URL
+  ? `${API_URL}${PREFIJO_API}`
+  : "";
+
+const RUTA_ROOMS = "/rooms";
+
+// ======================================================
+// VALIDACIONES
+// ======================================================
+
+function validarConfiguracion(): void {
   if (!API_URL) {
-    throw new Error("Configura EXPO_PUBLIC_API_URL en el archivo .env.");
-  }
-  if (!obtenerUserId()) {
-    throw new Error("No hay una sesión activa. Iniciá sesión para continuar.");
+    throw new Error(
+      "Configura EXPO_PUBLIC_API_URL en el archivo .env."
+    );
   }
 }
 
-/** Cabeceras con Accept + el token de sesión (Bearer) cuando existe. */
-function cabecerasAuth(extra?: Record<string, string>) {
+function validarUsuario(): string {
+  validarConfiguracion();
+
+  const userId = obtenerUserId();
+
+  if (!userId?.trim()) {
+    throw new Error(
+      "No hay una sesión activa. Inicia sesión para continuar."
+    );
+  }
+
+  return userId;
+}
+
+function validarToken(): string {
   const token = obtenerToken();
-  return {
-    Accept: "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...extra,
-  };
+
+  if (!token?.trim()) {
+    throw new Error(
+      "No hay una sesión autenticada. Inicia sesión nuevamente."
+    );
+  }
+
+  return token;
 }
 
-// Fotografía seleccionada desde el dispositivo.
+// ======================================================
+// VALIDAR FECHAS
+// ======================================================
+
+function validarFecha(
+  valor: string | null
+): string | null {
+
+  if (!valor || !valor.trim()) {
+    return null;
+  }
+
+  const fecha = valor.trim();
+
+  const coincidencia =
+    /^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha);
+
+  if (!coincidencia) {
+    throw new Error(
+      "La fecha debe tener formato AAAA-MM-DD."
+    );
+  }
+
+  const anio = Number(coincidencia[1]);
+  const mes = Number(coincidencia[2]);
+  const dia = Number(coincidencia[3]);
+
+  const fechaUTC = new Date(
+    Date.UTC(anio, mes - 1, dia)
+  );
+
+  if (
+    fechaUTC.getUTCFullYear() !== anio ||
+    fechaUTC.getUTCMonth() !== mes - 1 ||
+    fechaUTC.getUTCDate() !== dia
+  ) {
+    throw new Error(
+      "La fecha seleccionada no es válida."
+    );
+  }
+
+  return fecha;
+}
+// ======================================================
+// RUTAS
+// ======================================================
+
+function obtenerRutaRooms(ruta = ""): string {
+  validarConfiguracion();
+
+  return `${URL_BASE}${RUTA_ROOMS}${ruta}`;
+}
+
+// ======================================================
+// HEADERS
+// ======================================================
+
+function obtenerHeaders(
+  requiereAuth = false
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+
+  const token = requiereAuth
+    ? validarToken()
+    : obtenerToken();
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
+// ======================================================
+// RESPUESTAS DEL SERVIDOR
+// ======================================================
+
+async function obtenerResultado(
+  respuesta: Response
+): Promise<any> {
+  const texto = await respuesta.text();
+
+  if (!texto.trim()) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(texto);
+  } catch {
+    return {
+      message: texto,
+    };
+  }
+}
+
+function obtenerMensajeError(
+  resultado: any,
+  mensajePredeterminado: string
+): string {
+  if (typeof resultado === "string") {
+    return resultado;
+  }
+
+  return (
+    resultado?.error ??
+    resultado?.message ??
+    resultado?.details ??
+    resultado?.data?.message ??
+    mensajePredeterminado
+  );
+}
+
+// ======================================================
+// TIPOS
+// ======================================================
+
 export type FotoAnuncio = {
   id: string;
   uri: string;
@@ -33,44 +186,48 @@ export type FotoAnuncio = {
   mimeType: string;
 };
 
-// Datos necesarios para registrar una habitación.
+export type EstadoAnuncio =
+  | "draft"
+  | "published"
+  | "paused"
+  | "closed";
+
 export type DatosAnuncio = {
   titulo: string;
   descripcion: string;
   renta: string;
-  ubicacion: string;
-  latitude: number;
-  longitude: number;
-  availableFrom: string;
-  maxRoommates: number;
+
+  ubicacion: string | null;
+  latitude: number | null;
+  longitude: number | null;
+
+  availableFrom: string | null;
+  maxRoommates: number | null;
+
   fotos: FotoAnuncio[];
 };
 
-// Respuesta del servidor al crear una habitación.
-type RespuestaHabitacion = {
+export type RespuestaHabitacion = {
   id: string;
 };
 
-// Información de una publicación obtenida de MySQL.
 export type PublicacionBD = {
   id: string;
   hostId: string;
   title: string;
   monthlyRent: number;
-  status: "draft" | "published" | "paused" | "closed";
+  status: EstadoAnuncio;
   photosCount: number;
   availableFrom: string | null;
   createdAt: string;
 };
 
-// Ubicación de una habitación obtenida del servidor.
 export type UbicacionAnuncio = {
   address: string;
   latitude: number;
   longitude: number;
 };
 
-// Fotografía que ya está guardada en la base de datos.
 export type FotoExistente = {
   id: string;
   fileName: string;
@@ -78,25 +235,23 @@ export type FotoExistente = {
   position: number;
 };
 
-// Fotografía que se conserva o se agrega al editar.
 export type FotoEdicion =
   | {
-    type: "existing";
-    id: string;
-  }
+      type: "existing";
+      id: string;
+    }
   | {
-    type: "new";
-    foto: FotoAnuncio;
-  };
+      type: "new";
+      foto: FotoAnuncio;
+    };
 
-// Información completa de una habitación.
 export type AnuncioDetalleBD = {
   id: string;
   hostId: string;
   title: string;
   description: string | null;
   monthlyRent: number;
-  status: "draft" | "published" | "paused" | "closed";
+  status: EstadoAnuncio;
   photosCount: number;
   availableFrom: string | null;
   createdAt: string;
@@ -106,176 +261,323 @@ export type AnuncioDetalleBD = {
   photos: FotoExistente[];
 };
 
-// Datos que se enviarán al editar una habitación.
-export type DatosEdicionAnuncio = Omit<DatosAnuncio, "fotos"> & {
+export type DatosEdicionAnuncio = Omit<
+  DatosAnuncio,
+  "fotos"
+> & {
   fotos: FotoEdicion[];
 };
 
-// Obtener las publicaciones del anfitrión.
-export async function obtenerMisPublicaciones(): Promise<PublicacionBD[]> {
-  validarConfiguracion();
+// ======================================================
+// FUNCIONES AUXILIARES
+// ======================================================
+
+// Agregar los datos generales del formulario.
+function agregarDatosFormulario(
+  formData: FormData,
+  datos: Omit<DatosAnuncio, "fotos">
+): void {
+  // TÍTULO
+  formData.append("titulo", datos.titulo.trim());
+
+  // DESCRIPCIÓN
+  formData.append(
+    "descripcion",
+    datos.descripcion?.trim() ?? ""
+  );
+
+  // RENTA
+  // Convertimos "$3,500" o "3,500" a "3500".
+  const rentaNormalizada = datos.renta
+    .replace(/[$,\s]/g, "")
+    .trim();
+
+  const rentaNumerica = Number(rentaNormalizada);
+
+  if (
+    !Number.isFinite(rentaNumerica) ||
+    rentaNumerica <= 0
+  ) {
+    throw new Error("La renta mensual no es válida.");
+  }
+
+  formData.append("renta", String(rentaNumerica));
+
+  // UBICACIÓN
+  formData.append(
+    "ubicacion",
+    datos.ubicacion?.trim() ?? ""
+  );
+
+  // LATITUD
+  formData.append(
+    "latitude",
+    datos.latitude !== null
+      ? String(datos.latitude)
+      : ""
+  );
+
+  // LONGITUD
+  formData.append(
+    "longitude",
+    datos.longitude !== null
+      ? String(datos.longitude)
+      : ""
+  );
+
+  // FECHA DE DISPONIBILIDAD
+  const fecha = validarFecha(datos.availableFrom);
+
+  if (fecha) {
+    formData.append("availableFrom", fecha);
+  }
+
+  // MÁXIMO DE COMPAÑEROS
+  formData.append(
+    "maxRoommates",
+    datos.maxRoommates !== null
+      ? String(datos.maxRoommates)
+      : ""
+  );
+}
+
+// Agregar una fotografía al FormData.
+function agregarArchivo(
+  formData: FormData,
+  foto: FotoAnuncio
+): void {
+  const archivo = new File(foto.uri);
+
+  formData.append(
+    "photos",
+    archivo,
+    foto.fileName
+  );
+}
+
+// ======================================================
+// CONSULTAR PUBLICACIONES DEL ANFITRIÓN
+// GET /rooms/host/:hostId
+// ======================================================
+
+export async function obtenerMisPublicaciones():
+  Promise<PublicacionBD[]> {
+  const userId = validarUsuario();
 
   const respuesta = await fetch(
-    `${API_URL}/api/v1/rooms/host/${encodeURIComponent(obtenerUserId()!)}`,
+    obtenerRutaRooms(
+      `/host/${encodeURIComponent(userId)}`
+    ),
     {
       method: "GET",
-      headers: cabecerasAuth(),
+      headers: obtenerHeaders(true),
     }
   );
 
-  const resultado = await respuesta.json().catch(() => null);
+  const resultado = await obtenerResultado(respuesta);
 
   if (!respuesta.ok) {
     throw new Error(
-      resultado?.error ?? "No se pudieron consultar tus publicaciones."
+      obtenerMensajeError(
+        resultado,
+        "No se pudieron consultar tus publicaciones."
+      )
     );
   }
 
   if (!Array.isArray(resultado)) {
-    throw new Error("El servidor devolvió una respuesta inesperada.");
+    throw new Error(
+      "El servidor devolvió una respuesta inesperada al consultar las publicaciones."
+    );
   }
 
   return resultado as PublicacionBD[];
 }
 
-// Obtener la URL de la primera fotografía de una habitación.
-export function obtenerUrlPrimeraFoto(listingId: string): string {
-  validarConfiguracion();
+// ======================================================
+// OBTENER URL DE FOTOGRAFÍAS
+// ======================================================
 
-  return `${API_URL}/api/v1/rooms/${encodeURIComponent(listingId)}/photos/first`;
+export function obtenerUrlPrimeraFoto(
+  listingId: string
+): string {
+  return obtenerRutaRooms(
+    `/${encodeURIComponent(listingId)}/photos/first`
+  );
 }
 
-// Obtener la URL de una fotografía específica.
 export function obtenerUrlFoto(
   listingId: string,
   photoId: string
 ): string {
-  validarConfiguracion();
-
-  return `${API_URL}/api/v1/rooms/${encodeURIComponent(listingId)}/photos/${encodeURIComponent(photoId)}`;
+  return obtenerRutaRooms(
+    `/${encodeURIComponent(listingId)}/photos/${encodeURIComponent(photoId)}`
+  );
 }
 
-// Obtener los datos completos de una habitación para editarla.
+// ======================================================
+// CONSULTAR DETALLE DE UNA HABITACIÓN
+// GET /rooms/:id
+// ======================================================
+
 export async function obtenerAnuncioPorId(
   listingId: string
 ): Promise<AnuncioDetalleBD> {
   validarConfiguracion();
 
   const respuesta = await fetch(
-    `${API_URL}/api/v1/rooms/${encodeURIComponent(listingId)}`,
+    obtenerRutaRooms(
+      `/${encodeURIComponent(listingId)}`
+    ),
     {
       method: "GET",
-      headers: cabecerasAuth(),
+      headers: obtenerHeaders(),
     }
   );
 
-  const resultado = await respuesta.json().catch(() => null);
+  const resultado = await obtenerResultado(respuesta);
 
   if (!respuesta.ok) {
     throw new Error(
-      resultado?.error ?? "No se pudo consultar la habitación."
+      obtenerMensajeError(
+        resultado,
+        "No se pudo consultar la habitación."
+      )
     );
   }
 
-  if (!resultado?.id || !Array.isArray(resultado.photos)) {
-    throw new Error("El servidor devolvió información incompleta.");
+  const habitacion = resultado?.room ?? resultado;
+
+  if (
+    !habitacion?.id ||
+    !Array.isArray(habitacion.photos)
+  ) {
+    throw new Error(
+      "El servidor devolvió información incompleta de la habitación."
+    );
   }
 
-  return resultado as AnuncioDetalleBD;
+  return habitacion as AnuncioDetalleBD;
 }
 
-// Crear una habitación y guardar sus fotografías.
+// ======================================================
+// CREAR UNA HABITACIÓN COMO BORRADOR
+// POST /rooms
+// ======================================================
+
 export async function crearAnuncio(
   datos: DatosAnuncio
 ): Promise<RespuestaHabitacion> {
-  validarConfiguracion();
+
+  // Comprobar que exista una sesión.
+  validarUsuario();
+
+  const token = validarToken();
 
   const formData = new FormData();
 
-  formData.append("hostId", obtenerUserId()!);
-  formData.append("titulo", datos.titulo);
-  formData.append("descripcion", datos.descripcion);
-  formData.append("renta", datos.renta);
-  formData.append("ubicacion", datos.ubicacion);
-  formData.append("latitude", String(datos.latitude));
-  formData.append("longitude", String(datos.longitude));
+  // Agregar información general.
+  agregarDatosFormulario(formData, datos);
 
-  // Nuevos datos de la habitación.
-  formData.append("availableFrom", datos.availableFrom);
-  formData.append("maxRoommates", String(datos.maxRoommates));
-
-  // Agregar fotografías.
-  for (const foto of datos.fotos) {
-    const archivo = new File(foto.uri);
-    formData.append("photos", archivo);
+  // Agregar fotografías si existen.
+  for (const foto of datos.fotos ?? []) {
+    agregarArchivo(formData, foto);
   }
 
-  const respuesta = await fetch(`${API_URL}/api/v1/rooms`, {
-    method: "POST",
-    body: formData,
-    headers: cabecerasAuth(),
-  });
+  const respuesta = await fetch(
+    obtenerRutaRooms(),
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    }
+  );
 
-  const resultado = await respuesta.json().catch(() => null);
+  const resultado = await obtenerResultado(respuesta);
 
   if (!respuesta.ok) {
+    console.error(
+      "ERROR AL CREAR HABITACIÓN:",
+      resultado
+    );
+
     throw new Error(
-      resultado?.error ?? "No se pudo registrar la habitación."
+      obtenerMensajeError(
+        resultado,
+        "No se pudo registrar la habitación."
+      )
     );
   }
 
-  if (!resultado?.id) {
-    throw new Error("El servidor no devolvió el ID de la habitación.");
+  const id =
+    resultado?.room?.id ??
+    resultado?.id ??
+    resultado?.data?.room?.id ??
+    resultado?.data?.id;
+
+  if (typeof id !== "string" || !id.trim()) {
+    console.error(
+      "RESPUESTA DEL SERVIDOR:",
+      resultado
+    );
+
+    throw new Error(
+      "El servidor no devolvió el ID de la habitación."
+    );
   }
 
-  return resultado as RespuestaHabitacion;
+  return {
+    id: id.trim(),
+  };
 }
 
-// Actualizar una habitación existente sin crear otra publicación.
+// ======================================================
+// ACTUALIZAR UNA HABITACIÓN EXISTENTE
+// PATCH /rooms/:id
+// ======================================================
+
 export async function actualizarAnuncio(
   listingId: string,
   datos: DatosEdicionAnuncio
 ): Promise<void> {
-  validarConfiguracion();
+
+  validarUsuario();
+
+  const token = validarToken();
 
   const formData = new FormData();
 
-  formData.append("titulo", datos.titulo);
-  formData.append("descripcion", datos.descripcion);
-  formData.append("renta", datos.renta);
-  formData.append("ubicacion", datos.ubicacion);
-  formData.append("latitude", String(datos.latitude));
-  formData.append("longitude", String(datos.longitude));
-  formData.append("availableFrom", datos.availableFrom);
-  formData.append("maxRoommates", String(datos.maxRoommates));
+  agregarDatosFormulario(formData, datos);
 
-  // Orden de las fotografías que se conservarán y agregarán.
   type OrdenFotografia =
     | {
-      type: "existing";
-      id: string;
-    }
+        type: "existing";
+        id: string;
+      }
     | {
-      type: "new";
-      fileIndex: number;
-    };
+        type: "new";
+        fileIndex: number;
+      };
 
   const photosOrder: OrdenFotografia[] = [];
 
   let fileIndex = 0;
 
-  for (const foto of datos.fotos) {
+  for (const foto of datos.fotos ?? []) {
+
     if (foto.type === "existing") {
-      // Conservar una fotografía que ya existe en el servidor.
+
       photosOrder.push({
         type: "existing",
         id: foto.id,
       });
-    } else {
-      // Agregar una fotografía nueva.
-      const archivo = new File(foto.foto.uri);
 
-      formData.append("photos", archivo);
+    } else {
+
+      agregarArchivo(formData, foto.foto);
 
       photosOrder.push({
         type: "new",
@@ -286,45 +588,130 @@ export async function actualizarAnuncio(
     }
   }
 
-  formData.append("photosOrder", JSON.stringify(photosOrder));
+  formData.append(
+    "photosOrder",
+    JSON.stringify(photosOrder)
+  );
 
   const respuesta = await fetch(
-    `${API_URL}/api/v1/rooms/${encodeURIComponent(listingId)}`,
+    obtenerRutaRooms(
+      `/${encodeURIComponent(listingId)}`
+    ),
     {
       method: "PATCH",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: formData,
-      headers: cabecerasAuth(),
     }
   );
 
-  const resultado = await respuesta.json().catch(() => null);
+  const resultado = await obtenerResultado(respuesta);
+
+  if (!respuesta.ok) {
+    console.error(
+      "ERROR AL ACTUALIZAR PUBLICACIÓN:",
+      resultado
+    );
+
+    throw new Error(
+      obtenerMensajeError(
+        resultado,
+        "No se pudieron guardar los cambios."
+      )
+    );
+  }
+}
+// ======================================================
+// CAMBIAR ESTADO DE UNA PUBLICACIÓN
+// ======================================================
+
+async function cambiarEstadoAnuncio(
+  habitacionId: string,
+  accion: "publish" | "pause" | "reactivate" | "close",
+  mensajeError: string
+): Promise<void> {
+  validarUsuario();
+
+  const respuesta = await fetch(
+    obtenerRutaRooms(
+      `/${encodeURIComponent(habitacionId)}/${accion}`
+    ),
+    {
+      method: "PATCH",
+      headers: obtenerHeaders(true),
+    }
+  );
+
+  const resultado = await obtenerResultado(respuesta);
 
   if (!respuesta.ok) {
     throw new Error(
-      resultado?.error ?? "No se pudo actualizar la habitación."
+      obtenerMensajeError(
+        resultado,
+        mensajeError
+      )
     );
   }
 }
 
-// Publicar una habitación que ya está guardada.
+// ======================================================
+// PUBLICAR UN BORRADOR
+// PATCH /rooms/:id/publish
+// ======================================================
+
 export async function publicarAnuncio(
   habitacionId: string
 ): Promise<void> {
-  validarConfiguracion();
-
-  const respuesta = await fetch(
-    `${API_URL}/api/v1/rooms/${encodeURIComponent(habitacionId)}/publish`,
-    {
-      method: "PATCH",
-      headers: cabecerasAuth(),
-    }
+  return cambiarEstadoAnuncio(
+    habitacionId,
+    "publish",
+    "La habitación se guardó, pero no se pudo publicar."
   );
+}
 
-  const resultado = await respuesta.json().catch(() => null);
+// ======================================================
+// PAUSAR UNA PUBLICACIÓN
+// PATCH /rooms/:id/pause
+// ======================================================
 
-  if (!respuesta.ok) {
-    throw new Error(
-      resultado?.error ?? "La habitación se guardó, pero no se pudo publicar."
-    );
-  }
+export async function pausarAnuncio(
+  habitacionId: string
+): Promise<void> {
+  return cambiarEstadoAnuncio(
+    habitacionId,
+    "pause",
+    "No se pudo pausar la publicación."
+  );
+}
+
+// ======================================================
+// REACTIVAR UNA PUBLICACIÓN
+// PATCH /rooms/:id/reactivate
+// ======================================================
+
+export async function reactivarAnuncio(
+  habitacionId: string
+): Promise<void> {
+  return cambiarEstadoAnuncio(
+    habitacionId,
+    "reactivate",
+    "No se pudo reactivar la publicación."
+  );
+}
+
+// ======================================================
+// CERRAR UNA PUBLICACIÓN
+// PATCH /rooms/:id/close
+// ======================================================
+
+export async function cerrarAnuncio(
+  habitacionId: string
+): Promise<void> {
+  return cambiarEstadoAnuncio(
+    habitacionId,
+    "close",
+    "No se pudo cerrar la publicación."
+  );
 }

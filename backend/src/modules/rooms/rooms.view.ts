@@ -1,15 +1,27 @@
-import type { RoomFeedItem, RoomListing } from "../../domain/index.js";
+
+import type { ListingStatus, RoomFeedItem, RoomListing } from "../../domain/index.js";
+
+// ======================================================
+// DTO DE RESUMEN
+// ======================================================
 
 export interface RoomSummaryDto {
   id: string;
   hostId: string;
   title: string;
   monthlyRent: number;
-  status: string;
+  status: ListingStatus;
   photosCount: number;
   availableFrom: string | null;
-  createdAt: string;
+  publishedAt: string | null;
+  closedAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
 }
+
+// ======================================================
+// DTO DE DETALLE
+// ======================================================
 
 export interface RoomDetailDto extends RoomSummaryDto {
   description: string | null;
@@ -33,11 +45,34 @@ export interface RoomFeedItemDto {
   publishedAt: string | null;
 }
 
-/**
- * Vista / Serializador para el módulo de Habitaciones (Rooms).
- */
+// ======================================================
+// CONVERSIÓN SEGURA DE FECHAS
+// ======================================================
+
+function fechaIsoSegura(
+  fecha: Date | null | undefined
+): string | null {
+  if (
+    !(fecha instanceof Date) ||
+    Number.isNaN(fecha.getTime())
+  ) {
+    return null;
+  }
+
+  return fecha.toISOString();
+}
+
+// ======================================================
+// VISTA / SERIALIZADOR DE HABITACIONES
+// ======================================================
+
 export class RoomView {
-  public static toSummary(room: RoomListing): RoomSummaryDto {
+
+  public static toSummary(
+    room: RoomListing
+  ): RoomSummaryDto {
+    const availableFrom = fechaIsoSegura(room.availableFrom);
+
     return {
       id: room.id,
       hostId: room.hostId,
@@ -45,12 +80,21 @@ export class RoomView {
       monthlyRent: room.monthlyRent,
       status: room.status,
       photosCount: room.photoCount,
-      availableFrom: room.availableFrom?.toISOString().split("T")[0] ?? null,
-      createdAt: room.createdAt.toISOString(),
+
+      availableFrom: availableFrom
+        ? availableFrom.slice(0, 10)
+        : null,
+
+      publishedAt: fechaIsoSegura(room.publishedAt),
+      closedAt: fechaIsoSegura(room.closedAt),
+      createdAt: fechaIsoSegura(room.createdAt),
+      updatedAt: fechaIsoSegura(room.updatedAt),
     };
   }
 
-  public static toDetail(room: RoomListing): RoomDetailDto {
+  public static toDetail(
+    room: RoomListing
+  ): RoomDetailDto {
     return {
       ...this.toSummary(room),
       description: room.description ?? null,
@@ -60,6 +104,7 @@ export class RoomView {
   }
 
   public static toFeedItem(item: RoomFeedItem): RoomFeedItemDto {
+    const availableFrom = fechaIsoSegura(item.availableFrom);
     return {
       id: item.id,
       hostId: item.hostId,
@@ -67,17 +112,19 @@ export class RoomView {
       title: item.title,
       description: item.description,
       monthlyRent: item.monthlyRent,
-      availableFrom: item.availableFrom?.toISOString().split("T")[0] ?? null,
+      availableFrom: availableFrom ? availableFrom.slice(0, 10) : null,
       maxRoommates: item.maxRoommates,
       photosCount: item.photoCount,
       address: item.address,
       zone: item.zone,
       city: item.city,
-      publishedAt: item.publishedAt?.toISOString() ?? null,
+      publishedAt: fechaIsoSegura(item.publishedAt),
     };
   }
 
-  public static toList(rooms: RoomListing[]): RoomSummaryDto[] {
-    return rooms.map((r) => this.toSummary(r));
+  public static toList(
+    rooms: RoomListing[]
+  ): RoomSummaryDto[] {
+    return rooms.map((room) => this.toSummary(room));
   }
 }

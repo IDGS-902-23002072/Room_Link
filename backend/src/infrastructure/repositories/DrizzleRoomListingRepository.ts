@@ -28,7 +28,7 @@ import { profileProfiles } from "../../db/schema/profile.js";
 export class DrizzleRoomListingRepository
   implements IRoomListingRepository {
 
-  constructor(private db: MySql2Database<any>) {}
+  constructor(private db: MySql2Database<any>) { }
 
   // Convertir registro de MySQL a entidad RoomListing
   private async mapToEntity(
@@ -45,9 +45,7 @@ export class DrizzleRoomListingRepository
       monthlyRent: Number(row.monthlyRent),
       status: row.status,
       photoCount: photoTotal,
-      availableFrom: row.availableFrom
-        ? new Date(`${row.availableFrom}T00:00:00`)
-        : null,
+      availableFrom: convertirFechaMySQL(row.availableFrom),
       maxRoommates: row.maxRoommates,
       publishedAt: row.publishedAt
         ? new Date(row.publishedAt)
@@ -169,9 +167,7 @@ export class DrizzleRoomListingRepository
       title: row.title,
       description: row.description ?? null,
       monthlyRent: Number(row.monthlyRent),
-      availableFrom: row.availableFrom
-        ? new Date(`${row.availableFrom}T00:00:00`)
-        : null,
+      availableFrom: convertirFechaMySQL(row.availableFrom),
       maxRoommates: row.maxRoommates ?? null,
       photoCount: Number(row.photoCount),
       address: row.address ?? null,
@@ -239,24 +235,35 @@ export class DrizzleRoomListingRepository
 
   // Crear habitación, ubicación y fotografías
   // dentro de una transacción
+
   async createWithLocationAndPhotos(
     room: RoomListing,
-    location: RoomLocationInput,
+    location: RoomLocationInput | null,
     photos: RoomPhotoInput[]
   ): Promise<RoomListing> {
-    const locationId = randomUUID();
+    if (photos.length > 10) {
+      throw new Error(
+        "No se permiten más de 10 fotografías."
+      );
+    }
+
+    const locationId = location
+      ? room.locationId ?? randomUUID()
+      : null;
 
     await this.db.transaction(async (tx) => {
 
-      // 1. Guardar ubicación
-      await tx.insert(geoLocations).values({
-        id: locationId,
-        address: location.address,
-        latitude: location.latitude.toFixed(6),
-        longitude: location.longitude.toFixed(6),
-      });
+      // 1. Guardar ubicación solamente si existe.
+      if (location && locationId) {
+        await tx.insert(geoLocations).values({
+          id: locationId,
+          address: location.address,
+          latitude: location.latitude.toFixed(6),
+          longitude: location.longitude.toFixed(6),
+        });
+      }
 
-      // 2. Guardar habitación relacionada con su ubicación
+      // 2. Guardar publicación.
       const newRecord: NewRoomListing = {
         id: room.id,
         hostId: room.hostId,
@@ -271,7 +278,7 @@ export class DrizzleRoomListingRepository
 
       await tx.insert(roomListings).values(newRecord);
 
-      // 3. Guardar fotografías en MySQL como datos binarios
+      // 3. Guardar fotografías si existen.
       if (photos.length > 0) {
         await tx.insert(roomPhotos).values(
           photos.map((photo, index) => ({
@@ -286,7 +293,7 @@ export class DrizzleRoomListingRepository
       }
     });
 
-    // 4. Devolver habitación con su ubicación y fotografías
+    // 4. Devolver publicación con los datos guardados.
     return new RoomListing({
       id: room.id,
       hostId: room.hostId,
@@ -298,6 +305,8 @@ export class DrizzleRoomListingRepository
       maxRoommates: room.maxRoommates,
       status: room.status,
       photoCount: photos.length,
+      publishedAt: room.publishedAt,
+      closedAt: room.closedAt,
       createdAt: room.createdAt,
       updatedAt: new Date(),
     });
@@ -367,17 +376,12 @@ export class DrizzleRoomListingRepository
 
   // Actualizar habitación, ubicación y fotografías
   // dentro de una transacción
+
   async updateWithLocationAndPhotos(
     room: RoomListing,
-    location: RoomLocationInput,
+    location: RoomLocationInput | null,
     photos: RoomPhotoUpdateItem[]
   ): Promise<void> {
-
-    if (!room.locationId) {
-      throw new Error(
-        "La habitación no tiene una ubicación asociada."
-      );
-    }
 
     if (photos.length > 10) {
       throw new Error(
@@ -385,7 +389,7 @@ export class DrizzleRoomListingRepository
       );
     }
 
-    // Obtener los identificadores de las fotografías existentes
+    // 1. Obtener los IDs de las fotografías existentes.
     const idsExistentes = photos
       .filter(
         (
@@ -397,38 +401,21 @@ export class DrizzleRoomListingRepository
       )
       .map((item) => item.id);
 
-    // Evitar identificadores repetidos
+    // 2. Evitar fotografías duplicadas.
     if (new Set(idsExistentes).size !== idsExistentes.length) {
       throw new Error(
         "No puedes agregar dos veces la misma fotografía."
       );
     }
 
+    // 3. Determinar el ID de ubicación.
+    const locationId = location
+      ? room.locationId ?? randomUUID()
+      : null;
+
     await this.db.transaction(async (tx) => {
 
-      // 1. Actualizar los datos de la habitación
-      await tx
-        .update(roomListings)
-        .set({
-          title: room.title,
-          description: room.description ?? null,
-          monthlyRent: room.monthlyRent.toFixed(2),
-          availableFrom: room.availableFrom ?? null,
-          maxRoommates: room.maxRoommates ?? null,
-        })
-        .where(eq(roomListings.id, room.id));
-
-      // 2. Actualizar la ubicación existente
-      await tx
-        .update(geoLocations)
-        .set({
-          address: location.address,
-          latitude: location.latitude.toFixed(6),
-          longitude: location.longitude.toFixed(6),
-        })
-        .where(eq(geoLocations.id, room.locationId!));
-
-      // 3. Consultar las fotografías que ya existen
+      // 4. Consultar las fotografías actuales.
       const fotosActuales = await tx
         .select({
           id: roomPhotos.id,
@@ -443,8 +430,8 @@ export class DrizzleRoomListingRepository
 
       const idsSolicitados = new Set(idsExistentes);
 
-      // 4. Comprobar que las fotografías enviadas
-      // pertenecen a esta publicación
+      // 5. Comprobar que las fotografías pertenecen
+      // a esta publicación.
       for (const id of idsExistentes) {
         if (!idsActuales.has(id)) {
           throw new Error(
@@ -453,7 +440,44 @@ export class DrizzleRoomListingRepository
         }
       }
 
-      // 5. Eliminar las fotografías que el usuario quitó
+      // 6. Guardar o actualizar la ubicación.
+      if (location && locationId) {
+
+        if (room.locationId) {
+          // Ya existía una ubicación: actualizarla.
+          await tx
+            .update(geoLocations)
+            .set({
+              address: location.address,
+              latitude: location.latitude.toFixed(6),
+              longitude: location.longitude.toFixed(6),
+            })
+            .where(eq(geoLocations.id, locationId));
+        } else {
+          // No existía ubicación: crearla.
+          await tx.insert(geoLocations).values({
+            id: locationId,
+            address: location.address,
+            latitude: location.latitude.toFixed(6),
+            longitude: location.longitude.toFixed(6),
+          });
+        }
+      }
+
+      // 7. Actualizar los datos de la publicación.
+      await tx
+        .update(roomListings)
+        .set({
+          locationId,
+          title: room.title,
+          description: room.description ?? null,
+          monthlyRent: room.monthlyRent.toFixed(2),
+          availableFrom: room.availableFrom ?? null,
+          maxRoommates: room.maxRoommates ?? null,
+        })
+        .where(eq(roomListings.id, room.id));
+
+      // 8. Eliminar fotografías que ya no fueron seleccionadas.
       for (const foto of fotosActuales) {
         if (!idsSolicitados.has(foto.id)) {
           await tx
@@ -467,8 +491,8 @@ export class DrizzleRoomListingRepository
         }
       }
 
-      // 6. Mover temporalmente las fotografías conservadas
-      // Esto evita conflictos con el índice único de posiciones
+      // 9. Mover temporalmente las fotografías conservadas
+      // para evitar conflictos con el índice único de posición.
       for (const foto of fotosActuales) {
         if (idsSolicitados.has(foto.id)) {
           await tx
@@ -476,17 +500,21 @@ export class DrizzleRoomListingRepository
             .set({
               position: foto.position + 100,
             })
-            .where(eq(roomPhotos.id, foto.id));
+            .where(
+              and(
+                eq(roomPhotos.id, foto.id),
+                eq(roomPhotos.listingId, room.id)
+              )
+            );
         }
       }
 
-      // 7. Asignar posiciones definitivas e insertar
-      // fotografías nuevas respetando el orden recibido
+      // 10. Asignar las posiciones definitivas e insertar
+      // las fotografías nuevas.
       let position = 1;
 
       for (const item of photos) {
 
-        // Fotografía que ya existe en MySQL
         if (item.type === "existing") {
           await tx
             .update(roomPhotos)
@@ -499,10 +527,7 @@ export class DrizzleRoomListingRepository
                 eq(roomPhotos.listingId, room.id)
               )
             );
-        }
-
-        // Fotografía nueva
-        else if (item.type === "new") {
+        } else {
           await tx.insert(roomPhotos).values({
             id: randomUUID(),
             listingId: room.id,
@@ -516,6 +541,66 @@ export class DrizzleRoomListingRepository
         position++;
       }
     });
+  }
+
+
+  // ======================================================
+  // CAMBIAR ESTADO DE UNA PUBLICACIÓN
+  // ======================================================
+
+  async transitionStatus(
+    id: string,
+    expectedStatus: "draft" | "published" | "paused",
+    newStatus: "published" | "paused" | "closed"
+  ): Promise<boolean> {
+
+    // Verificar que la transición esté permitida.
+    const transicionPermitida =
+      (expectedStatus === "draft" && newStatus === "published") ||
+      (expectedStatus === "published" && newStatus === "paused") ||
+      (expectedStatus === "paused" && newStatus === "published") ||
+      (expectedStatus === "published" && newStatus === "closed");
+
+    if (!transicionPermitida) {
+      return false;
+    }
+
+    const datosActualizacion: {
+      status: "published" | "paused" | "closed";
+      publishedAt?: Date;
+      closedAt?: Date;
+      updatedAt: Date;
+    } = {
+      status: newStatus,
+      updatedAt: new Date(),
+    };
+
+    // Registrar la primera publicación.
+    if (
+      expectedStatus === "draft" &&
+      newStatus === "published"
+    ) {
+      datosActualizacion.publishedAt = new Date();
+    }
+
+    // Registrar el cierre definitivo.
+    if (newStatus === "closed") {
+      datosActualizacion.closedAt = new Date();
+    }
+
+    // Actualización atómica: solo cambia si conserva
+    // el estado anterior que esperamos.
+    const result = await this.db
+      .update(roomListings)
+      .set(datosActualizacion)
+      .where(
+        and(
+          eq(roomListings.id, id),
+          eq(roomListings.status, expectedStatus)
+        )
+      );
+
+    return result[0].affectedRows === 1;
   }
 
   // Contar fotografías
@@ -568,4 +653,28 @@ export class DrizzleRoomListingRepository
       position: photo.position,
     };
   }
+}
+
+// ======================================================
+// CONVERSIÓN DE FECHAS DE MYSQL
+// ======================================================
+
+function convertirFechaMySQL(
+  fecha: string | Date | null
+): Date | null {
+  if (fecha === null) {
+    return null;
+  }
+
+  if (fecha instanceof Date) {
+    return new Date(
+      Date.UTC(
+        fecha.getUTCFullYear(),
+        fecha.getUTCMonth(),
+        fecha.getUTCDate(),
+      ),
+    );
+  }
+
+  return new Date(`${fecha.slice(0, 10)}T00:00:00.000Z`);
 }
