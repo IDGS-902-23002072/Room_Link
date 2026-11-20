@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { M06Navigator } from '../modules/m06-compatibilidad';
+import { M06Navigator } from '../navigation/M06Navigator';
 import { AppTabBar } from '../shared/components/AppTabBar';
 import { colors } from '../shared/theme';
 
