@@ -216,6 +216,14 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
         isBlocked: async (userId: string) =>
           (await sanctionsService.findBlockingSession(userId)) !== null,
       },
+      // Registro exhaustivo de arrendador: auth consulta la verificación de
+      // identidad (que vive en el módulo de perfil) sin acoplarse a él.
+      identityProvider: {
+        getIdentityStatus: async (userId: string) => {
+          const perfil = await profileRepo.findByUserId(userId);
+          return perfil ? perfil.identityStatus : null;
+        },
+      },
     } satisfies AuthServiceDependencies);
   const authService = new AuthService(userRepo, authDependencies);
   const authController = new AuthController(authService, config.auth.secureCookies);

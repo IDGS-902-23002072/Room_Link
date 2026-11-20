@@ -26,9 +26,19 @@ export class ApplicationsController {
         return c.json({ error: "listingId es obligatorio" }, 400);
       }
 
+      const applicantId = c.get("auth").userId;
+      // #8 — No puedes postularte a tu propia publicación.
+      const hostId = await this.deps.resolveListingHostId(body.listingId);
+      if (hostId && hostId === applicantId) {
+        return c.json(
+          { error: "No puedes postularte a tu propia publicación." },
+          400,
+        );
+      }
+
       const app = await this.applicationsService.apply({
         listingId: body.listingId,
-        applicantId: c.get("auth").userId,
+        applicantId,
         message: body.message ?? null,
         compatibilityScore:
           body.compatibilityScore != null ? Number(body.compatibilityScore) : null,

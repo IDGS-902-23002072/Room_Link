@@ -3,6 +3,7 @@ import {
   cargarSesionPersistida,
   guardarSesion,
   limpiarSesion,
+  obtenerSesion,
   obtenerToken,
   type Sesion,
   type UsuarioSesion,
@@ -68,3 +69,26 @@ export async function cerrarSesion(): Promise<void> {
 }
 
 export { cargarSesionPersistida };
+
+/**
+ * Registro exhaustivo de arrendador (RNF-03.4): solicita el rol `host` al
+ * backend (tras aceptar términos; el backend valida la verificación de
+ * identidad) y actualiza los roles en la sesión local para que la app
+ * desbloquee las pantallas de arrendador.
+ */
+export async function convertirseEnArrendador(
+  aceptaTerminos: boolean,
+): Promise<string[]> {
+  const r = await solicitud<{ roles: string[] }>('/api/v1/auth/become-host', {
+    method: 'POST',
+    body: JSON.stringify({ acceptedTerms: aceptaTerminos }),
+  });
+  const actual = obtenerSesion();
+  if (actual) {
+    await guardarSesion({
+      ...actual,
+      usuario: { ...actual.usuario, roles: r.roles },
+    });
+  }
+  return r.roles;
+}

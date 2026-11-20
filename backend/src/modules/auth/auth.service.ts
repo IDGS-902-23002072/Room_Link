@@ -263,6 +263,39 @@ export class AuthService {
     return user;
   }
 
+  /**
+   * Registro exhaustivo de arrendador (RNF-03.4): otorga el rol `host` al
+   * usuario autenticado tras validar que (1) aceptó los términos de
+   * responsabilidad y (2) su identidad NO está sin verificar — consultada por
+   * el puerto `identityProvider` (vive en el módulo de perfil, sin acoplar
+   * auth a profile). Idempotente. Devuelve los roles resultantes.
+   */
+  async becomeHost(userId: string, acceptedTerms: boolean): Promise<UserRole[]> {
+    if (!acceptedTerms) {
+      throw new AppError(
+        "Debes aceptar los términos de responsabilidad del arrendador.",
+        400,
+        "TERMS_NOT_ACCEPTED",
+      );
+    }
+    const { identityProvider } = this.dependencies;
+    if (identityProvider) {
+      const estado = await identityProvider.getIdentityStatus(userId);
+      if (!estado || estado === "unverified") {
+        throw new AppError(
+          "Debes solicitar la verificación de identidad antes de registrarte como arrendador.",
+          403,
+          "IDENTITY_NOT_VERIFIED",
+        );
+      }
+    }
+    const user = await this.userRepo.findById(userId);
+    if (!user) throw new AppError("Usuario no encontrado.", 404, "USER_NOT_FOUND");
+    user.grantHostRole(this.clock.now());
+    await this.userRepo.update(user);
+    return user.roles;
+  }
+
   private async issueSession(
     user: User,
     userAgent?: string | null,
