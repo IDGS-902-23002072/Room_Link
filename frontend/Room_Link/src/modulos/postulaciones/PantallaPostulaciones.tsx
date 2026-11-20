@@ -269,6 +269,20 @@ export default function PantallaPostulaciones({
             >
               <Text style={styles.botonPrimarioTexto}>Evaluar solicitud</Text>
             </Pressable>
+
+            <Pressable
+              style={[styles.botonPrimario, { backgroundColor: COL.moradoClaro, marginTop: 8 }]}
+              onPress={() =>
+                router.push({
+                  pathname: '/compatibilidad-detalle',
+                  params: { candidateId: sel.applicantId },
+                })
+              }
+            >
+              <Text style={[styles.botonPrimarioTexto, { color: COL.morado }]}>
+                Comparar hábitos (M06)
+              </Text>
+            </Pressable>
           </>
         )}
 
