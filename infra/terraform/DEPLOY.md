@@ -5,9 +5,17 @@
 > Este entorno de agente tiene gateado `terraform apply` y `az group delete`,
 > por eso los corrés vos.
 
-## Qué quedó configurado (sin costo)
-- **Región**: `canadacentral` (B1s con capacidad y cuota BS 0/4 verificadas el 2026-11-20;
-  `northcentralus` fallaba con `SkuNotAvailable` por falta de capacidad de B1s).
+## Qué quedó configurado
+- **Región**: `canadacentral`. **VM**: `Standard_B2pls_v2` (ARM Ampere, 2 vCPU / 4 GiB).
+  - **Por qué no B1s (gratis):** B1s no tiene **capacidad** en ninguna región permitida
+    (northcentralus y canadacentral fallaron con `SkuNotAvailable`). Es lo típico del
+    tamaño gratis: sobre-suscrito.
+  - **Por qué ARM:** la suscripción solo tiene **cuota** para `Bpsv2` (ARM, 0/10) entre las
+    familias v2; `Basv2` (AMD) y `Bsv2` (Intel) tienen cuota 0. ARM Ampere además tiene
+    buena capacidad. Imagen Ubuntu 24.04 `server-arm64`. MySQL/Node/Caddy corren en ARM.
+  - **Costo:** ~$12.6/mes, cubierto por el crédito gratis de Azure for Students (~$100,
+    sin tarjeta) ⇒ **$0 de tu bolsillo**. Para cambiar tamaño/región: vars `vm_size`,
+    `vm_image_sku`, `location`.
 - **Infra 100% free-tier** (`main.tf`): 1 VM `Standard_B1s` (750 h/mes gratis 12 meses),
   IP pública estática Standard, disco 30 GB Standard_LRS, VNet/subnet/NSG. Sin App Service
   ni Azure MySQL Flexible (esos no están en la capa gratis de Students).

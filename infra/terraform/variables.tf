@@ -5,9 +5,21 @@ variable "subscription_id" {
 }
 
 variable "location" {
-  description = "Región permitida por Azure for Students con cuota y capacidad Standard_B1s (canadacentral: B1s sin restricción, BS 0/4, verificado 2026-11-20)"
+  description = "Región permitida por Azure for Students. canadacentral: cuota Bpsv2 (ARM) 0/10, con capacidad. B1s/BS v1 no tienen capacidad; Basv2/Bsv2 no tienen cuota (verificado 2026-11-20)."
   type        = string
   default     = "canadacentral"
+}
+
+variable "vm_size" {
+  description = "Tamaño de la VM. B2pls_v2 = ARM Ampere, 2 vCPU / 4 GiB, familia Bpsv2 (única v2 con cuota en esta suscripción) y con capacidad. ~$12.6/mes (cubierto por el crédito gratis de estudiante). B1s (gratis) no tiene capacidad."
+  type        = string
+  default     = "Standard_B2pls_v2"
+}
+
+variable "vm_image_sku" {
+  description = "SKU de la imagen Ubuntu 24.04. 'server-arm64' para VMs ARM (Bpsv2); 'server' para x86."
+  type        = string
+  default     = "server-arm64"
 }
 
 variable "project" {

@@ -126,7 +126,7 @@ resource "azurerm_linux_virtual_machine" "app" {
   name                = "vm-${var.project}-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  size                = "Standard_B1s"
+  size                = var.vm_size
   admin_username      = var.admin_username
   network_interface_ids = [
     azurerm_network_interface.vm.id,
@@ -146,7 +146,7 @@ resource "azurerm_linux_virtual_machine" "app" {
   source_image_reference {
     publisher = "Canonical"
     offer     = "ubuntu-24_04-lts"
-    sku       = "server"
+    sku       = var.vm_image_sku
     version   = "latest"
   }
 
@@ -186,7 +186,7 @@ resource "azurerm_linux_virtual_machine" "app" {
       -e MYSQL_USER='${var.mysql_user}' \
       -e MYSQL_PASSWORD='${random_password.mysql_app.result}' \
       -v roomlink_mysql_data:/var/lib/mysql \
-      mysql:8.4 --innodb-buffer-pool-size=128M
+      mysql:8.4 --innodb-buffer-pool-size=512M
 
     # Directorio de la app y .env de producción
     mkdir -p /opt/roomlink
