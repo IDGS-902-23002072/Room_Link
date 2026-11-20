@@ -492,6 +492,16 @@ export function PantallaPerfil() {
 
               {esAdmin && (
                 <>
+                  <Link href="/analytics" asChild>
+                    <Pressable
+                      accessibilityRole="link"
+                      style={({ pressed }) => [
+                        styles.botonAdmin,
+                        pressed && styles.botonPresionado,
+                      ]}>
+                      <Text style={styles.textoBotonAdmin}>Dashboard de analítica (Admin)</Text>
+                    </Pressable>
+                  </Link>
                   <Link href="/moderacion" asChild>
                     <Pressable
                       accessibilityRole="button"
