@@ -46,7 +46,15 @@ export class SearchView {
     result: PaginatedResult<Profile>,
   ): PaginatedDto<ProfileResponseDto> {
     return {
-      items: result.items.map(ProfileView.toPublicProfile),
+      // HU-02 — En búsqueda/descubrimiento el espectador no es dueño ni conexión:
+      // se ocultan teléfono y redes de todos los candidatos.
+      items: result.items.map((profile) =>
+        ProfileView.toPublicProfile(profile, {
+          isOwner: false,
+          isConnected: false,
+          privacy: null,
+        }),
+      ),
       page: result.page,
       pageSize: result.pageSize,
       total: result.total,

@@ -11,6 +11,15 @@ export interface ApplicationsControllerDependencies {
    * Inyectado desde `app.ts` para no acoplar el controller al `RoomListingRepository`.
    */
   resolveListingHostId: (listingId: string) => Promise<string | null>;
+  /**
+   * HU-07 — Calcula en el servidor el % de afinidad entre postulante y anfitrión.
+   * Inyectado desde `app.ts` (módulo de compatibilidad) para que el cliente no
+   * pueda falsear el score. Devuelve `null` si no se puede calcular (sin test, etc.).
+   */
+  resolveCompatibilityScore: (
+    applicantId: string,
+    hostId: string,
+  ) => Promise<number | null>;
 }
 
 export class ApplicationsController {
@@ -36,12 +45,16 @@ export class ApplicationsController {
         );
       }
 
+      // HU-07 — El % de afinidad lo calcula el servidor; se ignora el valor del cliente.
+      const compatibilityScore = hostId
+        ? await this.deps.resolveCompatibilityScore(applicantId, hostId)
+        : null;
+
       const app = await this.applicationsService.apply({
         listingId: body.listingId,
         applicantId,
         message: body.message ?? null,
-        compatibilityScore:
-          body.compatibilityScore != null ? Number(body.compatibilityScore) : null,
+        compatibilityScore,
       });
 
       return c.json(ApplicationView.toResponse(app), 201);

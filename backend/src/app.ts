@@ -229,9 +229,23 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const authController = new AuthController(authService, config.auth.secureCookies);
   app.route("/api/v1/auth", createAuthRoutes(authController, authService));
 
+  // Repositorio de conexiones compartido (perfil HU-02 + módulo de conexiones).
+  const connectionRepo =
+    dependencies.connectionRepo ?? new DrizzleConnectionRepository(db);
+
   // 2. Profile Module
   const profileService = new ProfileService(profileRepo);
-  const profileController = new ProfileController(profileService);
+  const profileController = new ProfileController(profileService, {
+    // HU-02 — hay conexión si existe una aceptada entre ambos.
+    areConnected: async (viewerId: string, ownerId: string) => {
+      const conns = await connectionRepo.listForUser(viewerId, "all");
+      return conns.some(
+        (conn) =>
+          conn.status === "accepted" &&
+          (conn.requesterId === ownerId || conn.addresseeId === ownerId),
+      );
+    },
+  });
   app.route("/api/v1/profiles", createProfileRoutes(profileController, authService));
 
   // 3. Rooms Module
@@ -245,6 +259,15 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     resolveListingHostId: async (listingId: string) => {
       const room = await roomRepo.findById(listingId);
       return room ? room.hostId : null;
+    },
+    // HU-07 — afinidad calculada en el servidor (postulante como viewer, host como candidato).
+    resolveCompatibilityScore: async (applicantId: string, hostId: string) => {
+      try {
+        const candidate = await compatibilityRepo.findCandidate(applicantId, hostId);
+        return candidate?.compatibilityScore ?? null;
+      } catch {
+        return null;
+      }
     },
   });
   app.route(
@@ -284,7 +307,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
 
   // 8. Connections Module (accept/reject/cancel)
   const connectionsService = new ConnectionsService(
-    dependencies.connectionRepo ?? new DrizzleConnectionRepository(db),
+    connectionRepo,
     authDependencies.eventPublisher,
   );
   const connectionsController = new ConnectionsController(connectionsService);
@@ -378,6 +401,16 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
         503,
       );
     }
+  });
+
+  // En producción (Azure App Service), sirve el build web de Expo desde ./public
+  app.use("/*", async (c, next) => {
+    if (c.req.path.startsWith("/api/")) return next();
+    return serveStatic({ root: "./public" })(c, next);
+  });
+  app.get("/*", async (c, next) => {
+    if (c.req.path.startsWith("/api/")) return next();
+    return serveStatic({ path: "./public/index.html" })(c, next);
   });
 
   return app;

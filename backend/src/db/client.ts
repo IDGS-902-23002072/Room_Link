@@ -8,6 +8,9 @@ export const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   timezone: "Z",
+  ...(process.env.DB_SSL === "true"
+    ? { ssl: { minVersion: "TLSv1.2", rejectUnauthorized: false } }
+    : {}),
 });
 
 export const db = drizzle(pool, { schema, mode: "default" });

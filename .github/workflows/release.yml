@@ -1,60 +1,111 @@
-name: Release
+name: Release & Deploy (Azure Free Tier VM)
 
 on:
   push:
     tags:
       - "v*.*.*"
-  workflow_dispatch:
-    inputs:
-      profile:
-        description: Perfil EAS a usar
-        required: true
-        default: preview
-        type: choice
-        options: [preview, production]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
 
 jobs:
-  eas-build:
-    name: EAS build (${{ github.event.inputs.profile || 'preview' }})
+  deploy-azure:
+    name: Deploy Backend + Web Móvil a Azure (Standard_B1s Free Tier)
     runs-on: ubuntu-latest
-    if: hashFiles('frontend/package.json') != ''
-    defaults:
-      run:
-        working-directory: frontend
-    permissions:
-      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          node-version: 22
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Setup EAS CLI
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      # Build se dispara contra el perfil elegido. Para que esto funcione
-      # hay que haber configurado `eas.json` dentro de frontend/ y haber corrido
-      # `eas build:configure` una vez. Hasta entonces el step siguiente falla
-      # a propósito con mensaje claro.
-      - name: Build (Android + iOS)
+      - name: Instalar y compilar backend
+        working-directory: backend
         run: |
-          if [ ! -f eas.json ]; then
-            echo "::error::Falta frontend/eas.json. Correr 'eas build:configure' localmente y commitear." >&2
-            exit 1
-          fi
-          eas build --non-interactive --no-wait \
-            --profile "${PROFILE:-preview}" \
-            --platform all
+          npm ci
+          npm run build
+
+      - name: Compilar cliente móvil (Expo Web) apuntando a Azure
+        working-directory: frontend/Room_Link
         env:
-          PROFILE: ${{ github.event.inputs.profile || 'preview' }}
+          EXPO_PUBLIC_API_URL: ${{ secrets.AZURE_API_URL }}
+          EXPO_NO_TELEMETRY: "1"
+        run: |
+          npm ci
+          npx expo export --platform web --output-dir ../../backend/public
+
+      - name: Empaquetar release de producción
+        run: |
+          mkdir -p deploy_pkg
+          cp -r backend/dist backend/drizzle backend/public backend/package.json backend/package-lock.json deploy_pkg/
+          cd deploy_pkg
+          npm ci --omit=dev
+          cd ..
+          tar -czf roomlink-release.tar.gz -C deploy_pkg .
+
+      - name: Desplegar por SSH y aplicar migraciones en Azure VM
+        env:
+          SSH_HOST: ${{ secrets.AZURE_VM_HOST }}
+          SSH_USER: ${{ secrets.AZURE_VM_USER }}
+          SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+          scp -i ~/.ssh/id_deploy roomlink-release.tar.gz "$SSH_USER@$SSH_HOST:/opt/roomlink/roomlink-release.tar.gz"
+
+          ssh -i ~/.ssh/id_deploy "$SSH_USER@$SSH_HOST" 'bash -s' <<'REMOTE'
+            set -euo pipefail
+            mkdir -p /opt/roomlink/next
+            tar -xzf /opt/roomlink/roomlink-release.tar.gz -C /opt/roomlink/next
+            rm -rf /opt/roomlink/previous
+            if [ -d /opt/roomlink/current ]; then mv /opt/roomlink/current /opt/roomlink/previous; fi
+            mv /opt/roomlink/next /opt/roomlink/current
+            rm -f /opt/roomlink/roomlink-release.tar.gz
+
+            cd /opt/roomlink/current
+            set -a && source /opt/roomlink/.env && set +a
+            for i in $(seq 1 30); do
+              if node dist/src/db/migrate.js; then
+                break
+              fi
+              echo "Esperando a MySQL ($i/30)..."
+              sleep 3
+            done
+
+            sudo systemctl restart roomlink
+            sudo systemctl is-active --quiet roomlink
+          REMOTE
+
+      - name: Verificar salud HTTPS (/health y /ready)
+        env:
+          API_URL: ${{ secrets.AZURE_API_URL }}
+        run: |
+          for i in $(seq 1 20); do
+            if curl -sf "$API_URL/ready" | grep -q '"ready"'; then
+              echo "✅ Despliegue operativo y conectado a MySQL: $API_URL"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "❌ /ready no respondió ready a tiempo" >&2
+          exit 1
+
+  github-release:
+    name: Crear GitHub Release
+    needs: deploy-azure
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publicar Release en GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            Despliegue automático en Azure (Capa Gratuita Standard_B1s + MySQL 8.4 + Caddy HTTPS).
+            - URL producción (API + App Web): ${{ secrets.AZURE_API_URL }}

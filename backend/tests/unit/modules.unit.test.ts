@@ -498,6 +498,8 @@ describe("Modular Monolith MVC API", () => {
         body: JSON.stringify({
           listingId: "listing-abc",
           message: "Hola, me interesa mucho el cuarto.",
+          // HU-07 — El cliente intenta inyectar un score; el servidor debe ignorarlo
+          // y calcularlo él mismo (sin datos de compatibilidad aquí ⇒ null).
           compatibilityScore: 92.5,
         }),
       });
@@ -507,7 +509,8 @@ describe("Modular Monolith MVC API", () => {
       const data = await res.json();
 
       expect(data.status).toBe("pending");
-      expect(data.compatibilityScore).toBe(92.5);
+      // El 92.5 enviado por el cliente NO se persiste: el score es server-authoritative.
+      expect(data.compatibilityScore).toBeNull();
     });
 
     it("rejects application without session", async () => {

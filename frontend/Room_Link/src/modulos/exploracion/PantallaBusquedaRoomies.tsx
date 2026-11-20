@@ -184,7 +184,7 @@ function Busqueda({ usuarioId }: { usuarioId: string }) {
             if (mensaje) setError(mensaje);
             else void guardar({ filtros });
           }} deshabilitada={bloquear} primaria texto="Aplicar filtros" />
-          <Accion alPulsar={() => { void guardar({ filtros: filtrosIniciales }).then((ok) => { if (ok) setFiltros(filtrosIniciales); }); }} deshabilitada={bloquear} texto="Restablecer filtros" />
+          <Accion alPulsar={() => { void guardar({ filtros: filtrosIniciales, habitos: {} }).then((ok) => { if (ok) { setFiltros(filtrosIniciales); setHabitos({}); } }); }} deshabilitada={bloquear} texto="Restablecer filtros" />
           <Accion alPulsar={() => setPestana('guardadas')} texto="Guardar búsqueda actual" />
         </Tarjeta>
         <Tarjeta titulo={`${resultados.length} ${resultados.length === 1 ? 'perfil encontrado' : 'perfiles encontrados'}${hayMas ? ' entre los cargados' : ''}`}>
