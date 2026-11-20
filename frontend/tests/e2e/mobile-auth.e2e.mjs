@@ -179,7 +179,9 @@ test("móvil: login real cross-origin y llegada a la pantalla autenticada", asyn
     );
     await clickByText(page, "Acuerdos de convivencia (HU-12)");
     await page.waitForFunction(
-      () => document.body.innerText.includes("ROOMLINK / 12"),
+      () =>
+        document.body.innerText.includes("Acuerdos de convivencia") &&
+        document.body.innerText.includes("Resumen de tu hogar"),
       { timeout: 10000 },
     );
   } finally {
