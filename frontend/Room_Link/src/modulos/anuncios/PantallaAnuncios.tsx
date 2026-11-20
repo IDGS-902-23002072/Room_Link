@@ -86,6 +86,10 @@ export function PantallaAnuncios() {
   const [habitacionIdEdicion, setHabitacionIdEdicion] =
     useState<string | null>(null);
 
+  const [estadoEdicion, setEstadoEdicion] = useState<
+    "draft" | "published" | "paused" | "closed" | null
+  >(null);
+
   // Fotografías existentes en el servidor.
   const [fotosIniciales, setFotosIniciales] = useState<Foto[]>([]);
 
@@ -101,6 +105,7 @@ export function PantallaAnuncios() {
     setFotosIniciales([]);
     setModoEdicion(false);
     setVista("anuncios");
+    setEstadoEdicion(null);
   };
 
   // ====================================================
@@ -115,6 +120,7 @@ export function PantallaAnuncios() {
     setFotosIniciales([]);
     setModoEdicion(false);
     setVista("publicar");
+    setEstadoEdicion(null);
   };
 
   // ====================================================
@@ -144,14 +150,16 @@ export function PantallaAnuncios() {
       setCoordenadas(
         anuncio.location
           ? {
-              latitude: anuncio.location.latitude,
-              longitude: anuncio.location.longitude,
-            }
+            latitude: anuncio.location.latitude,
+            longitude: anuncio.location.longitude,
+          }
           : null
       );
 
       // Guardar el ID original.
       setHabitacionIdEdicion(anuncio.id);
+      // Guardar el estado original de la habitación.
+      setEstadoEdicion(anuncio.status);
 
       // Activar edición.
       setModoEdicion(true);
@@ -348,6 +356,105 @@ export function PantallaAnuncios() {
   // ====================================================
   // ENVIAR A PUBLICACIÓN
   // ====================================================
+  /*
+    const enviarRevision = async (fotos: Foto[]) => {
+      if (enviando) return;
+
+      if (!coordenadas || !datosHabitacion.ubicacion.trim()) {
+        Alert.alert(
+          "Ubicación requerida",
+          "Selecciona la ubicación de la habitación."
+        );
+        return;
+      }
+
+      if (fotos.length < 3) {
+        Alert.alert(
+          "Fotografías insuficientes",
+          "Debes agregar al menos 3 fotografías para publicar."
+        );
+        return;
+      }
+
+      setEnviando(true);
+
+      try {
+        const datosApi = construirDatosAnuncio(
+          datosHabitacion,
+          fotos
+        );
+
+        if (modoEdicion && habitacionIdEdicion) {
+          // Identificar fotografías existentes y nuevas.
+          const fotosParaGuardar = convertirFotosEdicion(fotos);
+
+          await actualizarAnuncio(habitacionIdEdicion, {
+            ...datosApi,
+            fotos: fotosParaGuardar,
+          });
+
+          Alert.alert(
+            "¡Cambios guardados!",
+            "La publicación se actualizó correctamente.",
+            [
+              {
+                text: "Aceptar",
+                onPress: reiniciarFormulario,
+              },
+            ]
+          );
+
+          return;
+        }
+
+        let habitacionId = habitacionIdPendiente;
+
+        if (!habitacionId) {
+          // Crear una publicación nueva.
+          const habitacion = await crearAnuncio(datosApi);
+
+          habitacionId = habitacion.id;
+
+          setHabitacionIdPendiente(habitacion.id);
+        } else {
+          // Actualizar el borrador que ya existía.
+          const fotosParaGuardar = convertirFotosEdicion(fotos);
+
+          await actualizarAnuncio(habitacionId, {
+            ...datosApi,
+            fotos: fotosParaGuardar,
+          });
+        }
+
+        // Publicar el borrador.
+        await publicarAnuncio(habitacionId);
+
+        Alert.alert(
+          "¡Publicación exitosa!",
+          `Tu habitación "${datosHabitacion.titulo}" se guardó y publicó correctamente.\n\nFotografías almacenadas: ${fotos.length}`,
+          [
+            {
+              text: "Aceptar",
+              onPress: reiniciarFormulario,
+            },
+          ]
+        );
+      } catch (error) {
+        const mensaje =
+          error instanceof Error
+            ? error.message
+            : "Ocurrió un error al guardar la habitación.";
+
+        Alert.alert(
+          "No se pudieron guardar los cambios",
+          mensaje
+        );
+      } finally {
+        setEnviando(false);
+      }
+    };
+    */
+
 
   const enviarRevision = async (fotos: Foto[]) => {
     if (enviando) return;
@@ -376,15 +483,39 @@ export function PantallaAnuncios() {
         fotos
       );
 
+      // ================================================
+      // EDITAR UNA HABITACIÓN EXISTENTE
+      // ================================================
+
       if (modoEdicion && habitacionIdEdicion) {
-        // Identificar fotografías existentes y nuevas.
         const fotosParaGuardar = convertirFotosEdicion(fotos);
 
+        // Actualizar primero los datos y fotografías.
         await actualizarAnuncio(habitacionIdEdicion, {
           ...datosApi,
           fotos: fotosParaGuardar,
         });
 
+        // Si era un borrador, publicarlo después de actualizarlo.
+        if (estadoEdicion === "draft") {
+          await publicarAnuncio(habitacionIdEdicion);
+
+          Alert.alert(
+            "¡Publicación exitosa!",
+            `Tu habitación "${datosHabitacion.titulo}" se actualizó y publicó correctamente.`,
+            [
+              {
+                text: "Aceptar",
+                onPress: reiniciarFormulario,
+              },
+            ]
+          );
+
+          return;
+        }
+
+        // Si ya estaba publicada o pausada,
+        // solamente guardar los cambios.
         Alert.alert(
           "¡Cambios guardados!",
           "La publicación se actualizó correctamente.",
@@ -399,17 +530,18 @@ export function PantallaAnuncios() {
         return;
       }
 
+      // ================================================
+      // CREAR O CONTINUAR UNA HABITACIÓN NUEVA
+      // ================================================
+
       let habitacionId = habitacionIdPendiente;
 
       if (!habitacionId) {
-        // Crear una publicación nueva.
         const habitacion = await crearAnuncio(datosApi);
 
         habitacionId = habitacion.id;
-
         setHabitacionIdPendiente(habitacion.id);
       } else {
-        // Actualizar el borrador que ya existía.
         const fotosParaGuardar = convertirFotosEdicion(fotos);
 
         await actualizarAnuncio(habitacionId, {
@@ -418,7 +550,7 @@ export function PantallaAnuncios() {
         });
       }
 
-      // Publicar el borrador.
+      // Publicar la habitación.
       await publicarAnuncio(habitacionId);
 
       Alert.alert(
@@ -431,6 +563,7 @@ export function PantallaAnuncios() {
           },
         ]
       );
+
     } catch (error) {
       const mensaje =
         error instanceof Error
@@ -445,6 +578,7 @@ export function PantallaAnuncios() {
       setEnviando(false);
     }
   };
+
 
   // ====================================================
   // PANTALLA DE CARGA
@@ -488,15 +622,15 @@ export function PantallaAnuncios() {
   // ====================================================
 
   if (vista === "ubicacion") {
-  return (
-    <PantallaUbicacion
-      ubicacionInicial={datosHabitacion.ubicacion}
-      coordenadasIniciales={coordenadas}
-      onVolver={() => setVista("publicar")}
-      onContinuar={continuarUbicacion}
-    />
-  );
-}
+    return (
+      <PantallaUbicacion
+        ubicacionInicial={datosHabitacion.ubicacion}
+        coordenadasIniciales={coordenadas}
+        onVolver={() => setVista("publicar")}
+        onContinuar={continuarUbicacion}
+      />
+    );
+  }
 
   // ====================================================
   // PANTALLA DE FOTOGRAFÍAS

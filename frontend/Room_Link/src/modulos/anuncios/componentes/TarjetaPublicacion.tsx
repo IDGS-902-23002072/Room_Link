@@ -13,7 +13,11 @@ export type Publicacion = {
   id: string;
   titulo: string;
   precio: string;
-  estado: "Activa" | "Pausada" | "Cerrada";
+  estado:
+  | "Activa"
+  | "Pausada"
+  | "Cerrada"
+  | "Borrador";
   imagen?: string;
   detalle?: string;
   fotosCount?: number;
@@ -44,6 +48,8 @@ export default function TarjetaPublicacion({
   const activa = publicacion.estado === "Activa";
 
   const cerrada = publicacion.estado === "Cerrada";
+
+  const borrador = publicacion.estado === "Borrador";
 
   const imagenMostrar =
     publicacion.imagen && imagenConError !== publicacion.imagen
@@ -79,27 +85,31 @@ export default function TarjetaPublicacion({
               <Text style={styles.accion}>Editar</Text>
             </Pressable>
 
-            <Text style={styles.separador}> · </Text>
+            {!borrador && (
+              <>
+                <Text style={styles.separador}> · </Text>
 
-            {activa ? (
-              <Pressable onPress={() => onPausar?.(publicacion.id)}>
-                <Text style={styles.accion}>Pausar</Text>
-              </Pressable>
-            ) : (
-              <Pressable onPress={() => onReactivar?.(publicacion.id)}>
-                <Text style={styles.accion}>Reactivar</Text>
-              </Pressable>
+                {activa ? (
+                  <Pressable onPress={() => onPausar?.(publicacion.id)}>
+                    <Text style={styles.accion}>Pausar</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable onPress={() => onReactivar?.(publicacion.id)}>
+                    <Text style={styles.accion}>Reactivar</Text>
+                  </Pressable>
+                )}
+
+                <Text style={styles.separador}> · </Text>
+
+                <Pressable onPress={() => onCerrar?.(publicacion.id)}>
+                  <Text style={styles.accionCerrar}>Cerrar</Text>
+                </Pressable>
+              </>
             )}
-
-            <Text style={styles.separador}> · </Text>
-
-            <Pressable onPress={() => onCerrar?.(publicacion.id)}>
-              <Text style={styles.accionCerrar}>Cerrar</Text>
-            </Pressable>
           </View>
         )}
 
-        {onVerPostulaciones ? (
+        {!borrador && onVerPostulaciones ? (
           <Pressable
             style={styles.postulaciones}
             onPress={() => onVerPostulaciones(publicacion)}
