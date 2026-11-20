@@ -37,7 +37,11 @@ import {
 // TIPOS
 // ======================================================
 
-type Filtro = "Activas" | "Pausadas" | "Cerradas";
+type Filtro =
+  | "Activas"
+  | "Pausadas"
+  | "Cerradas"
+  | "Borradores";
 
 type Props = {
   onCrearPublicacion?: () => void;
@@ -52,7 +56,7 @@ type EstadoBD = "draft" | "published" | "paused" | "closed";
 
 function convertirEstado(
   estado: EstadoBD
-): Publicacion["estado"] | null {
+): Publicacion["estado"] {
   switch (estado) {
     case "published":
       return "Activa";
@@ -64,7 +68,7 @@ function convertirEstado(
       return "Cerrada";
 
     case "draft":
-      return null;
+      return "Borrador";
   }
 }
 
@@ -84,6 +88,9 @@ function convertirFiltro(
 
     case "Cerradas":
       return "Cerrada";
+
+    case "Borradores":
+      return "Borrador";
   }
 }
 
@@ -113,13 +120,18 @@ export default function PantallaAnunciosPrincipal({
   // ====================================================
 
   const convertirPublicaciones = useCallback(
-    (respuesta: Awaited<ReturnType<typeof obtenerMisPublicaciones>>) => {
+    (
+      respuesta: Awaited<
+        ReturnType<typeof obtenerMisPublicaciones>
+      >
+    ) => {
       return respuesta
         .filter(
           (habitacion) =>
             habitacion.status === "published" ||
             habitacion.status === "paused" ||
-            habitacion.status === "closed"
+            habitacion.status === "closed" ||
+            habitacion.status === "draft"
         )
         .map((habitacion) => {
           const estado = convertirEstado(
@@ -134,7 +146,7 @@ export default function PantallaAnunciosPrincipal({
               habitacion.monthlyRent
             ).toLocaleString("es-MX")}`,
 
-            estado: estado!,
+            estado,
 
             fotosCount: habitacion.photosCount,
 
@@ -179,39 +191,39 @@ export default function PantallaAnunciosPrincipal({
   // ====================================================
 
   useEffect(() => {
-  let activo = true;
+    let activo = true;
 
-  const cargar = async () => {
-    setError(null);
+    const cargar = async () => {
+      setError(null);
 
-    try {
-      const respuesta = await obtenerMisPublicaciones();
+      try {
+        const respuesta = await obtenerMisPublicaciones();
 
-      if (!activo) return;
+        if (!activo) return;
 
-      setPublicaciones(convertirPublicaciones(respuesta));
-    } catch (error) {
-      if (!activo) return;
+        setPublicaciones(convertirPublicaciones(respuesta));
+      } catch (error) {
+        if (!activo) return;
 
-      const mensaje =
-        error instanceof Error
-          ? error.message
-          : "Ocurrió un error al cargar tus publicaciones.";
+        const mensaje =
+          error instanceof Error
+            ? error.message
+            : "Ocurrió un error al cargar tus publicaciones.";
 
-      setError(mensaje);
-    } finally {
-      if (activo) {
-        setCargando(false);
+        setError(mensaje);
+      } finally {
+        if (activo) {
+          setCargando(false);
+        }
       }
-    }
-  };
+    };
 
-  cargar();
+    cargar();
 
-  return () => {
-    activo = false;
-  };
-}, [convertirPublicaciones]);
+    return () => {
+      activo = false;
+    };
+  }, [convertirPublicaciones]);
 
   // ====================================================
   // CAMBIAR ESTADO DE UNA PUBLICACIÓN
@@ -386,7 +398,12 @@ export default function PantallaAnunciosPrincipal({
 
       <View style={styles.pestanas}>
         {(
-          ["Activas", "Pausadas", "Cerradas"] as Filtro[]
+          [
+            "Activas",
+            "Pausadas",
+            "Cerradas",
+            "Borradores",
+          ] as Filtro[]
         ).map((item) => {
           const estado = convertirFiltro(item);
 
@@ -404,7 +421,7 @@ export default function PantallaAnunciosPrincipal({
                 style={[
                   styles.textoPestana,
                   filtro === item &&
-                    styles.textoPestanaActivo,
+                  styles.textoPestanaActivo,
                 ]}
               >
                 {item} {contar(estado)}

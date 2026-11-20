@@ -13,7 +13,11 @@ export type Publicacion = {
   id: string;
   titulo: string;
   precio: string;
-  estado: "Activa" | "Pausada" | "Cerrada";
+  estado:
+  | "Activa"
+  | "Pausada"
+  | "Cerrada"
+  | "Borrador";
   imagen?: string;
   detalle?: string;
   fotosCount?: number;
