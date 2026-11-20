@@ -43,7 +43,7 @@ function Campo({
   valor: string;
   onChange: (v: string) => void;
   placeholder?: string;
-} & Partial<React.ComponentProps<typeof TextInput>>) {
+} & Omit<React.ComponentProps<typeof TextInput>, 'onChange' | 'value' | 'onChangeText'>) {
   return (
     <View style={{ marginBottom: 14 }}>
       <Text style={styles.label}>{label}</Text>
