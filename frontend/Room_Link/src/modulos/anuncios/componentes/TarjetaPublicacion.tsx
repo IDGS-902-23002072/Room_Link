@@ -14,10 +14,10 @@ export type Publicacion = {
   titulo: string;
   precio: string;
   estado:
-  | "Activa"
-  | "Pausada"
-  | "Cerrada"
-  | "Borrador";
+    | "Activa"
+    | "Pausada"
+    | "Cerrada"
+    | "Borrador";
   imagen?: string;
   detalle?: string;
   fotosCount?: number;
@@ -28,6 +28,7 @@ const imagenPredeterminada =
 
 type Props = {
   publicacion: Publicacion;
+  onVerDetalles?: (id: string) => void;
   onEditar?: (id: string) => void;
   onPausar?: (id: string) => void;
   onReactivar?: (id: string) => void;
@@ -36,6 +37,7 @@ type Props = {
 
 export default function TarjetaPublicacion({
   publicacion,
+  onVerDetalles,
   onEditar,
   onPausar,
   onReactivar,
@@ -44,7 +46,6 @@ export default function TarjetaPublicacion({
   const [imagenConError, setImagenConError] = useState<string | null>(null);
 
   const activa = publicacion.estado === "Activa";
-
   const cerrada = publicacion.estado === "Cerrada";
 
   const imagenMostrar =
@@ -75,31 +76,39 @@ export default function TarjetaPublicacion({
           {publicacion.detalle ? ` · ${publicacion.detalle}` : ""}
         </Text>
 
-        {!cerrada && (
-          <View style={styles.acciones}>
-            <Pressable onPress={() => onEditar?.(publicacion.id)}>
-              <Text style={styles.accion}>Editar</Text>
-            </Pressable>
+        <View style={styles.acciones}>
+          <Pressable onPress={() => onVerDetalles?.(publicacion.id)}>
+            <Text style={styles.accion}>Ver detalles</Text>
+          </Pressable>
 
-            <Text style={styles.separador}> · </Text>
+          {!cerrada && (
+            <>
+              <Text style={styles.separador}> · </Text>
 
-            {activa ? (
-              <Pressable onPress={() => onPausar?.(publicacion.id)}>
-                <Text style={styles.accion}>Pausar</Text>
+              <Pressable onPress={() => onEditar?.(publicacion.id)}>
+                <Text style={styles.accion}>Editar</Text>
               </Pressable>
-            ) : (
-              <Pressable onPress={() => onReactivar?.(publicacion.id)}>
-                <Text style={styles.accion}>Reactivar</Text>
+
+              <Text style={styles.separador}> · </Text>
+
+              {activa ? (
+                <Pressable onPress={() => onPausar?.(publicacion.id)}>
+                  <Text style={styles.accion}>Pausar</Text>
+                </Pressable>
+              ) : (
+                <Pressable onPress={() => onReactivar?.(publicacion.id)}>
+                  <Text style={styles.accion}>Reactivar</Text>
+                </Pressable>
+              )}
+
+              <Text style={styles.separador}> · </Text>
+
+              <Pressable onPress={() => onCerrar?.(publicacion.id)}>
+                <Text style={styles.accionCerrar}>Cerrar</Text>
               </Pressable>
-            )}
-
-            <Text style={styles.separador}> · </Text>
-
-            <Pressable onPress={() => onCerrar?.(publicacion.id)}>
-              <Text style={styles.accionCerrar}>Cerrar</Text>
-            </Pressable>
-          </View>
-        )}
+            </>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -147,6 +156,7 @@ const styles = StyleSheet.create({
   acciones: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     marginTop: 7,
   },
 

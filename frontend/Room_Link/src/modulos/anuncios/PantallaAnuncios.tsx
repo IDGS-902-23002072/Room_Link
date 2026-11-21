@@ -15,6 +15,7 @@ import PantallaPublicarHabitacion, {
 } from "./PantallaPublicarHabitacion";
 
 import PantallaUbicacion from "./PantallaUbicacion";
+import PantallaDetallePublicacion from "./PantallaDetallePublicacion";
 
 import PantallaFotos, {
   type Foto,
@@ -40,7 +41,8 @@ type Vista =
   | "publicar"
   | "ubicacion"
   | "fotos"
-  | "cargandoEdicion";
+  | "cargandoEdicion"
+  | "detalle";
 
 type Coordenadas = {
   latitude: number;
@@ -92,6 +94,9 @@ export function PantallaAnuncios() {
 
   // Fotografías existentes en el servidor.
   const [fotosIniciales, setFotosIniciales] = useState<Foto[]>([]);
+
+  const [anuncioSeleccionado, setAnuncioSeleccionado] =
+    useState<string | null>(null);
 
   // ====================================================
   // REINICIAR FORMULARIO
@@ -184,6 +189,15 @@ export function PantallaAnuncios() {
       Alert.alert("Error al editar", mensaje);
       setVista("anuncios");
     }
+  };
+
+  // ====================================================
+  // VER DETALLES DE UNA PUBLICACIÓN
+  // ====================================================
+
+  const verDetallesPublicacion = (id: string) => {
+    setAnuncioSeleccionado(id);
+    setVista("detalle");
   };
 
   // ====================================================
@@ -648,6 +662,22 @@ export function PantallaAnuncios() {
   }
 
   // ====================================================
+  // PANTALLA DE DETALLES
+  // ====================================================
+
+  if (vista === "detalle" && anuncioSeleccionado) {
+    return (
+      <PantallaDetallePublicacion
+        anuncioId={anuncioSeleccionado}
+        onVolver={() => {
+          setAnuncioSeleccionado(null);
+          setVista("anuncios");
+        }}
+      />
+    );
+  }
+
+  // ====================================================
   // PANTALLA PRINCIPAL
   // ====================================================
 
@@ -655,6 +685,7 @@ export function PantallaAnuncios() {
     <PantallaAnunciosPrincipal
       onCrearPublicacion={iniciarNuevaPublicacion}
       onEditarPublicacion={editarPublicacion}
+      onVerDetalles={verDetallesPublicacion}
     />
   );
 }
