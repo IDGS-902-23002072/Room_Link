@@ -11,9 +11,9 @@ variable "location" {
 }
 
 variable "vm_size" {
-  description = "Tamaño de la VM. B2pls_v2 = ARM Ampere, 2 vCPU / 4 GiB, familia Bpsv2 (única v2 con cuota en esta suscripción) y con capacidad. ~$12.6/mes (cubierto por el crédito gratis de estudiante). B1s (gratis) no tiene capacidad."
+  description = "Tamaño de la VM. B2pts_v2 = ARM Ampere, 2 vCPU / 1 GiB, familia Bpsv2, incluida en las 750 h/mes gratis de Azure for Students. Con 1 GiB, MySQL usa innodb_buffer_pool_size=128M (SET PERSIST) y la VM tiene 2 GiB de swap. B2pls_v2 (4 GiB) no es gratis."
   type        = string
-  default     = "Standard_B2pls_v2"
+  default     = "Standard_B2pts_v2"
 }
 
 variable "vm_image_sku" {

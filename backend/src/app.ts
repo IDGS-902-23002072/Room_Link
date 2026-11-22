@@ -403,19 +403,13 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     }
   });
 
-  // Sirve la exportación estática de Expo Web desde ./public.
+  // Sirve el build estático del sitio web (web/, Vite) desde ./public.
+  // public/descargas enlaza a la carpeta persistente con el APK.
   app.use("/*", async (c, next) => {
     if (c.req.path.startsWith("/api/")) return next();
     return serveStatic({ root: "./public" })(c, next);
   });
-  const serveExpoPage = serveStatic({
-    root: "./public",
-    rewriteRequestPath: (path) => path.replace(/\/$/, "") + ".html",
-  });
-  app.get("/*", async (c, next) => {
-    if (c.req.path.startsWith("/api/")) return next();
-    return serveExpoPage(c, next);
-  });
+  // Fallback SPA: las rutas de BrowserRouter resuelven a index.html.
   app.get("/*", async (c, next) => {
     if (c.req.path.startsWith("/api/")) return next();
     return serveStatic({ path: "./public/index.html" })(c, next);

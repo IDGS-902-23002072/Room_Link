@@ -14,23 +14,19 @@ import {
   Keyboard,
 } from "react-native";
 
-import MapView, {
-  Marker,
-  MapPressEvent,
-  Region,
-} from "react-native-maps";
-
 import * as Location from "expo-location";
 
 import IndicadorPasos from "./componentes/IndicadorPasos";
+import MapaOSM from "./componentes/MapaOSM";
+import type { Coordenadas } from "./componentes/mapaOSM.logica";
 
 // ======================================================
 // TIPOS
 // ======================================================
 
-type Coordenadas = {
-  latitude: number;
-  longitude: number;
+type Region = Coordenadas & {
+  latitudeDelta: number;
+  longitudeDelta: number;
 };
 
 type Props = {
@@ -176,12 +172,8 @@ export default function PantallaUbicacion({
     await obtenerDireccion(punto);
   };
 
-  const manejarToqueMapa = (
-    evento: MapPressEvent
-  ) => {
-    seleccionarPunto(
-      evento.nativeEvent.coordinate
-    );
+  const manejarToqueMapa = (punto: Coordenadas) => {
+    seleccionarPunto(punto);
   };
 
   // ====================================================
@@ -368,21 +360,12 @@ export default function PantallaUbicacion({
       {/* MAPA */}
 
       <View style={styles.mapaContenedor}>
-        <MapView
+        <MapaOSM
           style={styles.mapa}
-          region={region}
-          onPress={manejarToqueMapa}
-          showsUserLocation
-          showsMyLocationButton={false}
-        >
-          {coordenadas && (
-            <Marker
-              coordinate={coordenadas}
-              title="Habitación"
-              description="Ubicación seleccionada"
-            />
-          )}
-        </MapView>
+          centro={region}
+          marcador={coordenadas}
+          onToque={manejarToqueMapa}
+        />
 
         {/* BOTÓN GPS */}
 
