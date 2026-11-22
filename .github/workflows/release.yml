@@ -18,7 +18,7 @@ jobs:
     name: Publicar API y Expo Web en Azure
     runs-on: ubuntu-latest
     outputs:
-      api_url: ${ steps.production.outputs.api_url }}
+      api_url: ${{ steps.production.outputs.api_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
       - name: Compilar Expo Web para producción
         working-directory: frontend/Room_Link
         env:
-          EXPO_PUBLIC_API_URL: ${ steps.production.outputs.api_url }}
+          EXPO_PUBLIC_API_URL: ${{ steps.production.outputs.api_url }}
           EXPO_NO_TELEMETRY: "1"
         run: |
           npm ci
@@ -65,10 +65,10 @@ jobs:
 
       - name: Desplegar por SSH
         env:
-          SSH_HOST: ${ secrets.AZURE_VM_HOST }}
-          SSH_USER: ${ secrets.AZURE_VM_USER }}
-          SSH_KEY: ${ secrets.AZURE_VM_SSH_KEY }}
-          SSH_KNOWN_HOSTS: ${ secrets.AZURE_VM_KNOWN_HOSTS }}
+          SSH_HOST: ${{ secrets.AZURE_VM_HOST }}
+          SSH_USER: ${{ secrets.AZURE_VM_USER }}
+          SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           : "${SSH_HOST:?Falta AZURE_VM_HOST}"
@@ -87,7 +87,7 @@ jobs:
 
       - name: Verificar HTTPS, API y Expo Web
         env:
-          API_URL: ${ steps.production.outputs.api_url }}
+          API_URL: ${{ steps.production.outputs.api_url }}
         run: |
           for attempt in $(seq 1 20); do
             if curl -fsS --max-time 10 "$API_URL/health" \
@@ -115,4 +115,4 @@ jobs:
         with:
           generate_release_notes: true
           body: |
-            API y Expo Web en Azure: ${ needs.deploy-azure.outputs.api_url }}
+            API y Expo Web en Azure: ${{ needs.deploy-azure.outputs.api_url }}
