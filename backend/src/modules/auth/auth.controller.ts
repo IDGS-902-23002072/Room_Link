@@ -110,6 +110,22 @@ export class AuthController {
     }
   };
 
+  // Registro exhaustivo de arrendador: otorga el rol host al usuario autenticado.
+  becomeHost = async (context: Context<{ Variables: AuthVariables }>) => {
+    try {
+      const body = (await context.req.json().catch(() => ({}))) as {
+        acceptedTerms?: boolean;
+      };
+      const roles = await this.authService.becomeHost(
+        context.get("auth").userId,
+        body.acceptedTerms === true,
+      );
+      return context.json({ roles });
+    } catch (error) {
+      return this.failure(context, error);
+    }
+  };
+
   private setSessionCookie(context: Context, token: string, expiresAt: Date): void {
     setCookie(context, "roomlink_session", token, {
       httpOnly: true,

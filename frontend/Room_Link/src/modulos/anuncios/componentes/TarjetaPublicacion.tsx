@@ -13,7 +13,11 @@ export type Publicacion = {
   id: string;
   titulo: string;
   precio: string;
-  estado: "Activa" | "Pausada" | "Cerrada";
+  estado:
+  | "Activa"
+  | "Pausada"
+  | "Cerrada"
+  | "Borrador";
   imagen?: string;
   detalle?: string;
   fotosCount?: number;
@@ -28,6 +32,7 @@ type Props = {
   onPausar?: (id: string) => void;
   onReactivar?: (id: string) => void;
   onCerrar?: (id: string) => void;
+  onVerPostulaciones?: (publicacion: Publicacion) => void;
 };
 
 export default function TarjetaPublicacion({
@@ -36,11 +41,15 @@ export default function TarjetaPublicacion({
   onPausar,
   onReactivar,
   onCerrar,
+  onVerPostulaciones,
 }: Props) {
   const [imagenConError, setImagenConError] = useState<string | null>(null);
 
   const activa = publicacion.estado === "Activa";
-  const pausada = publicacion.estado === "Pausada";
+
+  const cerrada = publicacion.estado === "Cerrada";
+
+  const borrador = publicacion.estado === "Borrador";
 
   const imagenMostrar =
     publicacion.imagen && imagenConError !== publicacion.imagen
@@ -57,7 +66,9 @@ export default function TarjetaPublicacion({
       />
 
       <View style={styles.contenido}>
-        <Text style={styles.estado}>{publicacion.estado}</Text>
+        <Text style={styles.estado}>
+          {publicacion.estado}
+        </Text>
 
         <Text style={styles.titulo}>
           {publicacion.titulo}
@@ -68,33 +79,44 @@ export default function TarjetaPublicacion({
           {publicacion.detalle ? ` · ${publicacion.detalle}` : ""}
         </Text>
 
-        <View style={styles.acciones}>
-          {(activa || pausada) && (
-            <>
-              <Pressable onPress={() => onEditar?.(publicacion.id)}>
-                <Text style={styles.accion}>Editar</Text>
-              </Pressable>
+        {!cerrada && (
+          <View style={styles.acciones}>
+            <Pressable onPress={() => onEditar?.(publicacion.id)}>
+              <Text style={styles.accion}>Editar</Text>
+            </Pressable>
 
-              <Text style={styles.separador}> · </Text>
+            {!borrador && (
+              <>
+                <Text style={styles.separador}> · </Text>
 
-              {activa ? (
-                <Pressable onPress={() => onPausar?.(publicacion.id)}>
-                  <Text style={styles.accion}>Pausar</Text>
+                {activa ? (
+                  <Pressable onPress={() => onPausar?.(publicacion.id)}>
+                    <Text style={styles.accion}>Pausar</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable onPress={() => onReactivar?.(publicacion.id)}>
+                    <Text style={styles.accion}>Reactivar</Text>
+                  </Pressable>
+                )}
+
+                <Text style={styles.separador}> · </Text>
+
+                <Pressable onPress={() => onCerrar?.(publicacion.id)}>
+                  <Text style={styles.accionCerrar}>Cerrar</Text>
                 </Pressable>
-              ) : (
-                <Pressable onPress={() => onReactivar?.(publicacion.id)}>
-                  <Text style={styles.accion}>Reactivar</Text>
-                </Pressable>
-              )}
+              </>
+            )}
+          </View>
+        )}
 
-              <Text style={styles.separador}> · </Text>
-            </>
-          )}
-
-          <Pressable onPress={() => onCerrar?.(publicacion.id)}>
-            <Text style={styles.accion}>Cerrar</Text>
+        {!borrador && onVerPostulaciones ? (
+          <Pressable
+            style={styles.postulaciones}
+            onPress={() => onVerPostulaciones(publicacion)}
+          >
+            <Text style={styles.postulacionesTexto}>Ver postulaciones ›</Text>
           </Pressable>
-        </View>
+        ) : null}
       </View>
     </View>
   );
@@ -151,8 +173,26 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
+  accionCerrar: {
+    color: "#A33D4D",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+
   separador: {
     color: "#B7A8BA",
     fontSize: 11,
+  },
+
+  postulaciones: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#EDE5EE",
+  },
+  postulacionesTexto: {
+    color: "#84658D",
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

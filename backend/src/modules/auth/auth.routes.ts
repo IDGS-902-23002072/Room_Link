@@ -17,6 +17,7 @@ export const createAuthRoutes = (
   router.post("/password/reset", controller.resetPassword);
   router.get("/me", authenticate, controller.me);
   router.post("/logout", authenticate, controller.logout);
+  router.post("/become-host", authenticate, controller.becomeHost);
 
   return router;
 };

@@ -17,6 +17,10 @@ import * as ImagePicker from "expo-image-picker";
 
 import IndicadorPasos from "./componentes/IndicadorPasos";
 
+// ======================================================
+// TIPOS
+// ======================================================
+
 export type Foto = {
   id: string;
   uri: string;
@@ -24,26 +28,49 @@ export type Foto = {
   mimeType: string;
 };
 
+export type IntencionFotos = "draft" | "publish";
+
 type Props = {
   fotosIniciales?: Foto[];
+
+  // Indica si se está guardando un borrador o publicando.
+  intencion?: IntencionFotos;
+
   onVolver?: () => void;
-  onEnviarRevision?: (fotos: Foto[]) => void;
+
+  // Regresar las fotografías y la intención seleccionada.
+  onEnviarRevision?: (
+    fotos: Foto[],
+    intencion: IntencionFotos
+  ) => void;
 };
 
 const MAX_FOTOS = 10;
+const MIN_FOTOS_PUBLICACION = 3;
+
+// ======================================================
+// PANTALLA
+// ======================================================
 
 export default function PantallaFotos({
   fotosIniciales,
+  intencion = "publish",
   onVolver,
   onEnviarRevision,
 }: Props) {
-  // Inicializar con las fotografías recibidas.
-  // Si es una publicación nueva, comienza con un arreglo vacío.
+
+  // ====================================================
+  // ESTADOS
+  // ====================================================
+
   const [fotos, setFotos] = useState<Foto[]>(
     () => fotosIniciales ?? []
   );
 
-  // Seleccionar fotografías de la galería.
+  // ====================================================
+  // SELECCIONAR FOTOGRAFÍAS
+  // ====================================================
+
   const agregarFotos = async () => {
     if (fotos.length >= MAX_FOTOS) {
       Alert.alert(
@@ -91,6 +118,7 @@ export default function PantallaFotos({
       setFotos((actuales) =>
         [...actuales, ...nuevasFotos].slice(0, MAX_FOTOS)
       );
+
     } catch (error) {
       console.error(
         "Error al seleccionar fotografías:",
@@ -104,14 +132,20 @@ export default function PantallaFotos({
     }
   };
 
-  // Eliminar una fotografía.
+  // ====================================================
+  // ELIMINAR FOTOGRAFÍA
+  // ====================================================
+
   const eliminarFoto = (id: string) => {
     setFotos((actuales) =>
       actuales.filter((foto) => foto.id !== id)
     );
   };
 
-  // Cambiar la posición de una fotografía.
+  // ====================================================
+  // CAMBIAR ORDEN DE FOTOGRAFÍAS
+  // ====================================================
+
   const moverFoto = (
     indice: number,
     direccion: -1 | 1
@@ -119,7 +153,10 @@ export default function PantallaFotos({
     setFotos((actuales) => {
       const destino = indice + direccion;
 
-      if (destino < 0 || destino >= actuales.length) {
+      if (
+        destino < 0 ||
+        destino >= actuales.length
+      ) {
         return actuales;
       }
 
@@ -134,18 +171,38 @@ export default function PantallaFotos({
     });
   };
 
-  // Enviar las fotografías a la pantalla principal.
+  // ====================================================
+  // CONTINUAR
+  // ====================================================
+
   const enviarRevision = () => {
-    if (fotos.length < 3) {
+
+    // Para publicar se requieren al menos 3 fotografías.
+    if (
+      intencion === "publish" &&
+      fotos.length < MIN_FOTOS_PUBLICACION
+    ) {
       Alert.alert(
         "Fotografías insuficientes",
-        "Necesitas al menos 3 fotografías para continuar."
+        "Necesitas al menos 3 fotografías para publicar tu habitación."
       );
       return;
     }
 
-    onEnviarRevision?.(fotos);
+    if (!onEnviarRevision) {
+      Alert.alert(
+        "Error",
+        "No se configuró la siguiente acción."
+      );
+      return;
+    }
+
+    onEnviarRevision(fotos, intencion);
   };
+
+  // ====================================================
+  // INTERFAZ
+  // ====================================================
 
   return (
     <SafeAreaView style={styles.pantalla}>
@@ -155,7 +212,9 @@ export default function PantallaFotos({
         contentContainerStyle={styles.contenido}
         showsVerticalScrollIndicator={false}
       >
-        {/* Encabezado */}
+
+        {/* ENCABEZADO */}
+
         <Text style={styles.marca}>
           ROOMLINK / 07
         </Text>
@@ -165,7 +224,9 @@ export default function PantallaFotos({
             onPress={onVolver}
             style={styles.botonVolver}
           >
-            <Text style={styles.textoVolver}>‹</Text>
+            <Text style={styles.textoVolver}>
+              ‹
+            </Text>
           </Pressable>
 
           <Text style={styles.titulo}>
@@ -184,7 +245,8 @@ export default function PantallaFotos({
           las personas interesadas puedan conocerlo.
         </Text>
 
-        {/* Contador */}
+        {/* CONTADOR */}
+
         <View style={styles.contador}>
           <Text style={styles.contadorTexto}>
             Fotografías agregadas
@@ -195,7 +257,8 @@ export default function PantallaFotos({
           </Text>
         </View>
 
-        {/* Lista de fotografías */}
+        {/* LISTA DE FOTOGRAFÍAS */}
+
         {fotos.map((foto, indice) => (
           <View
             key={foto.id}
@@ -215,6 +278,7 @@ export default function PantallaFotos({
               </Text>
 
               <View style={styles.acciones}>
+
                 <Pressable
                   onPress={() => moverFoto(indice, -1)}
                   disabled={indice === 0}
@@ -251,12 +315,14 @@ export default function PantallaFotos({
                     Eliminar
                   </Text>
                 </Pressable>
+
               </View>
             </View>
           </View>
         ))}
 
-        {/* Estado vacío */}
+        {/* ESTADO VACÍO */}
+
         {fotos.length === 0 && (
           <View style={styles.vacio}>
             <Text style={styles.iconoVacio}>
@@ -268,12 +334,13 @@ export default function PantallaFotos({
             </Text>
 
             <Text style={styles.detalleVacio}>
-              Selecciona imágenes de tu galería.
+              Puedes agregarlas ahora o hacerlo después.
             </Text>
           </View>
         )}
 
-        {/* Agregar fotografías */}
+        {/* AGREGAR FOTOGRAFÍAS */}
+
         <Pressable
           style={[
             styles.botonSubir,
@@ -288,28 +355,37 @@ export default function PantallaFotos({
           </Text>
         </Pressable>
 
-        {/* Enviar */}
+        {/* CONTINUAR */}
+
         <Pressable
-          style={[
-            styles.botonEnviar,
-            fotos.length < 3 && styles.botonDesactivado,
-          ]}
+          style={styles.botonEnviar}
           onPress={enviarRevision}
-          disabled={fotos.length < 3}
         >
           <Text style={styles.textoEnviar}>
-            Enviar anuncio a revisión
+            {intencion === "draft"
+              ? "Guardar borrador"
+              : "Enviar anuncio a revisión"}
           </Text>
         </Pressable>
+
+        {/* INFORMACIÓN */}
 
         <Text style={styles.nota}>
           Puedes agregar hasta 10 fotografías.
           La primera será la imagen principal.
+          {intencion === "publish"
+            ? " Para publicar necesitas al menos 3 fotografías."
+            : " Puedes completar tus fotografías después."}
         </Text>
+
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+// ======================================================
+// ESTILOS
+// ======================================================
 
 const styles = StyleSheet.create({
   pantalla: {
@@ -458,6 +534,7 @@ const styles = StyleSheet.create({
     color: "#948798",
     fontSize: 10,
     marginTop: 5,
+    textAlign: "center",
   },
 
   botonSubir: {
@@ -485,14 +562,14 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  botonDesactivado: {
-    opacity: 0.45,
-  },
-
   textoEnviar: {
     color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "700",
+  },
+
+  botonDesactivado: {
+    opacity: 0.45,
   },
 
   nota: {
@@ -500,5 +577,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textAlign: "center",
     marginTop: 10,
+    lineHeight: 16,
   },
 });

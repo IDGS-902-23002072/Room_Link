@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -28,6 +29,7 @@ export function FichaHabitacion({
   alPostularse: (mensaje: string | null) => void;
   alCerrar: () => void;
 }) {
+  const router = useRouter();
   const [mensaje, setMensaje] = useState('');
   const [mostrandoDenuncia, setMostrandoDenuncia] = useState(false);
   const [motivoDenuncia, setMotivoDenuncia] =
@@ -96,6 +98,33 @@ export function FichaHabitacion({
       <Text style={styles.descripcion}>
         {habitacion.descripcion ?? 'Esta habitación aún no tiene una descripción.'}
       </Text>
+
+      <View style={styles.datos}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            router.push({
+              pathname: '/inmueble-detalle',
+              params: { listingId: habitacion.id },
+            })
+          }
+          style={[styles.botonSecundario, { flex: 1, minHeight: 42, paddingHorizontal: 8 }]}
+        >
+          <Text style={styles.textoBotonSecundario}>Reglas, costos y zona</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            router.push({
+              pathname: '/compatibilidad-detalle',
+              params: { candidateId: habitacion.hostId },
+            })
+          }
+          style={[styles.botonSecundario, { flex: 1, minHeight: 42, paddingHorizontal: 8 }]}
+        >
+          <Text style={styles.textoBotonSecundario}>Ver compatibilidad</Text>
+        </Pressable>
+      </View>
 
       {!postulada && (
         <>
