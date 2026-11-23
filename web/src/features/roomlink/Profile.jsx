@@ -230,6 +230,75 @@ const notificationOptions = [
 ]
 const preferencePath = '/api/v1/notifications/preferences'
 
+function HostEnrollment() {
+  const { session: { token, user }, becomeHost } = useAuth()
+  const isHost = user.roles?.includes('host')
+  const path = profilePath(user.id)
+  const load = useCallback(async (signal) => {
+    if (isHost) return null
+    try {
+      return await apiRequest(path, { token, signal })
+    } catch (error) {
+      if (error.status === 404) return null
+      throw error
+    }
+  }, [isHost, path, token])
+  const profile = useResource(load)
+  const [accepted, setAccepted] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const hasProfile = Boolean(profile.data?.fullName?.trim())
+  const canEnroll = ['pending', 'verified'].includes(profile.data?.identityStatus)
+
+  async function enroll(event) {
+    event.preventDefault()
+    if (!hasProfile || !canEnroll || !accepted || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      await becomeHost(accepted)
+    } catch (cause) {
+      setError(cause.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Panel title="Arrendador">
+      {isHost ? <p className="room-note" role="status">Tu cuenta ya tiene el rol de arrendador.</p> : (
+        <>
+          <ResourceStatus label="Comprobando tu perfil…" resource={profile} />
+          {!profile.loading && !profile.error && !hasProfile && (
+            <>
+              <p>Completa tu perfil para activar el rol de arrendador.</p>
+              <Link className="button button-subtle" to="/perfil">Completar perfil</Link>
+            </>
+          )}
+          {hasProfile && !canEnroll && (
+            <>
+              <p>Solicita la verificación de tu identidad para continuar.</p>
+              <Link className="button button-subtle" to="/perfil/fotos">Ir a fotos y verificación</Link>
+            </>
+          )}
+          {hasProfile && canEnroll && (
+            <form className="room-stack" onSubmit={enroll}>
+              <label className="room-check">
+                <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} required />
+                Acepto los términos de responsabilidad del arrendador.
+              </label>
+              <button className="button button-mint" disabled={!accepted || saving}>
+                {saving ? 'Activando…' : 'Convertirme en arrendador'}
+              </button>
+              <Feedback error={error} />
+            </form>
+          )}
+        </>
+      )}
+    </Panel>
+  )
+}
+
 export function AccountPage() {
   const { session: { token, user } } = useAuth()
   const load = useCallback((signal) => apiRequest(preferencePath, { token, signal }), [token])
@@ -237,8 +306,11 @@ export function AccountPage() {
   return (
     <>
       <Heading title="Cuenta y notificaciones">Configura tus preferencias y decide qué avisos recibir en la web.</Heading>
-      <ResourceStatus label="Cargando tus preferencias…" resource={resource} />
-      {resource.data && <AccountForm preferences={resource.data.preferences} token={token} user={user} />}
+      <div className="room-stack">
+        <HostEnrollment />
+        <ResourceStatus label="Cargando tus preferencias…" resource={resource} />
+        {resource.data && <AccountForm preferences={resource.data.preferences} token={token} user={user} />}
+      </div>
     </>
   )
 }

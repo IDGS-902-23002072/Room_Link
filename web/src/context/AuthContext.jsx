@@ -63,6 +63,19 @@ export function AuthProvider({ children }) {
         setSession(next)
         return next.user
       },
+      async becomeHost(acceptedTerms) {
+        if (!session) throw new Error('Inicia sesión para continuar.')
+        await requestAuth('become-host', { acceptedTerms }, session.token)
+        const user = await apiRequest('/api/v1/auth/me', { token: session.token })
+        if (!user.roles?.includes('host')) {
+          throw new Error('RoomLink no confirmó el rol de arrendador.')
+        }
+        const current = getStoredSession()
+        if (current?.token !== session.token) return
+        const next = { ...current, user }
+        saveSession(next)
+        setSession(next)
+      },
       async logout() {
         if (!session) return
         try {
