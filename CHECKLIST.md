@@ -1,59 +1,31 @@
-# ✅ CHECKLIST — Estado de RoomLink
+# Checklist para completar RoomLink
 
-> Actualizado 2026-11-20 (tarde). App móvil unificada en `frontend/Room_Link`. Backend en `develop`.
-> Leyenda: ✅ hecho · ⬜ falta · ⚠️ problema/decisión · ➖ descartado a propósito.
-> Verificado contra `develop` tras integrar Guzman (M06/M08 conectados), Roberto (M15 + perfil/búsqueda) y Avril (estados/borradores).
+Corte del 23 de noviembre de 2026. Revisado contra `develop` (`36070ab`), las ramas del equipo y las asignaciones públicas de GitHub. Un ticket abierto puede tener código integrado. Para darlo por terminado, hay que verificar su flujo y los criterios de aceptación en la plataforma que corresponda.
 
----
+## Funciones y responsables
 
-## 1. Backend (`develop`)
-- ✅ 14 módulos (auth, profile, rooms+feed, applications, compatibility, messaging, moderation, connections, notifications, sanctions, agreements, search, analytics, activity-log).
-- ✅ Gate de calidad verificado hoy: **typecheck 0** · **unit+smoke 173/173**. (Integración MySQL requiere la DB levantada: re-correr `npm run test:integration`.)
-- ✅ Registro exhaustivo de arrendador (`POST /auth/become-host`, valida identidad + términos).
-- ✅ **#8** — bloquea postularse a tu propia publicación.
-- ✅ **HU-07** — el **% de afinidad lo calcula el servidor** (antes se guardaba el valor que mandaba el cliente → manipulable). Inyectado en `ApplicationsController` vía compatibilidad.
-- ✅ **HU-02** — **no se filtran teléfono/redes**: `ProfileView.toPublicProfile` oculta contacto salvo al dueño o a conexiones aceptadas autorizadas; búsqueda/descubrimiento los oculta siempre. Cubierto por `tests/unit/profile-visibility.unit.test.ts` (6 casos).
-- ⬜ **Google OAuth real** (hoy stub) — RNF-04.3 / HU-01. Necesita credenciales.
-- ⬜ **SMTP real** (hoy stub) — correo de recuperación con enlace que precargue el token (HU-01). Necesita credenciales.
-- ⬜ **HU-07 (resto)** — lista de espera y notificar al postulante cada decisión.
-- ⬜ **HU-06 (API)** — validar reglas/servicios/depósito **antes de publicar** (hoy la API deja activar sin completarlos).
+| Responsable | Ya integrado | Pendiente para cerrar |
+|---|---|---|
+| **César — `bhask4ra`** | M01 autenticación, M10 chat y moderación de anuncios M13. El alta de arrendador y la persistencia de `host` ya se comprobaron en Azure. | Google integrado en Expo y preparado para Vite. SMTP de recuperación y flujos de chat, lectura, reconexión y moderación probados en QA. Falta configurar Google y SMTP en Azure, probarlos con proveedores reales y validar el APK instalado. [Chat](https://github.com/IDGS-902-23002072/Room_Link/issues/98) · [Reportes](https://github.com/IDGS-902-23002072/Room_Link/issues/121) |
+| **Omar — `IDGS-902-23002072`** | M03 cuestionario, M04 descubrimiento y afinidad, recomendaciones web y dashboard web. | Integrar de forma selectiva sus tres commits recientes de diseño. Revisar que convivan con sesión, Perfil, Mensajes, Moderación y Arrendador. Probar el aviso para usuarios sin test, el estado vacío y los datos de zona y presupuesto de la exploración. Eliminar o aislar los ejemplos del feed en producción. [Cuestionario](https://github.com/IDGS-902-23002072/Room_Link/issues/45) · [Feed](https://github.com/IDGS-902-23002072/Room_Link/issues/47) · [Rama web](https://github.com/IDGS-902-23002072/Room_Link/tree/feature/omar) |
+| **Roberto — `IDGS-802-22001054`** | M02 perfil y galería, M05 pantallas de filtros, M12 acuerdos y M15 dashboard móvil. Perfil, Búsqueda y Acuerdos también están en la web principal. | Conectar la búsqueda móvil y web con `/api/v1/search/profiles` y la de habitaciones con `/api/v1/search/listings`, donde corresponda. Verificar filtros y paginación. Completar controles de privacidad que tengan contrato en la API y definir el canal de verificación de identidad. Validar acuerdos, participantes, versiones y dashboard con datos reales. [Perfil](https://github.com/IDGS-902-23002072/Room_Link/issues/37) · [Búsqueda](https://github.com/IDGS-902-23002072/Room_Link/issues/60) · [Acuerdos](https://github.com/IDGS-902-23002072/Room_Link/issues/114) |
+| **Avril — `IDGS-902-23002189`** | M07 publicaciones móviles con borradores y estados. M11 conexiones y M13 sanciones tienen API y pantallas móviles. Comparte reportes con César. | Revisar e integrar sus dos commits pendientes de detalle y formulario de publicaciones. Completar Mis anuncios y el flujo de publicar en la web principal. Validar borradores, tres fotos, transiciones y permisos de anfitrión. Completar la bandeja web de conexiones y la gestión web de sanciones si la entrega exige esos flujos en ambas plataformas. [Publicaciones](https://github.com/IDGS-902-23002072/Room_Link/issues/70) · [Conexiones](https://github.com/IDGS-902-23002072/Room_Link/issues/106) · [Sanciones](https://github.com/IDGS-902-23002072/Room_Link/issues/129) · [Rama](https://github.com/IDGS-902-23002072/Room_Link/tree/feature/Avril) |
+| **Guzmán — `Guzak821`** | M06 compatibilidad detallada y mapa móvil integrado con publicaciones. M08 reglas y costos en el detalle. M09 envío y bandeja móvil del anfitrión. | Completar el mapa interactivo web y validar geocodificación y puntos cercanos. Integrar y validar reglas y costos antes de publicar junto con Avril. Cerrar M09 con historial visible de Mis postulaciones para buscadores, bandeja web del anfitrión, lista de espera y notificación al cambiar el estado. El endpoint de postulaciones propias y la protección tras recargar quedaron corregidos en local. [Mapa](https://github.com/IDGS-902-23002072/Room_Link/issues/64) · [Reglas y costos](https://github.com/IDGS-902-23002072/Room_Link/issues/81) · [Mis postulaciones](https://github.com/IDGS-902-23002072/Room_Link/issues/86) · [Cambio de estado](https://github.com/IDGS-902-23002072/Room_Link/issues/97) |
+| **Por asignar en GitHub — M14 notificaciones** | API de notificaciones, preferencias y centro móvil. | Centro web y avisos de postulaciones y conexiones integrados. Falta activar SMTP en Azure y probar permisos y avisos en Android con el APK nuevo. [Centro](https://github.com/IDGS-902-23002072/Room_Link/issues/134) · [Correo](https://github.com/IDGS-902-23002072/Room_Link/issues/137) |
 
-## 2. Frontend móvil — `frontend/Room_Link`
-Pantallas por módulo (M01–M15):
-- ✅ M01 Auth · M02 Perfil · M03 Onboarding convivencia · M04 Exploración · M05 Búsqueda roomies · M06 Compatibilidad detallada (Guzman) · M07 Mis publicaciones (Avril) · M08 Reglas/costos/zona (Guzman) · **M09 Postulaciones del arrendador (verificado E2E)** · M10 Chat · M11 Conexiones · M12 Acuerdos · M13/M14 Moderación · **M15 Dashboard admin (Roberto — `modulos/analytics`)**.
-- ✅ **Registro exhaustivo de arrendador** (gate rol host + pantalla "Conviértete en arrendador").
-- ✅ **Onboarding obligatorio** (#0/#12): perfil → encuesta antes de usar la app. (Commiteado.)
-- ✅ **HU-05 (parcial)** — "Restablecer filtros" ahora borra también los hábitos.
-- ⬜ **HU-05 (núcleo)** — Buscar roomies filtra **client-side** sobre una página del feed. El backend YA tiene `search` server-side con `total`; falta **rewirear la pantalla** a `/api/v1/search/profiles` (y, si se quiere filtrar hábitos en servidor, extender `SearchFilters`). No verificable sin dispositivo.
-- ⬜ **HU-01 (UI)** — Google sign-in en Expo (la API ya verifica token Google si está configurada); mostrar error de correo/contraseña junto al campo.
-- ⬜ **HU-02 (UI)** — controles de privacidad en la pantalla de perfil (el backend ya los respeta).
-- ⬜ **HU-04** — usar `hasTest` para invitar a la encuesta; capturar zona/presupuesto del candidato.
-- ⬜ **HU-06 (flujo)** — integrar reglas/costos **dentro del flujo de publicar** (hoy en la pantalla de detalle).
-- ⬜ **HU-08** — mensaje libre/opcional en la solicitud (hoy manda saludo fijo); notificar al recibir y al rechazar.
+## Cierre de la entrega
 
-## 3. Bugs QA (0–12)
-- ✅ **#0/#12** onboarding · **#8** auto-postulación · **#2/#3/#4/#6/#7** publicar/editar/fecha/ubicación (Avril).
-- ⬜ **#1** permiso de notificaciones no se guarda → verificar tras cambios de Avril.
-- ⬜ **#5.1** indicar "mínimo 3 fotos" en Fotos del espacio.
-- ⬜ **#10** Descubrir 500 con cuenta de postulante → re-verificar (pruebas recientes dieron 200).
-- ➖ **#9** (guardar perfiles) y **#11** (abrir chat por ID) — se quedan (decisión de producto).
+- [ ] **Equipo de integración** · Publicar la corrección de Explorar. En móvil, enviar una postulación real, recargar, confirmar «Postulación enviada» y comprobar que el anfitrión ve una sola fila. En web, enviar una conexión desde el perfil de un candidato, recargar y confirmar que la acción sigue bloqueada para solicitudes pendientes y conexiones aceptadas.
+- [x] **Equipo de QA** · Ejecutados cinco escenarios Playwright con Vite y Expo Web, y siete pruebas de integración con MySQL 8.4 aislado.
+- [ ] **Equipo de QA** · Validar el APK instalado en Android con el flujo Maestro por rol y confirmar permisos del sistema. [Pruebas automáticas](https://github.com/IDGS-902-23002072/Room_Link/issues/152)
+- [x] **QA web** · PWA con manifiesto y pantalla offline. Playwright verificó recuperación de red, salto al contenido por teclado y ancho móvil.
+- [ ] **QA web** · Completar el recorrido de accesibilidad en dispositivos y navegadores de la entrega. [Diseño y PWA](https://github.com/IDGS-902-23002072/Room_Link/issues/174) · [Accesibilidad](https://github.com/IDGS-902-23002072/Room_Link/issues/176) · [Sin conexión](https://github.com/IDGS-902-23002072/Room_Link/issues/178)
+- [x] **QA operativo** · Restauración aislada de MySQL verificada tras reparar la vista de anuncios. 40 lecturas del feed sin errores, p95 de 21,8 ms en ese entorno.
+- [ ] **Integración** · Ejecutar el nuevo workflow de QA en GitHub, aplicar las reglas de CI de la rama de entrega y publicar la versión aprobada de la web, API y APK. [Disponibilidad](https://github.com/IDGS-902-23002072/Room_Link/issues/170) · [Respaldo](https://github.com/IDGS-902-23002072/Room_Link/issues/172)
 
-## 4. Equipo / ramas (todo integrado en `develop`)
-- ✅ **Roberto** — perfil extendido, búsqueda (M05), acuerdos, verificación, **M15 dashboard admin**.
-- ✅ **Avril** — estados de publicación + borradores + fixes del form.
-- ✅ **Guzman** — backend conectado con sus pantallas (M06/M08), ya integrado (no es app separada con mocks).
+## Estado de la corrección de Explorar
 
-## 5. Despliegue (Azure, capa gratuita)
-- ✅ Terraform 100% free-tier (`infra/terraform/`): VM `Standard_B1s` + MySQL/Node/Caddy por cloud-init, HTTPS con el DNS gratuito de Azure. Región **canadacentral** (B1s con capacidad verificada).
-- ✅ Móvil configurada: `frontend/Room_Link/.env.production` → FQDN de Azure. CORS lee `FRONTEND_ORIGIN`.
-- ⬜ **Correr la provisión** (lo hace el usuario; `terraform apply`/git están gateados para el agente): ver [`infra/terraform/DEPLOY.md`](infra/terraform/DEPLOY.md).
-- ⬜ GitHub Secrets + push de tag para disparar `release.yml`.
-
-## 6. Transversal / cierre
-- ⬜ OAuth + SMTP reales · Integration tests por módulo · Branch protection · Release `develop → main`.
-
----
-
-### Resumen
-**Verificado y en `develop`:** los 15 módulos + onboarding + registro de arrendador + HU-07 (score server-side) + HU-02 (sin fuga de contacto) + HU-05 parcial. Despliegue Azure listo para provisionar.
-**Para "versión completa" faltan, por orden de valor:** rewire de Buscar roomies al search server-side (HU-05), flujo de publicar con reglas/costos (HU-06), notificaciones de postulación/conexión (HU-07/HU-08), y credenciales reales (Google + SMTP, HU-01).
+- [x] Móvil consulta las postulaciones propias en la API y bloquea la acción mientras se comprueba su estado. Una habitación de ejemplo queda identificada y sin envío.
+- [x] El backend mantiene una sola postulación por persona y anuncio. Una repetición responde con un conflicto que la app interpreta como postulación enviada.
+- [x] La web consulta conexiones pendientes y aceptadas al abrir un perfil, incluso después de recargar.
+- [ ] Verificación de los dos flujos en producción y publicación del APK nuevo.

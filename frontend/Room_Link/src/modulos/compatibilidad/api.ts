@@ -90,7 +90,7 @@ export async function solicitud<T>(path: string, init?: RequestInit): Promise<T>
   }
 
   const body = (await response.json().catch(() => null)) as
-    | (T & { error?: string })
+    | (T & { error?: string; code?: string })
     | null;
   if (!response.ok) {
     if (response.status >= 500) {
@@ -98,7 +98,9 @@ export async function solicitud<T>(path: string, init?: RequestInit): Promise<T>
         `La API respondió con un error interno (${response.status}). Comprueba que MySQL esté iniciado y que /ready responda con estado "ready".`,
       );
     }
-    throw new Error(body?.error ?? `La API respondió con estado ${response.status}.`);
+    throw Object.assign(new Error(body?.error ?? `La API respondió con estado ${response.status}.`), {
+      code: body?.code,
+    });
   }
   if (body === null) {
     throw new Error('La API devolvió una respuesta vacía o inválida.');

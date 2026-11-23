@@ -256,3 +256,16 @@
     padding: 18px 20px;
   }
 }
+
+.skip-link {
+  position: fixed;
+  z-index: 10;
+  top: 12px;
+  left: 12px;
+  transform: translateY(-150%);
+  padding: 12px 18px;
+  border-radius: 8px;
+  background: var(--mint-dark);
+  color: white;
+}
+.skip-link:focus { transform: none; }

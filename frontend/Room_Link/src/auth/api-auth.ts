@@ -38,6 +38,14 @@ export async function iniciarSesion(email: string, password: string): Promise<Se
   return sesion;
 }
 
+export async function iniciarSesionGoogle(idToken: string, termsAccepted: boolean): Promise<void> {
+  const { token, user } = await solicitud<RespuestaLogin>('/api/v1/auth/oauth/google', {
+    method: 'POST',
+    body: JSON.stringify({ idToken, termsAccepted }),
+  });
+  await guardarSesion({ token, usuario: user });
+}
+
 /** Solicita el enlace de recuperación (HU-01 / EL-01.8). */
 export async function solicitarRecuperacion(email: string): Promise<string> {
   const r = await solicitud<RespuestaMensaje>('/api/v1/auth/password/forgot', {

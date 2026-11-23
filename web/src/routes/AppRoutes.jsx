@@ -5,6 +5,7 @@ import Login from '../pages/Login/Login.jsx'
 import { useAuth } from '../hooks/useAuth.js'
 import { AppLink } from '../components/AppLink.jsx'
 import { Brand, FeatureNotice } from '../features/cesar-ui.jsx'
+import Notifications from '../features/Notifications.jsx'
 import Messages from '../features/messaging/Messages.jsx'
 import Moderation, { ModerationListing, ReportDirectory, ReportListing } from '../features/moderation/Moderation.jsx'
 import Questionnaire from '../features/compatibility/Questionnaire.jsx'
@@ -34,6 +35,7 @@ function Shell() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <header className="topbar">
         <Brand />
         <nav aria-label="Navegación principal" className="main-nav">
@@ -41,6 +43,7 @@ function Shell() {
           <NavLink to="/buscar">Buscar roomies</NavLink>
           <NavLink to="/cuestionario">Mi test</NavLink>
           <NavLink to="/mensajes">Mensajes</NavLink>
+          <NavLink to="/notificaciones">Notificaciones</NavLink>
           <NavLink to="/acuerdos">Acuerdos</NavLink>
           <NavLink to="/perfil" end={location.pathname.startsWith('/perfil/candidato/')}>Mi perfil</NavLink>
           <NavLink to="/denunciar" className={({ isActive }) => isActive || location.pathname.endsWith('/denunciar') ? 'active' : undefined}>Denunciar anuncio</NavLink>
@@ -55,7 +58,7 @@ function Shell() {
           </button>
         </div>
       </header>
-      <main className="page-container">
+      <main id="contenido" className="page-container" tabIndex={-1}>
         <Outlet />
       </main>
     </div>
@@ -145,6 +148,7 @@ export default function AppRoutes() {
             <Route element={<AgreementsPage tab="review" />} path="revisar/:agreementId?" />
           </Route>
           <Route element={<Messages />} path="/mensajes/:roomId?" />
+          <Route element={<Notifications />} path="/notificaciones" />
           <Route element={<ReportDirectory />} path="/denunciar" />
           <Route element={<ReportListing />} path="/anuncios/:listingId/denunciar" />
           <Route element={<AdminLayout />} path="/admin">

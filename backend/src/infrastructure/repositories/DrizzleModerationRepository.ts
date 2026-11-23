@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import type { MySql2Database } from "drizzle-orm/mysql2";
 import {
   modListingReviews,
@@ -74,7 +74,22 @@ export class DrizzleModerationRepository implements ModerationRepository {
       status: report.status,
       createdAt: report.createdAt,
     };
-    await this.db.insert(modReports).values(record);
+    await this.db.transaction(async (tx) => {
+      // Serializa denuncias simultáneas del mismo anuncio.
+      const [listing] = await tx.select({ id: roomListings.id }).from(roomListings)
+        .where(eq(roomListings.id, report.listingId)).for("update");
+      if (!listing) throw new AppError("Anuncio no encontrado.", 404, "LISTING_NOT_FOUND");
+
+      const [open] = await tx.select({ id: modReports.id }).from(modReports)
+        .where(and(eq(modReports.reporterId, report.reporterId), eq(modReports.targetListingId, report.listingId),
+          inArray(modReports.status, ["open", "in_review"]))).limit(1);
+      if (open) throw new AppError("Ya existe una denuncia abierta para este anuncio.", 409, "DUPLICATE_REPORT");
+
+      await tx.insert(modReports).values(record);
+      await tx.insert(modListingReviews)
+        .values({ listingId: report.listingId, createdAt: report.createdAt, status: "pending" })
+        .onDuplicateKeyUpdate({ set: { listingId: report.listingId } });
+    });
     return report;
   }
 
@@ -102,15 +117,11 @@ export class DrizzleModerationRepository implements ModerationRepository {
       status: "pending",
       createdAt: at,
     };
-    await this.db.insert(modListingReviews).values(record);
-    return {
-      listingId,
-      status: "pending",
-      reviewerId: null,
-      reason: null,
-      reviewedAt: null,
-      createdAt: at,
-    };
+    await this.db.insert(modListingReviews).values(record)
+      .onDuplicateKeyUpdate({ set: { listingId } });
+    const [review] = await this.db.select().from(modListingReviews)
+      .where(eq(modListingReviews.listingId, listingId)).limit(1);
+    return this.toReview(review!);
   }
 
   async listReviews(status?: ListingReviewStatus): Promise<ListingReviewRecord[]> {

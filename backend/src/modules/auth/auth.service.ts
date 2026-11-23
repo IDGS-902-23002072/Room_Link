@@ -210,7 +210,12 @@ export class AuthService {
       expiresAt,
       createdAt: now,
     });
-    await this.dependencies.emailNotifier.sendPasswordReset({ email: user.email, token, expiresAt });
+    try {
+      await this.dependencies.emailNotifier.sendPasswordReset({ email: user.email, token, expiresAt });
+    } catch {
+      // Mantiene la respuesta pública idéntica para cuentas existentes y desconocidas.
+      console.error("No se pudo entregar el correo de recuperación.");
+    }
   }
 
   async resetPassword(token: string, password: string): Promise<void> {

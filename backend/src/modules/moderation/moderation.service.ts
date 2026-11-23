@@ -146,11 +146,21 @@ export class ModerationService {
     });
   }
 
-  listAllReports(filter: {
+  async listAllReports(filter: {
     targetType?: ReportTargetType;
     status?: ReportStatus;
-  } = {}): Promise<AnyReportRecord[]> {
-    return this.repository.listReports(filter);
+  } = {}): Promise<Array<AnyReportRecord & { priority: "high" | "normal" | "closed" }>> {
+    const reports = await this.repository.listReports(filter);
+    const ranks = { closed: 0, normal: 1, high: 2 };
+    return reports.map((report) => {
+      let priority: "high" | "normal" | "closed" = "normal";
+      if (report.status === "resolved" || report.status === "dismissed") {
+        priority = "closed";
+      } else if (["fraud", "harassment", "fake_profile"].includes(report.reason)) {
+        priority = "high";
+      }
+      return { ...report, priority };
+    }).sort((a, b) => ranks[b.priority] - ranks[a.priority] || a.createdAt.getTime() - b.createdAt.getTime());
   }
 
   async resolveReport(input: {

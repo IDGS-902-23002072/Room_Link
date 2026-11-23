@@ -4,6 +4,8 @@ import type { RowDataPacket } from "mysql2";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDatabase, db, pool } from "../../src/db/client.js";
 
+import { Application } from "../../src/domain/index.js";
+import { DrizzleApplicationRepository } from "../../src/infrastructure/repositories/DrizzleApplicationRepository.js";
 import { DrizzleUserRepository } from "../../src/infrastructure/repositories/DrizzleUserRepository.js";
 
 interface CountRow extends RowDataPacket {
@@ -117,6 +119,31 @@ describe("MySQL schema", () => {
     await run("UPDATE room_listings SET status = 'published' WHERE id = ?", [
       listingId,
     ]);
+  });
+
+  it("exposes the published room card after the binary-photo migration", async () => {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      "SELECT main_photo FROM v_room_card WHERE id = ?", [listingId],
+    );
+    expect(rows[0]?.main_photo).toBe(`/api/v1/rooms/${listingId}/photos/first`);
+  });
+
+  it("keeps one application per listing and applicant when a request is retried", async () => {
+    const repository = new DrizzleApplicationRepository(db);
+    const application = () => new Application({
+      id: randomUUID(),
+      listingId,
+      applicantId,
+      status: "pending",
+      createdAt: new Date(),
+    });
+
+    const first = await repository.create(application());
+    await expect(repository.create(application())).rejects.toMatchObject({
+      status: 409,
+      code: "APPLICATION_ALREADY_SENT",
+    });
+    expect((await repository.findByApplicantId(applicantId)).map(({ id }) => id)).toEqual([first.id]);
   });
 
   it("allows only one active connection per unordered user pair", async () => {

@@ -19,12 +19,14 @@ const MOTIVOS_DENUNCIA: { key: MotivoDenunciaAnuncio; label: string }[] = [
 export function FichaHabitacion({
   habitacion,
   postulada,
+  bloqueoPostulacion,
   enviando,
   alPostularse,
   alCerrar,
 }: {
   habitacion: HabitacionFeed;
   postulada: boolean;
+  bloqueoPostulacion?: string | undefined;
   enviando: boolean;
   alPostularse: (mensaje: string | null) => void;
   alCerrar: () => void;
@@ -126,7 +128,7 @@ export function FichaHabitacion({
         </Pressable>
       </View>
 
-      {!postulada && (
+      {!postulada && !bloqueoPostulacion && (
         <>
           <Text style={[styles.etiqueta, styles.etiquetaMensaje]}>
             Mensaje para el anfitrión (opcional)
@@ -147,16 +149,16 @@ export function FichaHabitacion({
       <View style={styles.acciones}>
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: postulada || enviando }}
-          disabled={postulada || enviando}
+          accessibilityState={{ disabled: postulada || enviando || Boolean(bloqueoPostulacion) }}
+          disabled={postulada || enviando || Boolean(bloqueoPostulacion)}
           onPress={() => alPostularse(mensaje)}
           style={({ pressed }) => [
             styles.botonPrincipal,
-            (postulada || enviando) && styles.botonDeshabilitado,
+            (postulada || enviando || Boolean(bloqueoPostulacion)) && styles.botonDeshabilitado,
             pressed && styles.presionado,
           ]}>
           <Text style={styles.textoBotonPrincipal}>
-            {postulada ? 'Postulación enviada' : enviando ? 'Enviando…' : 'Postularme'}
+            {postulada ? 'Postulación enviada' : enviando ? 'Enviando…' : bloqueoPostulacion ?? 'Postularme'}
           </Text>
         </Pressable>
         <Pressable

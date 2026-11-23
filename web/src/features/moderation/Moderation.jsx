@@ -90,7 +90,10 @@ function ReviewCard({ item, token, tab, onChange }) {
           <h3><ListingName listingId={listingId} token={token} /></h3>
           <p className="review-meta">{listingId} · {formatMoment(item.reviewedAt || item.resolvedAt || item.createdAt)}</p>
         </div>
-        <span className={`feature-badge${tone}`}>{labels[item.status] || item.status}</span>
+        <div className="feature-actions">
+          {reports && item.priority === 'high' && <span className="feature-badge feature-error">Prioridad alta</span>}
+          <span className={`feature-badge${tone}`}>{labels[item.status] || item.status}</span>
+        </div>
       </div>
       {reports && <p className="review-copy"><strong>{reasons[item.reason] || item.reason}</strong>{item.description && <><br />{item.description}</>}</p>}
       {!reports && item.reason && <p className="review-copy"><strong>Motivo</strong><br />{item.reason}</p>}

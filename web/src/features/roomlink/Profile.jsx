@@ -223,6 +223,8 @@ export function PhotosPage() {
 
 const accountDefaults = { locale: 'es-MX', timeZone: 'America/Mexico_City', visible: true, paused: false, matches: true }
 const notificationOptions = [
+  ['application_status_changed', 'Cambios en postulaciones', 'Cuando el anfitrión responda a tu postulación.'],
+  ['connection_request', 'Solicitudes de conexión', 'Cuando alguien te envíe una solicitud.'],
   ['new_message', 'Nuevos mensajes', 'Cuando un roomie te envíe un mensaje.'],
   ['matches', 'Perfiles compatibles', 'Preferencia guardada en este navegador.'],
   ['agreement_pending', 'Acuerdos de convivencia', 'Solicitudes de aceptación de acuerdos.'],
@@ -324,8 +326,10 @@ function AccountForm({ preferences, token, user }) {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [emailPrefs, setEmailPrefs] = useState(() => Object.fromEntries(preferences.map(({ type, emailOptIn }) => [type, emailOptIn === true])))
+  const [savedEmailPrefs, setSavedEmailPrefs] = useState(emailPrefs)
   const [permission, setPermission] = useState(() => window.Notification?.permission ?? 'unsupported')
-  const dirty = Object.keys(saved).some((key) => saved[key] !== values[key])
+  const dirty = Object.keys(saved).some((key) => saved[key] !== values[key]) || Object.keys(emailPrefs).some((key) => emailPrefs[key] !== savedEmailPrefs[key])
   const set = (key, value) => setValues({ ...values, [key]: value })
 
   async function save(event) {
@@ -334,13 +338,14 @@ function AccountForm({ preferences, token, user }) {
     setError('')
     setMessage('')
     try {
-      const changes = preferences.filter(({ type }) => values[type] !== saved[type])
+      const changes = preferences.filter(({ type }) => values[type] !== saved[type] || emailPrefs[type] !== savedEmailPrefs[type])
       if (changes.length) {
-        await apiRequest(preferencePath, { token, ...json('PUT', { preferences: changes.map((pref) => ({ ...pref, inApp: values[pref.type] })) }) })
+        await apiRequest(preferencePath, { token, ...json('PUT', { preferences: changes.map((pref) => ({ type: pref.type, inApp: values[pref.type], email: Boolean(emailPrefs[pref.type]) })) }) })
       }
       const local = Object.fromEntries(Object.keys(accountDefaults).map((key) => [key, values[key]]))
       if (Object.keys(local).some((key) => local[key] !== saved[key])) writeLocal(user.id, 'account-preferences', local)
       setSaved(values)
+      setSavedEmailPrefs(emailPrefs)
       setMessage('Preferencias guardadas.')
     } catch (cause) {
       setError(cause.message)
@@ -396,6 +401,12 @@ function AccountForm({ preferences, token, user }) {
           <Panel title="Notificaciones web">
             {notificationOptions.map(([key, label, description]) => <Toggle checked={Boolean(values[key])} description={description} key={key} label={label} onChange={(checked) => set(key, checked)} />)}
           </Panel>
+          <Panel title="Avisos por correo">
+            <p>Los avisos se envían al correo verificado de tu cuenta.</p>
+            {notificationOptions.filter(([type]) => ['application_status_changed', 'connection_request'].includes(type)).map(([type, label]) =>
+              <Toggle key={type} label={label} checked={Boolean(emailPrefs[type])} onChange={(checked) => setEmailPrefs((current) => ({ ...current, [type]: checked }))} />
+            )}
+          </Panel>
         </div>
         <div className="room-stack">
           <Panel title="Permiso del navegador">
@@ -412,7 +423,7 @@ function AccountForm({ preferences, token, user }) {
         </div>
       </div>
       <Feedback error={error}>{message}</Feedback>
-      <div className="room-save"><p className="muted">{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</p><div className="room-actions"><button className="button button-rose" disabled={busy || !dirty} onClick={() => setValues(saved)} type="button">Cancelar</button><button className="button button-mint" disabled={busy || !dirty} type="submit">Guardar cambios</button></div></div>
+      <div className="room-save"><p className="muted">{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</p><div className="room-actions"><button className="button button-rose" disabled={busy || !dirty} onClick={() => { setValues(saved); setEmailPrefs(savedEmailPrefs) }} type="button">Cancelar</button><button className="button button-mint" disabled={busy || !dirty} type="submit">Guardar cambios</button></div></div>
     </form>
   )
 }

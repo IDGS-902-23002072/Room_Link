@@ -53,6 +53,7 @@ jobs:
         working-directory: web
         env:
           VITE_API_URL: ${{ steps.production.outputs.api_url }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
         run: |
           npm ci
           npm run build
