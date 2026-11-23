@@ -2,15 +2,20 @@ import { apiRequest } from './api.js'
 
 const SESSION_KEY = '@roomlink/web/session'
 
-export async function login(email, password) {
-  const result = await apiRequest('/api/v1/auth/login', {
+export function requestAuth(path, body, token) {
+  return apiRequest(`/api/v1/auth/${path}`, {
+    token,
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: body === undefined ? undefined : JSON.stringify(body),
   })
+}
+
+export async function startSession(path, credentials) {
+  const result = await requestAuth(path, credentials)
   if (!result.user?.id || !result.token) {
     throw new Error('La API no devolvió una sesión válida.')
   }
-  return { user: result.user, token: result.token }
+  return { user: result.user, token: result.token, expiresAt: result.expiresAt }
 }
 
 export function readSession() {

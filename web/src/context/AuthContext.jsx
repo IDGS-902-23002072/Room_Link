@@ -1,59 +1,78 @@
 import PropTypes from 'prop-types'
-import { useMemo, useReducer } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AuthContext } from './auth-context.js'
-import {
-  clearSession,
-  login as iniciarSesion,
-  readSession,
-  saveSession,
-} from '../services/authService.js'
+import { apiRequest } from '../services/api.js'
+import { clearSession, readSession, requestAuth, saveSession, startSession } from '../services/authService.js'
 
-function authReducer(state, action) {
-  switch (action.type) {
-    case 'login':
-      return { session: action.session, error: '' }
-    case 'logout':
-      return { session: null, error: '' }
-    case 'error':
-      return { ...state, error: action.message }
-    default:
-      return state
+function getStoredSession() {
+  try {
+    return readSession()
+  } catch {
+    return null
   }
 }
 
 export function AuthProvider({ children }) {
-  const [state, dispatch] = useReducer(authReducer, null, () => {
-    try {
-      return { session: readSession(), error: '' }
-    } catch (error) {
-      return {
-        session: null,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'No se pudo recuperar la sesión.',
-      }
-    }
-  })
+  const [session, setSession] = useState(getStoredSession)
+  const [loadingSession, setLoadingSession] = useState(Boolean(session))
+  const [sessionError, setSessionError] = useState('')
+  const [attempt, setAttempt] = useState(0)
 
-  const value = useMemo(
-    () => ({
-      session: state.session,
-      loadingSession: false,
-      sessionError: state.error,
-      async login(email, password) {
-        const nextSession = await iniciarSesion(email, password)
-        saveSession(nextSession)
-        dispatch({ type: 'login', session: nextSession })
-        return nextSession.user
+  useEffect(() => {
+    const stored = getStoredSession()
+    if (!stored) return
+    const request = new AbortController()
+    apiRequest('/api/v1/auth/me', { token: stored.token, signal: request.signal }).then((user) => {
+      if (request.signal.aborted) return
+      setSession((current) => current?.token === stored.token ? { ...current, user } : current)
+    }).catch((error) => {
+      if (request.signal.aborted) return
+      if (error.status === 401 || error.status === 423) {
+        if (getStoredSession()?.token === stored.token) clearSession()
+        setSession((current) => current?.token === stored.token ? null : current)
+        return
+      }
+      setSessionError(error.message)
+    }).finally(() => {
+      if (!request.signal.aborted) setLoadingSession(false)
+    })
+    return () => request.abort()
+  }, [attempt])
+
+  const value = useMemo(() => {
+    function forgetSession() {
+      setSession(null)
+      setSessionError('')
+      clearSession()
+    }
+
+    return {
+      session,
+      loadingSession,
+      sessionError,
+      forgetSession,
+      retrySession() {
+        setSessionError('')
+        setLoadingSession(Boolean(getStoredSession()))
+        setAttempt((value) => value + 1)
       },
-      logout() {
-        clearSession()
-        dispatch({ type: 'logout' })
+      async authenticate(path, credentials) {
+        const next = await startSession(path, credentials)
+        saveSession(next)
+        setSessionError('')
+        setSession(next)
+        return next.user
       },
-    }),
-    [state],
-  )
+      async logout() {
+        if (!session) return
+        try {
+          await requestAuth('logout', undefined, session.token)
+        } finally {
+          forgetSession()
+        }
+      },
+    }
+  }, [session, loadingSession, sessionError])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
