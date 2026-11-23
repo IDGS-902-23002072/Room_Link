@@ -1,9 +1,8 @@
-
-import React, { useState } from "react";
-
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
+  BackHandler,
   SafeAreaView,
   StatusBar,
   StyleSheet,
@@ -97,6 +96,41 @@ export function PantallaAnuncios() {
 
   const [anuncioSeleccionado, setAnuncioSeleccionado] =
     useState<string | null>(null);
+
+  useEffect(() => {
+  const suscripcion = BackHandler.addEventListener(
+    "hardwareBackPress",
+    () => {
+      switch (vista) {
+        case "fotos":
+          setVista("ubicacion");
+          return true;
+
+        case "ubicacion":
+          setVista("publicar");
+          return true;
+
+        case "publicar":
+          setVista("anuncios");
+          return true;
+
+        case "detalle":
+          setAnuncioSeleccionado(null);
+          setVista("anuncios");
+          return true;
+
+        case "cargandoEdicion":
+        case "anuncios":
+          return true;
+
+        default:
+          return true;
+      }
+    }
+  );
+
+  return () => suscripcion.remove();
+}, [vista]);
 
   // ====================================================
   // REINICIAR FORMULARIO

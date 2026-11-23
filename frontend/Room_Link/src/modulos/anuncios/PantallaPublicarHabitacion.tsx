@@ -332,134 +332,134 @@ export default function PantallaPublicarHabitacion({
 
 
 
-const validarDatos = (
-  intencion: IntencionPublicacion
-): boolean => {
+  const validarDatos = (
+    intencion: IntencionPublicacion
+  ): boolean => {
 
-  // ==================================================
-  // VALIDACIONES PARA BORRADOR Y PUBLICACIÓN
-  // ==================================================
+    // ==================================================
+    // VALIDACIONES PARA BORRADOR Y PUBLICACIÓN
+    // ==================================================
 
-  // TÍTULO: obligatorio para ambas acciones.
+    // TÍTULO: obligatorio para ambas acciones.
 
-  if (!titulo.trim()) {
-    Alert.alert(
-      "Campo requerido",
-      "Escribe el título de la publicación."
-    );
-    return false;
-  }
-
-  if (
-    titulo.trim().length < 5 ||
-    titulo.trim().length > 200
-  ) {
-    Alert.alert(
-      "Título incorrecto",
-      "El título debe tener entre 5 y 200 caracteres."
-    );
-    return false;
-  }
-
-  // RENTA: obligatoria para ambas acciones.
-
-  if (!renta.trim()) {
-    Alert.alert(
-      "Campo requerido",
-      "Escribe la renta mensual."
-    );
-    return false;
-  }
-
-  const rentaLimpia = renta.replace(/[$,\s]/g, "");
-  const rentaNumerica = Number(rentaLimpia);
-
-  if (
-    !/^\d+(\.\d{1,2})?$/.test(rentaLimpia) ||
-    !Number.isFinite(rentaNumerica) ||
-    rentaNumerica <= 0 ||
-    rentaNumerica > 99999999.99
-  ) {
-    Alert.alert(
-      "Renta incorrecta",
-      "Ingresa una renta válida, mayor a cero y con máximo dos decimales."
-    );
-    return false;
-  }
-
-  // ==================================================
-  // SI ES BORRADOR, NO EXIGIR LOS DEMÁS CAMPOS
-  // ==================================================
-
-  if (intencion === "draft") {
-    return true;
-  }
-
-  // ==================================================
-  // VALIDACIONES EXCLUSIVAS PARA PUBLICAR
-  // ==================================================
-
-  // DESCRIPCIÓN
-
-  if (descripcion.trim().length > 5000) {
-    Alert.alert(
-      "Descripción demasiado larga",
-      "La descripción no puede superar los 5000 caracteres."
-    );
-    return false;
-  }
-
-  // FECHA DE DISPONIBILIDAD
-
-  const fecha = availableFrom.trim();
-
-  if (!fecha) {
-    Alert.alert(
-      "Campo requerido",
-      "Indica desde qué fecha estará disponible la habitación."
-    );
-    return false;
-  }
-
-  if (!fechaValida(fecha)) {
-    Alert.alert(
-      "Fecha incorrecta",
-      "Selecciona una fecha válida en el calendario."
-    );
-    return false;
-  }
-
-  if (fecha < obtenerFechaActualMexico()) {
-    Alert.alert(
-      "Fecha no válida",
-      "La fecha de disponibilidad no puede ser anterior al día de hoy."
-    );
-    return false;
-  }
-
-  // MÁXIMO DE COMPAÑEROS
-
-  const cantidadTexto = maxRoommates.trim();
-
-  if (cantidadTexto) {
-    const cantidad = Number(cantidadTexto);
-
-    if (
-      !/^\d+$/.test(cantidadTexto) ||
-      !Number.isInteger(cantidad) ||
-      cantidad < 1 ||
-      cantidad > 100
-    ) {
+    if (!titulo.trim()) {
       Alert.alert(
-        "Dato incorrecto",
-        "El máximo de compañeros debe ser un número entero entre 1 y 100."
+        "Campo requerido",
+        "Escribe el título de la publicación."
       );
       return false;
     }
-  }
 
-  return true;
-};
+    if (
+      titulo.trim().length < 5 ||
+      titulo.trim().length > 200
+    ) {
+      Alert.alert(
+        "Título incorrecto",
+        "El título debe tener entre 5 y 200 caracteres."
+      );
+      return false;
+    }
+
+    // RENTA: obligatoria para ambas acciones.
+
+    if (!renta.trim()) {
+      Alert.alert(
+        "Campo requerido",
+        "Escribe la renta mensual."
+      );
+      return false;
+    }
+
+    const rentaLimpia = renta.replace(/[$,\s]/g, "");
+    const rentaNumerica = Number(rentaLimpia);
+
+    if (
+      !/^\d+(\.\d{1,2})?$/.test(rentaLimpia) ||
+      !Number.isFinite(rentaNumerica) ||
+      rentaNumerica <= 0 ||
+      rentaNumerica > 99999999.99
+    ) {
+      Alert.alert(
+        "Renta incorrecta",
+        "Ingresa una renta válida, mayor a cero y con máximo dos decimales."
+      );
+      return false;
+    }
+
+    // ==================================================
+    // SI ES BORRADOR, NO EXIGIR LOS DEMÁS CAMPOS
+    // ==================================================
+
+    if (intencion === "draft") {
+      return true;
+    }
+
+    // ==================================================
+    // VALIDACIONES EXCLUSIVAS PARA PUBLICAR
+    // ==================================================
+
+    // DESCRIPCIÓN
+
+    if (descripcion.trim().length > 5000) {
+      Alert.alert(
+        "Descripción demasiado larga",
+        "La descripción no puede superar los 5000 caracteres."
+      );
+      return false;
+    }
+
+    // FECHA DE DISPONIBILIDAD
+
+    const fecha = availableFrom.trim();
+
+    if (!fecha) {
+      Alert.alert(
+        "Campo requerido",
+        "Indica desde qué fecha estará disponible la habitación."
+      );
+      return false;
+    }
+
+    if (!fechaValida(fecha)) {
+      Alert.alert(
+        "Fecha incorrecta",
+        "Selecciona una fecha válida en el calendario."
+      );
+      return false;
+    }
+
+    if (fecha < obtenerFechaActualMexico()) {
+      Alert.alert(
+        "Fecha no válida",
+        "La fecha de disponibilidad no puede ser anterior al día de hoy."
+      );
+      return false;
+    }
+
+    // MÁXIMO DE COMPAÑEROS
+
+    const cantidadTexto = maxRoommates.trim();
+
+    if (cantidadTexto) {
+      const cantidad = Number(cantidadTexto);
+
+      if (
+        !/^\d+$/.test(cantidadTexto) ||
+        !Number.isInteger(cantidad) ||
+        cantidad < 1 ||
+        cantidad > 100
+      ) {
+        Alert.alert(
+          "Dato incorrecto",
+          "El máximo de compañeros debe ser un número entero entre 1 y 100."
+        );
+        return false;
+      }
+    }
+
+    return true;
+  };
 
 
   // ====================================================
@@ -587,7 +587,25 @@ const validarDatos = (
         <CampoFormulario
           etiqueta="Renta mensual · MXN"
           value={renta}
-          onChangeText={setRenta}
+          onChangeText={(texto) => {
+            // Solo permite números y un punto decimal.
+            const limpio = texto.replace(/[^0-9.]/g, "");
+
+            // Evita que se escriban varios puntos.
+            const partes = limpio.split(".");
+            const numero =
+              partes.length > 1
+                ? `${partes[0]}.${partes.slice(1).join("")}`
+                : limpio;
+
+            // Máximo dos decimales.
+            const valorFinal = numero.replace(
+              /^(\d+\.?\d{0,2}).*$/,
+              "$1"
+            );
+
+            setRenta(valorFinal);
+          }}
           placeholder="Ej. 3500"
           keyboardType="decimal-pad"
         />

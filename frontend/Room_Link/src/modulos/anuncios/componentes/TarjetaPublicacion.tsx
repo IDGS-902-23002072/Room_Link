@@ -14,10 +14,10 @@ export type Publicacion = {
   titulo: string;
   precio: string;
   estado:
-    | "Activa"
-    | "Pausada"
-    | "Cerrada"
-    | "Borrador";
+  | "Activa"
+  | "Pausada"
+  | "Cerrada"
+  | "Borrador";
   imagen?: string;
   detalle?: string;
   fotosCount?: number;
@@ -47,6 +47,7 @@ export default function TarjetaPublicacion({
 
   const activa = publicacion.estado === "Activa";
   const cerrada = publicacion.estado === "Cerrada";
+  const borrador = publicacion.estado === "Borrador";
 
   const imagenMostrar =
     publicacion.imagen && imagenConError !== publicacion.imagen
@@ -88,7 +89,11 @@ export default function TarjetaPublicacion({
               <Pressable onPress={() => onEditar?.(publicacion.id)}>
                 <Text style={styles.accion}>Editar</Text>
               </Pressable>
+            </>
+          )}
 
+          {!cerrada && !borrador && (
+            <>
               <Text style={styles.separador}> · </Text>
 
               {activa ? (
