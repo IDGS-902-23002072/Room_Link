@@ -9,6 +9,10 @@ import Messages from '../features/messaging/Messages.jsx'
 import Moderation, { ModerationListing, ReportDirectory, ReportListing } from '../features/moderation/Moderation.jsx'
 import Questionnaire from '../features/compatibility/Questionnaire.jsx'
 import Recommendations from '../features/compatibility/Recommendations.jsx'
+import { Workspace } from '../features/roomlink/Workspace.jsx'
+import { AccountPage, PhotosPage, ProfilePage } from '../features/roomlink/Profile.jsx'
+import { SearchPage } from '../features/roomlink/Search.jsx'
+import { AgreementsPage } from '../features/roomlink/Agreements.jsx'
 
 function Shell() {
   const { session, logout } = useAuth()
@@ -34,9 +38,12 @@ function Shell() {
         <Brand />
         <nav aria-label="Navegación principal" className="main-nav">
           <NavLink to="/explorar">Explorar</NavLink>
-          <NavLink to="/mensajes">Mensajes</NavLink>
-          <NavLink to="/denunciar" className={({ isActive }) => isActive || location.pathname.endsWith('/denunciar') ? 'active' : undefined}>Denunciar anuncio</NavLink>
+          <NavLink to="/buscar">Buscar roomies</NavLink>
           <NavLink to="/cuestionario">Mi test</NavLink>
+          <NavLink to="/mensajes">Mensajes</NavLink>
+          <NavLink to="/acuerdos">Acuerdos</NavLink>
+          <NavLink to="/perfil" end={location.pathname.startsWith('/perfil/candidato/')}>Mi perfil</NavLink>
+          <NavLink to="/denunciar" className={({ isActive }) => isActive || location.pathname.endsWith('/denunciar') ? 'active' : undefined}>Denunciar anuncio</NavLink>
           {isAdmin && <NavLink to="/admin/moderacion">Moderación</NavLink>}
           {isAdmin && <NavLink to="/admin/dashboard">Dashboard</NavLink>}
         </nav>
@@ -122,6 +129,21 @@ export default function AppRoutes() {
           <Route element={<Recommendations />} path="/perfil/candidato/:candidateId" />
           <Route element={<Questionnaire />} path="/cuestionario" />
           <Route element={<Questionnaire />} path="/resultados/test" />
+          <Route element={<Workspace module="profile" />} path="/perfil">
+            <Route element={<ProfilePage />} index />
+            <Route element={<PhotosPage />} path="fotos" />
+            <Route element={<AccountPage />} path="cuenta" />
+          </Route>
+          <Route element={<Workspace module="search" />} path="/buscar">
+            <Route element={<SearchPage tab="filters" />} index />
+            <Route element={<SearchPage tab="habits" />} path="habitos" />
+            <Route element={<SearchPage tab="saved" />} path="guardadas" />
+          </Route>
+          <Route element={<Workspace module="agreements" />} path="/acuerdos">
+            <Route element={<AgreementsPage tab="current" />} index />
+            <Route element={<AgreementsPage tab="create" />} path="crear" />
+            <Route element={<AgreementsPage tab="review" />} path="revisar/:agreementId?" />
+          </Route>
           <Route element={<Messages />} path="/mensajes/:roomId?" />
           <Route element={<ReportDirectory />} path="/denunciar" />
           <Route element={<ReportListing />} path="/anuncios/:listingId/denunciar" />

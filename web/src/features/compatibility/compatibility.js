@@ -164,10 +164,10 @@ export function saveCompatibilityTest(userId, answers, token) {
   })
 }
 
-export function getRecommendationFeed(userId, page, token) {
+export function getRecommendationFeed(userId, page, token, signal) {
   return apiRequest(
     `/api/v1/compatibility/${encodeURIComponent(userId)}/feed?page=${page}`,
-    { token },
+    { token, signal },
   )
 }
 

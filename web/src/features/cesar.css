@@ -37,7 +37,12 @@
 .button-subtle { border-color: var(--feature-line); background: white; color: var(--mint-dark); }
 .button-subtle:hover:not(:disabled) { border-color: var(--mint-strong); background: var(--mint); }
 .sign-out { min-height: 36px; white-space: nowrap; }
-.topbar .main-nav { gap: clamp(2px, 1vw, 14px); }
+.topbar .main-nav {
+  flex-wrap: wrap;
+  justify-content: center;
+  min-width: 0;
+  gap: 3px clamp(2px, 0.6vw, 9px);
+}
 .topbar .main-nav a {
   border-radius: 12px;
   padding: 9px 10px;
@@ -361,7 +366,7 @@
 }
 
 @media (max-width: 780px) {
-  .topbar .main-nav { justify-content: start; overflow-x: auto; margin-inline: -2px; padding: 3px 2px; }
+  .topbar .main-nav { justify-content: start; flex-wrap: nowrap; overflow-x: auto; margin-inline: -2px; padding: 3px 2px; }
   .access-page { grid-template-columns: 1fr; }
   .access-panel { min-height: calc(100svh - 24px); }
   .access-visual { display: none; }
