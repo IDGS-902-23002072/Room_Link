@@ -50,6 +50,9 @@ class InMemoryUserRepository implements IUserRepository {
     this.users.set(user.id, user);
   }
 
+  async grantHostRole(id: string): Promise<void> {
+    this.users.get(id)?.grantHostRole();
+  }
   async delete(id: string): Promise<void> {
     this.users.delete(id);
   }

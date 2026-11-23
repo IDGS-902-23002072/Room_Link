@@ -4,6 +4,8 @@ import type { RowDataPacket } from "mysql2";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDatabase, db, pool } from "../../src/db/client.js";
 
+import { DrizzleUserRepository } from "../../src/infrastructure/repositories/DrizzleUserRepository.js";
+
 interface CountRow extends RowDataPacket {
   total: number;
 }
@@ -55,6 +57,15 @@ describe("MySQL schema", () => {
     expect(tableRows[0]?.total).toBe(38);
     expect(viewRows[0]?.total).toBe(4);
     expect(weightRows[0]?.total).toBe(7);
+  });
+
+  it("persists the host role without replacing the seeker role, even when retried", async () => {
+    const users = new DrizzleUserRepository(db);
+    await run("INSERT INTO auth_user_roles (user_id, role) VALUES (?, ?)", [ownerId, "seeker"]);
+
+    await Promise.all([users.grantHostRole(ownerId), users.grantHostRole(ownerId)]);
+
+    expect((await users.findById(ownerId))?.roles.slice().sort()).toEqual(["host", "seeker"]);
   });
 
   it("rejects profiles for minors", async () => {
