@@ -15,10 +15,10 @@ concurrency:
 
 jobs:
   deploy-azure:
-    name: Publicar API y Expo Web en Azure
+    name: Publicar API y sitio web en Azure
     runs-on: ubuntu-latest
     outputs:
-      api_url: ${ steps.production.outputs.api_url }}
+      api_url: ${{ steps.production.outputs.api_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,15 +47,18 @@ jobs:
           npm ci
           npm run build
 
-      - name: Compilar Expo Web para producción
-        working-directory: frontend/Room_Link
+      # La app Expo de frontend/ es solo móvil: se entrega como APK compilado
+      # en local y nunca pasa por GitHub. Aquí se publica el sitio web de web/.
+      - name: Compilar sitio web (Vite) para producción
+        working-directory: web
         env:
-          EXPO_PUBLIC_API_URL: ${ steps.production.outputs.api_url }}
-          EXPO_NO_TELEMETRY: "1"
+          VITE_API_URL: ${{ steps.production.outputs.api_url }}
         run: |
           npm ci
-          npm run build:web -- --output-dir ../../backend/public
-          test -s ../../backend/public/index.html
+          npm run build
+          rm -rf ../backend/public
+          cp -R dist ../backend/public
+          test -s ../backend/public/index.html
 
       - name: Empaquetar release
         run: |
@@ -65,10 +68,10 @@ jobs:
 
       - name: Desplegar por SSH
         env:
-          SSH_HOST: ${ secrets.AZURE_VM_HOST }}
-          SSH_USER: ${ secrets.AZURE_VM_USER }}
-          SSH_KEY: ${ secrets.AZURE_VM_SSH_KEY }}
-          SSH_KNOWN_HOSTS: ${ secrets.AZURE_VM_KNOWN_HOSTS }}
+          SSH_HOST: ${{ secrets.AZURE_VM_HOST }}
+          SSH_USER: ${{ secrets.AZURE_VM_USER }}
+          SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           : "${SSH_HOST:?Falta AZURE_VM_HOST}"
@@ -85,9 +88,9 @@ jobs:
           scp "${options[@]}" roomlink-release.tar.gz "$target:/opt/roomlink/roomlink-release.tar.gz"
           ssh "${options[@]}" "$target" 'bash -s' < scripts/deploy-azure-release.sh
 
-      - name: Verificar HTTPS, API y Expo Web
+      - name: Verificar HTTPS, API y sitio web
         env:
-          API_URL: ${ steps.production.outputs.api_url }}
+          API_URL: ${{ steps.production.outputs.api_url }}
         run: |
           for attempt in $(seq 1 20); do
             if curl -fsS --max-time 10 "$API_URL/health" \
@@ -115,4 +118,4 @@ jobs:
         with:
           generate_release_notes: true
           body: |
-            API y Expo Web en Azure: ${ needs.deploy-azure.outputs.api_url }}
+            API y sitio web en Azure: ${{ needs.deploy-azure.outputs.api_url }}

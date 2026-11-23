@@ -69,6 +69,10 @@ else
 fi
 ln -s "$root/uploads" "$staged/uploads"
 
+# El APK se sube aparte (nunca por GitHub) y sobrevive a cada release.
+mkdir -p downloads
+ln -s "$root/downloads" "$staged/public/descargas"
+
 if [[ -d current ]]; then
   rollback_dir=$(mktemp -d "$root/.rollback.XXXXXX")
   old_current="$rollback_dir/current"
