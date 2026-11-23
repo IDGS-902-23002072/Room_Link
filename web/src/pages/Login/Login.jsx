@@ -25,7 +25,7 @@ function Login({ onLogin }) {
   }
 
   return (
-    <div className="login-page">
+    <main className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
         <p className="eyebrow">ROOMLINK · BIENVENIDO</p>
         <h1>Encuentra tu lugar</h1>
@@ -53,11 +53,18 @@ function Login({ onLogin }) {
           />
         </label>
         {error && <p className="form-error" role="alert">{error}</p>}
-        <button className="button button-primary button-wide" disabled={submitting}>
+        <button
+          aria-busy={submitting}
+          className="button button-primary button-wide"
+          disabled={submitting}
+        >
           {submitting ? 'Conectando…' : 'Iniciar sesión'}
         </button>
+        <span aria-live="polite" className="sr-only" role="status">
+          {submitting ? 'Conectando…' : ''}
+        </span>
       </form>
-    </div>
+    </main>
   )
 }
 
