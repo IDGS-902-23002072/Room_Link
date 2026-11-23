@@ -152,6 +152,12 @@ export type NewAuthUser = typeof authUsers.$inferInsert;
 export type AuthUserRoleRow = typeof authUserRoles.$inferSelect;
 export type NewAuthUserRole = typeof authUserRoles.$inferInsert;
 
+export type AuthOauthIdentityRow = typeof authOauthIdentities.$inferSelect;
+export type NewAuthOauthIdentity = typeof authOauthIdentities.$inferInsert;
+
+export type AuthPasswordResetTokenRow = typeof authPasswordResetTokens.$inferSelect;
+export type NewAuthPasswordResetToken = typeof authPasswordResetTokens.$inferInsert;
+
 export type AuthSessionRow = typeof authSessions.$inferSelect;
 export type NewAuthSession = typeof authSessions.$inferInsert;
 

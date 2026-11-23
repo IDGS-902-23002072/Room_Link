@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'expo-router';
 import {
   Pressable,
   ScrollView,
@@ -9,15 +10,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { cerrarSesion } from '@/auth/api-auth';
+import { useSesion } from '@/auth/SesionContext';
+
 import {
   actualizarPerfil,
+  actualizarInstagram,
+  crearPerfil,
   guardarPerfilLocal,
   leerPerfilLocal,
   obtenerPerfil,
+  PerfilNoEncontrado,
   perfilDesdeApi,
   type PerfilFormulario,
 } from './api';
 import { CampoPerfil } from './componentes/CampoPerfil';
+import { Accion, Tarjeta, Texto } from '../comunes/InterfazModulo';
 
 const MAX_BIOGRAFIA = 300;
 
@@ -54,6 +62,11 @@ function validarPerfil(perfil: PerfilFormulario): string | null {
     return `La biografía no puede superar los ${MAX_BIOGRAFIA} caracteres.`;
   }
 
+  const telefono = perfil.telefono?.trim();
+  if (telefono && !/^[+\d][\d\s().-]{5,29}$/.test(telefono)) {
+    return 'Escribe un número de teléfono válido.';
+  }
+
   const presupuestoMin = perfil.presupuestoMin.trim();
   const presupuestoMax = perfil.presupuestoMax.trim();
   if (presupuestoMin && !/^\d+$/.test(presupuestoMin)) {
@@ -82,16 +95,36 @@ function normalizarPerfil(perfil: PerfilFormulario): PerfilFormulario {
     zona: perfil.zona.trim(),
     presupuestoMin: perfil.presupuestoMin.trim(),
     presupuestoMax: perfil.presupuestoMax.trim(),
+    ciudad: perfil.ciudad?.trim(),
+    telefono: perfil.telefono?.trim(),
+    instagram: perfil.instagram?.trim(),
   };
 }
 
+function edadDesdeNacimiento(valor: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return null;
+  const fecha = new Date(`${valor}T00:00:00Z`);
+  if (Number.isNaN(fecha.getTime()) || fecha.toISOString().slice(0, 10) !== valor) return null;
+  const hoy = new Date();
+  const anioActual = hoy.getFullYear();
+  const mesDiaActual = hoy.getMonth() * 100 + hoy.getDate();
+  const mesDiaNacimiento = fecha.getUTCMonth() * 100 + fecha.getUTCDate();
+  return anioActual - fecha.getUTCFullYear() - Number(mesDiaActual < mesDiaNacimiento);
+}
+
 export function PantallaPerfil() {
+  const { sesion } = useSesion();
+  const esAdmin = Boolean(sesion?.usuario.roles?.includes('admin'));
   const [perfil, setPerfil] = useState<PerfilFormulario>(PERFIL_VACIO);
+  const [perfilGuardado, setPerfilGuardado] = useState<PerfilFormulario>(PERFIL_VACIO);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
+  const [vistaPrevia, setVistaPrevia] = useState(false);
+  const [alta, setAlta] = useState(false);
+  const [nacimiento, setNacimiento] = useState('');
   const { width } = useWindowDimensions();
   const anchoContenido = Math.min(width, 460);
 
@@ -102,20 +135,21 @@ export function PantallaPerfil() {
       const local = await leerPerfilLocal();
       if (!activo) return;
 
-      if (local) {
-        setPerfil(local);
-        setCargando(false);
-        return;
-      }
-
       try {
         const remoto = await obtenerPerfil();
         if (activo) {
-          setPerfil(perfilDesdeApi(remoto));
+          const datos = { ...perfilDesdeApi(remoto), ...local };
+          setPerfil(datos);
+          setPerfilGuardado(datos);
         }
-      } catch {
+      } catch (causa) {
         if (activo) {
-          setError(
+          if (local) {
+            setPerfil(local);
+            setPerfilGuardado(local);
+          }
+          if (causa instanceof PerfilNoEncontrado) setAlta(true);
+          else if (!local) setError(
             'No pudimos cargar tu perfil desde el servidor. Completa tus datos y guárdalos cuando quieras.',
           );
         }
@@ -151,17 +185,24 @@ export function PantallaPerfil() {
   const guardar = async () => {
     if (guardando || biografiaExcedida) return;
 
-    const errorValidacion = validarPerfil(perfil);
+    const edad = alta ? edadDesdeNacimiento(nacimiento) : null;
+    if (alta && edad === null) {
+      setError('Escribe una fecha de nacimiento válida con el formato AAAA-MM-DD.');
+      return;
+    }
+    const actual = edad === null ? perfil : { ...perfil, edad: String(edad) };
+    const errorValidacion = validarPerfil(actual);
     setError(errorValidacion);
     setAviso(null);
     setExito(null);
     if (errorValidacion) return;
 
-    const datos = normalizarPerfil(perfil);
+    const datos = normalizarPerfil(actual);
     setGuardando(true);
 
     try {
       await guardarPerfilLocal(datos);
+      setPerfilGuardado(datos);
     } catch {
       setError('No pudimos guardar los cambios en este dispositivo.');
       setGuardando(false);
@@ -169,11 +210,19 @@ export function PantallaPerfil() {
     }
 
     try {
-      const remoto = await actualizarPerfil({
+      const datosApi = {
         fullName: datos.nombre,
         occupation: datos.ocupacion || null,
         bio: datos.biografia || null,
-      });
+        ...(datos.telefono !== undefined && { phone: datos.telefono || null }),
+      };
+      const remoto = alta
+        ? await crearPerfil({ ...datosApi, birthDate: nacimiento, instagram: datos.instagram })
+        : await actualizarPerfil(datosApi);
+      setAlta(false);
+      if (!alta && datos.instagram !== undefined && datos.instagram !== (remoto.instagram ?? '')) {
+        await actualizarInstagram(datos.instagram);
+      }
       const sincronizado: PerfilFormulario = {
         ...datos,
         nombre: remoto.fullName,
@@ -181,6 +230,7 @@ export function PantallaPerfil() {
         biografia: remoto.bio ?? '',
       };
       setPerfil(sincronizado);
+      setPerfilGuardado(sincronizado);
       await guardarPerfilLocal(sincronizado).catch(() => undefined);
       setExito('Tu perfil se guardó correctamente.');
     } catch {
@@ -229,7 +279,7 @@ export function PantallaPerfil() {
                     valor={perfil.nombre}
                   />
                 </View>
-                <View style={styles.columnaEdad}>
+                {!alta && <View style={styles.columnaEdad}>
                   <CampoPerfil
                     accessibilityLabel="Edad"
                     alCambiar={actualizarCampo('edad')}
@@ -239,8 +289,10 @@ export function PantallaPerfil() {
                     placeholder="24"
                     valor={perfil.edad}
                   />
-                </View>
+                </View>}
               </View>
+
+              {alta && <CampoPerfil alCambiar={setNacimiento} etiqueta="Fecha de nacimiento" maxLength={10} placeholder="AAAA-MM-DD" valor={nacimiento} />}
 
               <CampoPerfil
                 accessibilityLabel="Ocupación"
@@ -251,6 +303,21 @@ export function PantallaPerfil() {
                 valor={perfil.ocupacion}
               />
             </View>
+
+            <Tarjeta titulo="Información visible">
+              <CampoPerfil alCambiar={actualizarCampo('ciudad')} etiqueta="Ciudad" ayuda="Se guarda en este dispositivo." maxLength={120} valor={perfil.ciudad ?? ''} />
+              <CampoPerfil alCambiar={actualizarCampo('instagram')} autoCapitalize="none" etiqueta="Instagram (opcional)" maxLength={255} placeholder="@usuario" valor={perfil.instagram ?? ''} />
+              <Accion alPulsar={() => setVistaPrevia(!vistaPrevia)} texto={vistaPrevia ? 'Ocultar vista previa' : 'Ver vista previa del perfil'} />
+              {vistaPrevia && <>
+                <Texto>{perfil.nombre || 'Tu nombre'}{perfil.edad ? `, ${perfil.edad} años` : ''}</Texto>
+                <Texto secundario>{[perfil.ciudad, perfil.ocupacion, perfil.biografia, perfil.instagram].filter(Boolean).join(' · ')}</Texto>
+              </>}
+            </Tarjeta>
+            <Tarjeta titulo="Datos de contacto">
+              <Texto secundario>Correo de tu cuenta</Texto>
+              <Texto>{sesion?.usuario.email}</Texto>
+              <CampoPerfil alCambiar={actualizarCampo('telefono')} etiqueta="Teléfono" keyboardType="phone-pad" maxLength={30} valor={perfil.telefono ?? ''} />
+            </Tarjeta>
 
             <View style={styles.tarjeta}>
               <View style={styles.filaTitulo}>
@@ -355,6 +422,138 @@ export function PantallaPerfil() {
                 {guardando ? 'Guardando…' : 'Guardar'}
               </Text>
             </Pressable>
+
+            <Accion alPulsar={() => {
+              setPerfil(perfilGuardado);
+              setNacimiento('');
+              setError(null);
+              setAviso(null);
+              setExito(null);
+            }} deshabilitada={guardando || (perfil === perfilGuardado && !nacimiento)} texto="Cancelar cambios" />
+
+            <View style={styles.tarjeta}>
+              <Text style={styles.tituloSeccion}>Acciones y cuenta</Text>
+              <Link href="/cuenta" asChild>
+                <Pressable accessibilityRole="link" style={styles.botonSecundario}>
+                  <Text style={styles.textoBotonSecundario}>Cuenta y notificaciones</Text>
+                </Pressable>
+              </Link>
+              <Link href="/notificaciones" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonSecundario,
+                    pressed && styles.botonPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonSecundario}>
+                    Centro de notificaciones (HU-14)
+                  </Text>
+                </Pressable>
+              </Link>
+
+              <Link href="/conexiones" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonSecundario,
+                    pressed && styles.botonPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonSecundario}>
+                    Solicitudes de conexión
+                  </Text>
+                </Pressable>
+              </Link>
+
+              <Link href="/acuerdos" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonSecundario,
+                    pressed && styles.botonPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonSecundario}>
+                    Acuerdos de convivencia (HU-12)
+                  </Text>
+                </Pressable>
+              </Link>
+
+              <Link href="/compatibilidad-detalle" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonSecundario,
+                    pressed && styles.botonPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonSecundario}>
+                    Compatibilidad y perfiles guardados (M06)
+                  </Text>
+                </Pressable>
+              </Link>
+
+              <Link href="/galeria-fotos" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonSecundario,
+                    pressed && styles.botonPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonSecundario}>
+                    Fotos y verificación
+                  </Text>
+                </Pressable>
+              </Link>
+
+              {esAdmin && (
+                <>
+                  <Link href="/analytics" asChild>
+                    <Pressable
+                      accessibilityRole="link"
+                      style={({ pressed }) => [
+                        styles.botonAdmin,
+                        pressed && styles.botonPresionado,
+                      ]}>
+                      <Text style={styles.textoBotonAdmin}>Dashboard de analítica (Admin)</Text>
+                    </Pressable>
+                  </Link>
+                  <Link href="/moderacion" asChild>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={({ pressed }) => [
+                        styles.botonAdmin,
+                        pressed && styles.botonPresionado,
+                      ]}>
+                      <Text style={styles.textoBotonAdmin}>
+                        Panel de moderación (Admin)
+                      </Text>
+                    </Pressable>
+                  </Link>
+                  <Link href="/sanciones" asChild>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={({ pressed }) => [
+                        styles.botonAdmin,
+                        pressed && styles.botonPresionado,
+                      ]}>
+                      <Text style={styles.textoBotonAdmin}>
+                        Panel de sanciones (Admin)
+                      </Text>
+                    </Pressable>
+                  </Link>
+                </>
+              )}
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  void cerrarSesion();
+                }}
+                style={({ pressed }) => [
+                  styles.botonCerrarSesion,
+                  pressed && styles.botonPresionado,
+                ]}>
+                <Text style={styles.textoCerrarSesion}>Cerrar sesión</Text>
+              </Pressable>
+            </View>
           </>
         )}
       </ScrollView>
@@ -521,6 +720,47 @@ const styles = StyleSheet.create({
   },
   textoBoton: {
     color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  botonSecundario: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+    backgroundColor: '#F6F1F7',
+    borderWidth: 1,
+    borderColor: '#E9DAEC',
+    marginTop: 10,
+  },
+  textoBotonSecundario: {
+    color: '#6F5B76',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  botonAdmin: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+    backgroundColor: '#E9DAEC',
+    marginTop: 8,
+  },
+  textoBotonAdmin: {
+    color: '#5E4466',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  botonCerrarSesion: {
+    minHeight: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+    backgroundColor: '#FCE8E8',
+    marginTop: 8,
+  },
+  textoCerrarSesion: {
+    color: '#8A3030',
     fontSize: 12,
     fontWeight: '600',
   },

@@ -2,3 +2,8 @@ export * from "./auth.view.js";
 export * from "./auth.service.js";
 export * from "./auth.controller.js";
 export * from "./auth.routes.js";
+export * from "./auth.ports.js";
+export * from "./auth.crypto.js";
+export * from "./auth.middleware.js";
+export * from "./google-oauth.provider.js";
+export * from "./auth.adapters.js";

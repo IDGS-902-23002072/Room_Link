@@ -80,7 +80,11 @@ export class DrizzleUserRepository implements IUserRepository {
       email: user.email,
       passwordHash: user.passwordHash ?? null,
       status: user.status,
+      emailVerifiedAt: user.emailVerifiedAt ?? null,
       termsAcceptedAt: user.termsAcceptedAt,
+      failedLoginAttempts: user.failedLoginAttempts,
+      lockedUntil: user.lockedUntil ?? null,
+      lastLoginAt: user.lastLoginAt ?? null,
     };
     await this.db.insert(authUsers).values(newRecord);
 
@@ -103,6 +107,9 @@ export class DrizzleUserRepository implements IUserRepository {
         passwordHash: user.passwordHash ?? null,
         status: user.status,
         emailVerifiedAt: user.emailVerifiedAt ?? null,
+        failedLoginAttempts: user.failedLoginAttempts,
+        lockedUntil: user.lockedUntil ?? null,
+        lastLoginAt: user.lastLoginAt ?? null,
       })
       .where(eq(authUsers.id, user.id));
   }

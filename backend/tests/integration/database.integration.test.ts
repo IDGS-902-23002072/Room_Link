@@ -89,8 +89,17 @@ describe("MySQL schema", () => {
 
     for (const position of [1, 2, 3]) {
       await run(
-        "INSERT INTO room_photos (id, listing_id, url, position) VALUES (?, ?, ?, ?)",
-        [randomUUID(), listingId, `https://example.test/${position}.jpg`, position],
+        `INSERT INTO room_photos
+      (id, listing_id, file_name, mime_type, image_data, position)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          randomUUID(),
+          listingId,
+          `fotografia-${position}.jpg`,
+          "image/jpeg",
+          Buffer.from(`imagen de prueba ${position}`),
+          position,
+        ],
       );
     }
 

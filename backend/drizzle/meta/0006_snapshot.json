@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "f916d3a0-3d44-44e7-b6b1-c9b8f3717768",
+  "id": "0c2afbbb-55e7-4108-8637-ed62ff49375c",
   "prevId": "df572e26-9280-40c4-8ed1-ab05a23a03a4",
   "tables": {
     "auth_login_attempts": {
@@ -2356,22 +2356,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "varchar(40)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'image/jpeg'"
-        },
-        "size_bytes": {
-          "name": "size_bytes",
-          "type": "int unsigned",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
         "position": {
           "name": "position",
           "type": "smallint unsigned",
@@ -2904,9 +2888,23 @@
           "notNull": true,
           "autoincrement": false
         },
-        "url": {
-          "name": "url",
-          "type": "text",
+        "file_name": {
+          "name": "file_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "image_data": {
+          "name": "image_data",
+          "type": "longblob",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false

@@ -43,6 +43,13 @@
       "when": 1792523835907,
       "tag": "0005_compatibility_weights",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1793900912358,
+      "tag": "0006_perpetual_the_fury",
+      "breakpoints": true
     }
   ]
 }

@@ -29,6 +29,10 @@ export class ApplicationsService {
     return await this.appRepo.findByListingId(listingId);
   }
 
+  async getById(id: string): Promise<Application | null> {
+    return await this.appRepo.findById(id);
+  }
+
   async decide(id: string, decision: "accept" | "reject"): Promise<Application> {
     const app = await this.appRepo.findById(id);
     if (!app) {

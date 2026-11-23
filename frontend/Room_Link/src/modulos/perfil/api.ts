@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { obtenerToken, obtenerUserId } from '@/auth/sesion';
+
 export interface PerfilPublico {
   userId: string;
   fullName: string;
@@ -8,6 +10,7 @@ export interface PerfilPublico {
   occupation: string | null;
   bio: string | null;
   phone: string | null;
+  instagram?: string | null;
   identityStatus: string;
   isVerified: boolean;
 }
@@ -16,6 +19,7 @@ export interface DatosPerfil {
   fullName: string;
   occupation: string | null;
   bio: string | null;
+  phone?: string | null;
 }
 
 export interface PerfilFormulario {
@@ -26,6 +30,9 @@ export interface PerfilFormulario {
   zona: string;
   presupuestoMin: string;
   presupuestoMax: string;
+  ciudad?: string;
+  telefono?: string;
+  instagram?: string;
 }
 
 const CAMPOS_PERFIL: (keyof PerfilFormulario)[] = [
@@ -40,12 +47,13 @@ const CAMPOS_PERFIL: (keyof PerfilFormulario)[] = [
 
 function configuracionApi() {
   const baseUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
-  const userId = process.env.EXPO_PUBLIC_USER_ID?.trim();
+  const userId = obtenerUserId();
 
-  if (!baseUrl || !userId) {
-    throw new Error(
-      'Configura EXPO_PUBLIC_API_URL y EXPO_PUBLIC_USER_ID en frontend/Room_Link/.env.',
-    );
+  if (!baseUrl) {
+    throw new Error('Configura EXPO_PUBLIC_API_URL en frontend/Room_Link/.env.');
+  }
+  if (!userId) {
+    throw new Error('No hay una sesión activa. Iniciá sesión para continuar.');
   }
 
   return { baseUrl, userId };
@@ -59,10 +67,12 @@ async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
   const { baseUrl } = configuracionApi();
   let response: Response;
   try {
+    const token = obtenerToken();
     response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },
     });
@@ -78,6 +88,9 @@ async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
     | (T & { error?: string })
     | null;
   if (!response.ok) {
+    if (response.status === 404 && body?.error?.startsWith('Perfil no encontrado')) {
+      throw new PerfilNoEncontrado(body.error);
+    }
     throw new Error(body?.error ?? `La API respondió con estado ${response.status}.`);
   }
   if (body === null) {
@@ -86,17 +99,39 @@ async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
   return body;
 }
 
-export function obtenerPerfil() {
+export class PerfilNoEncontrado extends Error {}
+
+export async function obtenerPerfil() {
   const { userId } = configuracionApi();
   return solicitud<PerfilPublico>(rutaPerfil(userId));
 }
 
-export function actualizarPerfil(datos: DatosPerfil) {
+export function crearPerfil(datos: DatosPerfil & { birthDate: string; instagram?: string }) {
+  return solicitud<PerfilPublico>('/api/v1/profiles', {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  });
+}
+
+export async function actualizarPerfil(datos: DatosPerfil) {
   const { userId } = configuracionApi();
   return solicitud<PerfilPublico>(rutaPerfil(userId), {
     method: 'PUT',
     body: JSON.stringify(datos),
   });
+}
+
+export async function actualizarInstagram(instagram: string) {
+  const { userId } = configuracionApi();
+  return solicitud<PerfilPublico>(`${rutaPerfil(userId)}/socials`, {
+    method: 'PUT',
+    body: JSON.stringify({ instagram }),
+  });
+}
+
+export async function solicitarVerificacionIdentidad() {
+  const { userId } = configuracionApi();
+  return solicitud<PerfilPublico>(`${rutaPerfil(userId)}/verification/request`, { method: 'POST' });
 }
 
 export function perfilDesdeApi(perfil: PerfilPublico): PerfilFormulario {
@@ -108,11 +143,13 @@ export function perfilDesdeApi(perfil: PerfilPublico): PerfilFormulario {
     zona: '',
     presupuestoMin: '',
     presupuestoMax: '',
+    telefono: perfil.phone ?? '',
+    instagram: perfil.instagram ?? '',
   };
 }
 
 function clavePerfilLocal() {
-  const userId = process.env.EXPO_PUBLIC_USER_ID?.trim() || 'local';
+  const userId = obtenerUserId() || 'local';
   return `@roomlink/profile:${userId}`;
 }
 

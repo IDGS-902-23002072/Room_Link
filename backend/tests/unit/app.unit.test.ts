@@ -3,13 +3,14 @@ import { createApp } from "../../src/app.js";
 import { User } from "../../src/domain/entities/User.js";
 import type { IUserRepository } from "../../src/domain/repositories/IUserRepository.js";
 import type { IAnalyticsRepository } from "../../src/domain/repositories/IAnalyticsRepository.js";
+import { createAuthFakes } from "../helpers/auth-fakes.js";
 
 function createUser(role: "admin" | "seeker") {
   const now = new Date("2026-01-01T00:00:00.000Z");
   return new User({
     id: `${role}-user`,
     email: `${role}@roomlink.test`,
-    passwordHash: "mock_hash_password",
+    passwordHash: "hash:password",
     status: "active",
     roles: [role],
     termsAcceptedAt: now,
@@ -95,6 +96,9 @@ describe("Room_Link API health", () => {
       delete: async () => {},
     };
     const analyticsRepo: IAnalyticsRepository = {
+      upsertDaily: async (m) => m,
+      findByDate: async () => null,
+      listRange: async () => [],
       getTotals: async () => ({
         usersRegistered: 10,
         activeRooms: 4,
@@ -105,7 +109,8 @@ describe("Room_Link API health", () => {
       getUsersByMonth: async () => [{ month: "2026-01", total: 10 }],
       getListingsByMonth: async () => [{ month: "2026-01", total: 4 }],
     };
-    const app = createApp({ userRepo, analyticsRepo });
+    const { dependencies: authDependencies } = createAuthFakes();
+    const app = createApp({ userRepo, analyticsRepo, authDependencies });
     const adminLogin = await app.request("/api/v1/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

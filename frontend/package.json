@@ -1,0 +1,30 @@
+{
+  "name": "room-link-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "npm --prefix Room_Link start",
+    "android": "npm --prefix Room_Link run android",
+    "ios": "npm --prefix Room_Link run ios",
+    "web": "npm --prefix Room_Link run web",
+    "build:web": "npm --prefix Room_Link run build:web",
+    "test": "vitest run tests/modules.unit.test.js",
+    "test:e2e": "playwright test",
+    "check": "npm test && npm run build:web"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~58.0.8",
+    "expo": "~58.0.23",
+    "expo-status-bar": "~58.0.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-web": "~0.21.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "vite": "^8.3.8",
+    "vitest": "5.1.0"
+  }
+}
