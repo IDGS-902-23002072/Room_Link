@@ -1,4 +1,4 @@
-import { and, eq, inArray, or } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import type { MySql2Database } from "drizzle-orm/mysql2";
 import {
   Agreement,
@@ -101,16 +101,13 @@ export class DrizzleAgreementRepository implements IAgreementRepository {
   }
 
   async findByUser(userId: string): Promise<Agreement[]> {
-    const acceptanceRows = await this.db
-      .select({ agreementId: agreementAcceptances.agreementId })
-      .from(agreementAcceptances)
-      .where(eq(agreementAcceptances.userId, userId));
-    const ids = acceptanceRows.map((r) => r.agreementId);
-    if (ids.length === 0) return [];
     const rows = (await this.db
       .select()
       .from(agreementAgreements)
-      .where(inArray(agreementAgreements.id, ids))) as AgreementRow[];
+      .where(or(
+        sql`JSON_UNQUOTE(JSON_EXTRACT(${agreementAgreements.rulesSnapshot}, '$.hostId')) = ${userId}`,
+        sql`JSON_CONTAINS(${agreementAgreements.rulesSnapshot}, JSON_QUOTE(${userId}), '$.roomieIds')`,
+      ))) as AgreementRow[];
     const results: Agreement[] = [];
     for (const row of rows) {
       results.push(await this.hydrate(row));

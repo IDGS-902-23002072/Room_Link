@@ -221,9 +221,20 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const authController = new AuthController(authService, config.auth.secureCookies);
   app.route("/api/v1/auth", createAuthRoutes(authController, authService));
 
+  const connectionRepo = dependencies.connectionRepo ?? new DrizzleConnectionRepository(db);
+
   // 2. Profile Module
   const profileService = new ProfileService(profileRepo);
-  const profileController = new ProfileController(profileService);
+  const profileController = new ProfileController(profileService, {
+    areConnected: async (viewerId, ownerId) => {
+      const connections = await connectionRepo.listForUser(viewerId, "all");
+      return connections.some((conn) =>
+        conn.status === "accepted" &&
+        (conn.requesterId === ownerId || conn.addresseeId === ownerId),
+      );
+    },
+    getEmail: async (userId) => (await userRepo.findById(userId))?.email ?? null,
+  });
   app.route("/api/v1/profiles", createProfileRoutes(profileController, authService));
 
   // 3. Rooms Module
@@ -276,7 +287,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
 
   // 8. Connections Module (accept/reject/cancel)
   const connectionsService = new ConnectionsService(
-    dependencies.connectionRepo ?? new DrizzleConnectionRepository(db),
+    connectionRepo,
     authDependencies.eventPublisher,
   );
   const connectionsController = new ConnectionsController(connectionsService);
@@ -318,7 +329,11 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const agreementsService = new AgreementsService(
     dependencies.agreementRepo ?? new DrizzleAgreementRepository(db),
   );
-  const agreementsController = new AgreementsController(agreementsService);
+  const agreementsController = new AgreementsController(agreementsService, async (listingId, roomieId) =>
+    (await appRepo.findByApplicantId(roomieId)).some(
+      (application) => application.listingId === listingId && application.status === "accepted",
+    ),
+  );
   app.route(
     "/api/v1/agreements",
     createAgreementsRoutes(agreementsController, authService),

@@ -57,7 +57,7 @@ export class ContactPrivacy {
     return new ContactPrivacy({
       userId,
       showPhoneToConnections: true,
-      showEmailToConnections: true,
+      showEmailToConnections: false,
       showSocialsToConnections: true,
     });
   }

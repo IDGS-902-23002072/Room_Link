@@ -8,7 +8,7 @@ import { push } from './navigation.js'
 import Questionnaire from '../features/compatibility/Questionnaire.jsx'
 import Recommendations from '../features/compatibility/Recommendations.jsx'
 import { Workspace } from '../features/roomlink/Workspace.jsx'
-import { AccountPage, PhotosPage, ProfilePage } from '../features/roomlink/Profile.jsx'
+import { AccountPage, IdentityReviewsPage, PhotosPage, ProfilePage } from '../features/roomlink/Profile.jsx'
 import { SearchPage } from '../features/roomlink/Search.jsx'
 import { AgreementsPage } from '../features/roomlink/Agreements.jsx'
 
@@ -38,6 +38,7 @@ function Shell() {
           <NavLink className="room-module-link" to="/acuerdos">Acuerdos</NavLink>
           <NavLink className="room-module-link" end to="/perfil">Mi perfil</NavLink>
           {isAdmin && <NavLink to="/admin/dashboard">Dashboard</NavLink>}
+          {isAdmin && <NavLink to="/admin/identidad">Identidad</NavLink>}
         </nav>
         <div className="account-menu">
           <span aria-hidden="true" className="account-avatar">{accountInitial}</span>
@@ -138,6 +139,7 @@ export default function AppRoutes() {
           </Route>
           <Route element={<AdminLayout />} path="/admin">
             <Route element={<Dashboard />} path="dashboard" />
+            <Route element={<IdentityReviewsPage />} path="identidad" />
           </Route>
         </Route>
         <Route element={<NotFound />} path="*" />

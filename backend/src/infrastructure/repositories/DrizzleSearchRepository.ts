@@ -1,7 +1,9 @@
-import { and, eq, gte, lte, like, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, like, ne, or, sql, type SQL } from "drizzle-orm";
 import type { MySql2Database } from "drizzle-orm/mysql2";
 import {
+  CompatibilityProfile,
   Profile,
+  type SearchProfileDetails,
   RoomListing,
   type ISearchRepository,
   type SearchFilters,
@@ -11,8 +13,12 @@ import {
   profileProfiles,
   profileHousingPreferences,
 } from "../../db/schema/profile.js";
-import { roomListings, roomRules } from "../../db/schema/rooms.js";
-import { geoLocations } from "../../db/schema/geo.js";
+import { roomListings, roomPhotos, roomRules } from "../../db/schema/rooms.js";
+import { geoLocations, geoZones } from "../../db/schema/geo.js";
+
+import { authUsers } from "../../db/schema/auth.js";
+import { compatProfiles, matchAffinityScores } from "../../db/schema/compatibility.js";
+import { profilePhotos } from "../../db/schema/profile.js";
 
 export class DrizzleSearchRepository implements ISearchRepository {
   constructor(private db: MySql2Database<any>) {}
@@ -20,7 +26,7 @@ export class DrizzleSearchRepository implements ISearchRepository {
   async searchProfiles(
     filters: SearchFilters,
     pagination: Pagination,
-  ): Promise<{ items: Profile[]; total: number }> {
+  ): Promise<{ items: Profile[]; total: number; details: Map<string, SearchProfileDetails> }> {
     const where = this.buildProfileWhere(filters);
     const offset = (pagination.page - 1) * pagination.pageSize;
 
@@ -38,13 +44,26 @@ export class DrizzleSearchRepository implements ISearchRepository {
         identityVerifiedAt: profileProfiles.identityVerifiedAt,
         createdAt: profileProfiles.createdAt,
         updatedAt: profileProfiles.updatedAt,
+        city: geoZones.city,
+        zone: geoZones.name,
+        budgetMin: profileHousingPreferences.budgetMin,
+        budgetMax: profileHousingPreferences.budgetMax,
+        photoUrl: profilePhotos.url,
+        score: matchAffinityScores.score,
+        habits: compatProfiles,
       })
       .from(profileProfiles)
-      .leftJoin(
-        profileHousingPreferences,
-        eq(profileProfiles.userId, profileHousingPreferences.userId),
-      )
+      .innerJoin(authUsers, eq(authUsers.id, profileProfiles.userId))
+      .leftJoin(profileHousingPreferences, eq(profileProfiles.userId, profileHousingPreferences.userId))
+      .leftJoin(geoZones, eq(geoZones.id, profileHousingPreferences.desiredZoneId))
+      .leftJoin(compatProfiles, eq(compatProfiles.userId, profileProfiles.userId))
+      .leftJoin(profilePhotos, and(eq(profilePhotos.userId, profileProfiles.userId), eq(profilePhotos.position, 1)))
+      .leftJoin(matchAffinityScores, and(
+        eq(matchAffinityScores.userA, filters.viewerId ?? ""),
+        eq(matchAffinityScores.userB, profileProfiles.userId),
+      ))
       .where(where)
+      .orderBy(...this.profileOrder(filters), asc(profileProfiles.userId))
       .limit(pagination.pageSize)
       .offset(offset);
 
@@ -70,7 +89,24 @@ export class DrizzleSearchRepository implements ISearchRepository {
         }),
     );
 
-    return { items, total };
+    const details = new Map(rows.map((row): [string, SearchProfileDetails] => [
+      row.userId,
+      {
+        city: row.city,
+        zone: row.zone,
+        budgetMin: row.budgetMin,
+        budgetMax: row.budgetMax,
+        photoUrl: row.photoUrl,
+        compatibilityScore: row.score === null ? null : Number(row.score),
+        compatibilitySummary: row.habits ? new CompatibilityProfile(row.habits).calculateSummary() : null,
+      },
+    ]));
+    return { items, total, details };
+  }
+
+  async listZones() {
+    return this.db.selectDistinct({ name: geoZones.name, city: geoZones.city })
+      .from(geoZones).orderBy(geoZones.city, geoZones.name);
   }
 
   async searchListings(
@@ -95,11 +131,13 @@ export class DrizzleSearchRepository implements ISearchRepository {
         closedAt: roomListings.closedAt,
         createdAt: roomListings.createdAt,
         updatedAt: roomListings.updatedAt,
+        photoCount: sql<number>`(SELECT COUNT(*) FROM ${roomPhotos} WHERE ${roomPhotos.listingId} = ${roomListings.id})`,
       })
       .from(roomListings)
       .leftJoin(roomRules, eq(roomListings.id, roomRules.listingId))
       .leftJoin(geoLocations, eq(roomListings.locationId, geoLocations.id))
       .where(where)
+      .orderBy(desc(roomListings.publishedAt), asc(roomListings.id))
       .limit(pagination.pageSize)
       .offset(offset);
 
@@ -114,6 +152,7 @@ export class DrizzleSearchRepository implements ISearchRepository {
           title: row.title,
           description: row.description,
           monthlyRent: Number(row.monthlyRent),
+          photoCount: Number(row.photoCount),
           availableFrom: row.availableFrom ? new Date(row.availableFrom) : null,
           maxRoommates: row.maxRoommates,
           status: row.status,
@@ -132,10 +171,10 @@ export class DrizzleSearchRepository implements ISearchRepository {
     const rows = await this.db
       .select({ total: sql<number>`count(*)` })
       .from(profileProfiles)
-      .leftJoin(
-        profileHousingPreferences,
-        eq(profileProfiles.userId, profileHousingPreferences.userId),
-      )
+      .innerJoin(authUsers, eq(authUsers.id, profileProfiles.userId))
+      .leftJoin(profileHousingPreferences, eq(profileProfiles.userId, profileHousingPreferences.userId))
+      .leftJoin(geoZones, eq(geoZones.id, profileHousingPreferences.desiredZoneId))
+      .leftJoin(compatProfiles, eq(compatProfiles.userId, profileProfiles.userId))
       .where(where);
     return Number(rows[0]?.total ?? 0);
   }
@@ -151,14 +190,36 @@ export class DrizzleSearchRepository implements ISearchRepository {
     return Number(rows[0]?.total ?? 0);
   }
 
+  private profileOrder(filters: SearchFilters): SQL[] {
+    if (filters.order === "name") return [asc(profileProfiles.fullName)];
+    if (filters.order === "budget") {
+      const budget = sql`COALESCE(${profileHousingPreferences.budgetMin}, ${profileHousingPreferences.budgetMax})`;
+      return [sql`${budget} IS NULL`, asc(budget), asc(profileProfiles.fullName)];
+    }
+    const habitMatches = filters.habits?.map(({ dimension, score }) =>
+      sql`CASE WHEN ${compatProfiles[dimension]} = ${score} THEN 1 ELSE 0 END`,
+    ) ?? [];
+    return [
+      ...(habitMatches.length ? [desc(sql.join(habitMatches, sql` + `))] : []),
+      desc(matchAffinityScores.score),
+      asc(profileProfiles.fullName),
+    ];
+  }
+
   private buildProfileWhere(filters: SearchFilters): SQL | undefined {
-    const parts: SQL[] = [];
+    const parts: SQL[] = [eq(authUsers.status, "active")];
+    if (filters.viewerId) parts.push(ne(profileProfiles.userId, filters.viewerId));
+    if (filters.city) parts.push(eq(geoZones.city, filters.city));
+    if (filters.zones?.length) parts.push(inArray(geoZones.name, filters.zones));
+    for (const habit of filters.habits ?? []) {
+      if (habit.required) parts.push(eq(compatProfiles[habit.dimension], habit.score));
+    }
 
     if (filters.budgetMin != null) {
-      parts.push(gte(profileHousingPreferences.budgetMax, String(filters.budgetMin)));
+      parts.push(sql`COALESCE(${profileHousingPreferences.budgetMax}, ${profileHousingPreferences.budgetMin}) >= ${filters.budgetMin}`);
     }
     if (filters.budgetMax != null) {
-      parts.push(lte(profileHousingPreferences.budgetMin, String(filters.budgetMax)));
+      parts.push(sql`COALESCE(${profileHousingPreferences.budgetMin}, ${profileHousingPreferences.budgetMax}) <= ${filters.budgetMax}`);
     }
     if (filters.zoneId) {
       parts.push(eq(profileHousingPreferences.desiredZoneId, filters.zoneId));
@@ -177,7 +238,6 @@ export class DrizzleSearchRepository implements ISearchRepository {
       parts.push(like(profileProfiles.fullName, `%${filters.text}%`));
     }
 
-    if (parts.length === 0) return undefined;
     return and(...parts);
   }
 
@@ -203,7 +263,11 @@ export class DrizzleSearchRepository implements ISearchRepository {
       parts.push(eq(roomRules.partiesAllowed, filters.partiesAllowed));
     }
     if (filters.text) {
-      parts.push(like(roomListings.title, `%${filters.text}%`));
+      const text = `%${filters.text.replace(/[!%_]/g, "!$&")}%`;
+      parts.push(sql`(${roomListings.title} LIKE ${text} ESCAPE '!' OR ${roomListings.description} LIKE ${text} ESCAPE '!')`);
+    }
+    if (filters.availableNow) {
+      parts.push(or(isNull(roomListings.availableFrom), lte(roomListings.availableFrom, sql`CURDATE()`))!);
     }
 
     return and(...parts);

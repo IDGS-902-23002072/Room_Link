@@ -13,8 +13,20 @@ const PHOTO_EXTENSIONS: Record<string, string> = {
 };
 const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
 
+export interface ProfileControllerDependencies {
+  /**
+   * HU-02 — Indica si existe una conexión aceptada entre espectador y dueño.
+   * Inyectado desde `app.ts` para no acoplar el perfil al módulo de conexiones.
+   */
+  areConnected: (viewerId: string, ownerId: string) => Promise<boolean>;
+  getEmail: (userId: string) => Promise<string | null>;
+}
+
 export class ProfileController {
-  constructor(private profileService: ProfileService) {}
+  constructor(
+    private profileService: ProfileService,
+    private readonly deps?: ProfileControllerDependencies,
+  ) {}
 
   getProfile = async (c: Context) => {
     try {
@@ -23,7 +35,29 @@ export class ProfileController {
         return c.json({ error: "userId es obligatorio" }, 400);
       }
       const profile = await this.profileService.getProfile(userId);
-      return c.json(ProfileView.toPublicProfile(profile), 200);
+
+      // HU-02 — Oculta contacto/redes salvo al dueño o a conexiones autorizadas.
+      const viewerId = (c.get("auth") as { userId?: string } | undefined)?.userId;
+      const isOwner = viewerId === userId;
+      let visibility;
+      if (isOwner) {
+        visibility = { isOwner: true, isConnected: false, privacy: null };
+      } else {
+        const privacy = await this.profileService
+          .getContactPrivacy(userId)
+          .catch(() => null);
+        const isConnected =
+          viewerId && this.deps
+            ? await this.deps.areConnected(viewerId, userId)
+            : false;
+        visibility = { isOwner: false, isConnected, privacy };
+      }
+      c.header("Cache-Control", "private, no-store");
+      const dto = ProfileView.toPublicProfile(profile, visibility);
+      if (visibility.isConnected && visibility.privacy?.showEmailToConnections && this.deps) {
+        return c.json({ ...dto, email: await this.deps.getEmail(userId) }, 200);
+      }
+      return c.json(dto, 200);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Perfil no encontrado";
       return c.json({ error: msg }, 404);
@@ -239,16 +273,11 @@ export class ProfileController {
         showEmailToConnections?: boolean;
         showSocialsToConnections?: boolean;
       } = {};
-      if (body["showPhoneToConnections"] !== undefined) {
-        payload.showPhoneToConnections = Boolean(body["showPhoneToConnections"]);
-      }
-      if (body["showEmailToConnections"] !== undefined) {
-        payload.showEmailToConnections = Boolean(body["showEmailToConnections"]);
-      }
-      if (body["showSocialsToConnections"] !== undefined) {
-        payload.showSocialsToConnections = Boolean(
-          body["showSocialsToConnections"],
-        );
+      for (const key of ["showPhoneToConnections", "showEmailToConnections", "showSocialsToConnections"] as const) {
+        const value = body[key];
+        if (value === undefined) continue;
+        if (typeof value !== "boolean") return c.json({ error: `${key} debe ser booleano.` }, 400);
+        payload[key] = value;
       }
       const privacy = await this.profileService.updateContactPrivacy(
         userId,
@@ -277,6 +306,23 @@ export class ProfileController {
           : "Error al solicitar verificación de identidad";
       return c.json({ error: msg }, 400);
     }
+  };
+
+  listPendingVerifications = async (c: Context) => {
+    const rawPage = Number(c.req.query("page") ?? 1);
+    const page = Number.isSafeInteger(rawPage) && rawPage >= 1 && rawPage < 1_000_000 ? rawPage : 1;
+    return c.json(await this.profileService.listPendingVerifications(page));
+  };
+
+  resolveVerification = async (c: Context) => {
+    const userId = c.req.param("userId");
+    const body = await c.req.json<{ decision?: string }>().catch(() => null);
+    if (!userId || (body?.decision !== "verified" && body?.decision !== "rejected")) {
+      return c.json({ error: "Indica una decisión válida." }, 400);
+    }
+    const updated = await this.profileService.resolveIdentityVerification(userId, body.decision);
+    if (!updated) return c.json({ error: "La solicitud ya no está pendiente." }, 409);
+    return c.json({ status: body.decision }, 200);
   };
 
   listNotificationPrefs = async (c: Context) => {

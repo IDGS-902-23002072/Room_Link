@@ -176,7 +176,7 @@ describe("ProfileService (Roberto, HU-02)", () => {
     it("devuelve valores por defecto si no hay registro", async () => {
       const privacy = await service.getContactPrivacy(uid);
       expect(privacy.showPhoneToConnections).toBe(true);
-      expect(privacy.showEmailToConnections).toBe(true);
+      expect(privacy.showEmailToConnections).toBe(false);
       expect(privacy.showSocialsToConnections).toBe(true);
     });
 
@@ -185,7 +185,7 @@ describe("ProfileService (Roberto, HU-02)", () => {
         showPhoneToConnections: false,
       });
       expect(updated.showPhoneToConnections).toBe(false);
-      expect(updated.showEmailToConnections).toBe(true);
+      expect(updated.showEmailToConnections).toBe(false);
     });
   });
 
@@ -193,6 +193,18 @@ describe("ProfileService (Roberto, HU-02)", () => {
     it("pasa de unverified a pending cuando se solicita", async () => {
       const updated = await service.requestIdentityVerification(uid);
       expect(updated.identityStatus).toBe("pending");
+    });
+
+    it("permite rechazar, volver a solicitar y aprobar una verificación pendiente", async () => {
+      expect(await service.resolveIdentityVerification(uid, "verified")).toBe(false);
+      await service.requestIdentityVerification(uid);
+      expect((await service.listPendingVerifications(1)).items[0]?.userId).toBe(uid);
+      expect(await service.resolveIdentityVerification(uid, "rejected")).toBe(true);
+      expect((await service.listPendingVerifications(1)).items).toEqual([]);
+      await service.requestIdentityVerification(uid);
+      expect(await service.resolveIdentityVerification(uid, "verified")).toBe(true);
+      expect(await service.resolveIdentityVerification(uid, "rejected")).toBe(false);
+      expect((await service.getProfile(uid)).identityVerifiedAt).toBeInstanceOf(Date);
     });
 
     it("no permite volver a solicitar si ya está verified", async () => {

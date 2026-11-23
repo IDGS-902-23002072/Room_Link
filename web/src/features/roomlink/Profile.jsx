@@ -207,11 +207,12 @@ export function PhotosPage() {
               <span className="room-pill">{statuses[status] ?? status}</span>
               <ol>
                 <li>Prepara una identificación oficial vigente.</li>
-                <li>Confirma tu identidad con una selfie.</li>
+                <li>Presenta tu identificación en persona al equipo de RoomLink.</li>
                 <li>Consulta aquí el estado de revisión.</li>
               </ol>
-              <p className="muted">La web permite iniciar la solicitud. La entrega de documentos y la selfie requieren un canal de verificación.</p>
+              <p className="muted">Acuerda la revisión con tu equipo de RoomLink. Conserva tu identificación durante la revisión.</p>
               <button className="button button-primary" disabled={busy || status === 'pending' || status === 'verified'} onClick={() => act(() => apiRequest(`${path}/verification/request`, { token, method: 'POST' }))} type="button">Iniciar verificación</button>
+              {status === 'pending' && <button className="button button-secondary" onClick={resource.refresh} type="button">Actualizar estado</button>}
             </Panel>
             <Panel title="Recomendación"><p>Sube fotos claras de ti. Evita documentos de identidad y datos personales en la galería pública.</p></Panel>
           </div>
@@ -219,6 +220,54 @@ export function PhotosPage() {
       )}
     </>
   )
+}
+
+export function IdentityReviewsPage() {
+  const { session: { token } } = useAuth()
+  const [page, setPage] = useState(1)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const load = useCallback((signal) => apiRequest(`/api/v1/profiles/verification/pending?page=${page}`, { token, signal }), [page, token])
+  const resource = useResource(load)
+
+  async function decide(candidate, decision) {
+    const action = decision === 'verified' ? 'aprobar' : 'rechazar'
+    if (!window.confirm(`¿Quieres ${action} la solicitud de ${candidate.fullName}?`)) return
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const path = `${profilePath(candidate.userId)}/verification/decision`
+      await apiRequest(path, { token, ...json('PUT', { decision }) })
+      setMessage(decision === 'verified' ? 'Identidad verificada.' : 'Solicitud rechazada.')
+      if (page > 1 && resource.data.items.length === 1) setPage(page - 1)
+      else resource.refresh()
+    } catch (cause) {
+      setError(cause.message)
+      resource.refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return <div className="room-stack">
+    <Heading title="Solicitudes de identidad">Resuelve las solicitudes después de revisar la identificación oficial en persona.</Heading>
+    <ResourceStatus label="Cargando solicitudes." resource={resource} />
+    <Feedback error={error}>{message}</Feedback>
+    {resource.data && !resource.data.items.length && <Panel><p>No hay solicitudes pendientes en esta página.</p></Panel>}
+    {resource.data?.items.map((candidate) => <Panel key={candidate.userId} title={candidate.fullName}>
+      <p className="muted">ID de cuenta {candidate.userId}</p>
+      <div className="room-actions">
+        <button className="button button-primary" disabled={busy} onClick={() => decide(candidate, 'verified')} type="button">Aprobar</button>
+        <button className="button button-secondary" disabled={busy} onClick={() => decide(candidate, 'rejected')} type="button">Rechazar</button>
+      </div>
+    </Panel>)}
+    {(page > 1 || resource.data?.hasMore) && <nav aria-label="Paginación de solicitudes" className="room-row">
+      <button className="button button-secondary" disabled={busy || page === 1} onClick={() => setPage(page - 1)} type="button">Anterior</button>
+      <button className="button button-secondary" disabled={busy || !resource.data?.hasMore} onClick={() => setPage(page + 1)} type="button">Siguiente</button>
+    </nav>}
+  </div>
 }
 
 const accountDefaults = { locale: 'es-MX', timeZone: 'America/Mexico_City', visible: true, paused: false, matches: true }
@@ -239,8 +288,60 @@ export function AccountPage() {
       <Heading title="Cuenta y notificaciones">Configura tus preferencias y decide qué avisos recibir en la web.</Heading>
       <ResourceStatus label="Cargando tus preferencias…" resource={resource} />
       {resource.data && <AccountForm preferences={resource.data.preferences} token={token} user={user} />}
+      <ContactPrivacy key={user.id} path={`${profilePath(user.id)}/privacy`} token={token} />
     </>
   )
+}
+
+const privacyFields = [
+  ['showPhoneToConnections', 'Compartir teléfono'],
+  ['showEmailToConnections', 'Compartir correo'],
+  ['showSocialsToConnections', 'Compartir redes sociales'],
+]
+
+function ContactPrivacy({ path, token }) {
+  const load = useCallback((signal) => apiRequest(path, { token, signal }), [path, token])
+  const resource = useResource(load)
+  return <Panel title="Privacidad de contacto">
+    <p className="muted">Elige qué datos pueden consultar tus conexiones aceptadas.</p>
+    <ResourceStatus label="Cargando privacidad." resource={resource} />
+    {resource.data && <ContactPrivacyForm initial={resource.data} path={path} token={token} />}
+  </Panel>
+}
+
+function ContactPrivacyForm({ initial, path, token }) {
+  const [saved, setSaved] = useState(initial)
+  const [values, setValues] = useState(initial)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const dirty = privacyFields.some(([key]) => values[key] !== saved[key])
+
+  async function submit(event) {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const body = Object.fromEntries(privacyFields.map(([key]) => [key, values[key]]))
+      const result = await apiRequest(path, { token, ...json('PUT', body) })
+      setSaved(result)
+      setValues(result)
+      setMessage('Privacidad guardada.')
+    } catch (cause) {
+      setError(cause.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return <form className="room-stack" onSubmit={submit}>
+    <fieldset disabled={busy}>
+      {privacyFields.map(([key, label]) => <Toggle checked={values[key]} key={key} label={label} onChange={(checked) => setValues({ ...values, [key]: checked })} />)}
+    </fieldset>
+    <Feedback error={error}>{message}</Feedback>
+    <button className="button button-primary" disabled={busy || !dirty} type="submit">Guardar privacidad</button>
+  </form>
 }
 
 function AccountForm({ preferences, token, user }) {

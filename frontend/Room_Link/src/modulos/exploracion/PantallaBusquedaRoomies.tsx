@@ -4,7 +4,7 @@ import { Image, StyleSheet, View } from 'react-native';
 
 import { useSesion } from '@/auth/SesionContext';
 import { Accion, Aviso, estilos, Opciones, PantallaModulo, Tarjeta, Texto } from '@/modulos/comunes/InterfazModulo';
-import { configuracionApi, obtenerFeedAfinidad, type DimensionCompatibilidad, type PerfilAfinidad } from '@/modulos/compatibilidad/api';
+import { configuracionApi, solicitud, type DimensionCompatibilidad, type PerfilAfinidad } from '@/modulos/compatibilidad/api';
 import { preguntasConvivencia, preguntasHabitos } from '@/modulos/encuesta/datos/preguntas';
 import { CampoPerfil } from '@/modulos/perfil/componentes/CampoPerfil';
 
@@ -15,6 +15,7 @@ const filtrosIniciales = { presupuestoMin: '', presupuestoMax: '', edadMin: '', 
 const prioridades = [['preferencia', 'Preferencia'], ['indispensable', 'Indispensable']] as const;
 const nombres = { noise: 'Ruido y descanso', smoking: 'Consumo de tabaco', cleanliness: 'Limpieza', visits: 'Visitas en casa' };
 const preguntas = [...preguntasHabitos, ...preguntasConvivencia].filter(({ id }) => id in nombres);
+type Contacto = { phone?: string | null; email?: string | null; instagram?: string | null; facebook?: string | null };
 type Filtros = typeof filtrosIniciales;
 type Habitos = Partial<Record<DimensionCompatibilidad, { valor: string; prioridad: typeof prioridades[number][0] }>>;
 type Criterios = { filtros: Filtros; habitos: Habitos };
@@ -32,26 +33,39 @@ function validar(filtros: Filtros) {
   return '';
 }
 
-function buscar(perfiles: PerfilAfinidad[], { filtros, habitos }: Criterios, orden: typeof ordenes[number][0]) {
-  const criterios = Object.entries(habitos).filter(([, habito]) => habito?.valor);
-  const coincide = (perfil: PerfilAfinidad, id: string, valor: string) =>
-    perfil.compatibilitySummary?.some((item) => item.dimension === id && item.percentage === Number(valor));
-  const puntaje = (perfil: PerfilAfinidad) => criterios.filter(([id, criterio]) => criterio && coincide(perfil, id, criterio.valor)).length;
-  return perfiles.filter((perfil) => {
-    const min = perfil.budgetMin ?? perfil.budgetMax;
-    const max = perfil.budgetMax ?? perfil.budgetMin;
-    return (!filtros.ciudad || perfil.city === filtros.ciudad) &&
-      (!filtros.zonas.length || filtros.zonas.some((zona) => zona === perfil.zone)) &&
-      (!filtros.edadMin || perfil.age >= Number(filtros.edadMin)) &&
-      (!filtros.edadMax || perfil.age <= Number(filtros.edadMax)) &&
-      (!filtros.presupuestoMin || max !== null && Number(max) >= Number(filtros.presupuestoMin)) &&
-      (!filtros.presupuestoMax || min !== null && Number(min) <= Number(filtros.presupuestoMax)) &&
-      criterios.every(([id, criterio]) => !criterio || criterio.prioridad !== 'indispensable' || coincide(perfil, id, criterio.valor));
-  }).sort((a, b) => {
-    if (orden === 'nombre') return a.fullName.localeCompare(b.fullName, 'es');
-    if (orden === 'presupuesto') return Number(a.budgetMin ?? a.budgetMax ?? Infinity) - Number(b.budgetMin ?? b.budgetMax ?? Infinity) || a.fullName.localeCompare(b.fullName, 'es');
-    return puntaje(b) - puntaje(a) || (b.compatibilityScore ?? -1) - (a.compatibilityScore ?? -1);
+function solicitarPerfiles({ filtros, habitos }: Criterios, orden: typeof ordenes[number][0], pagina: number, signal: AbortSignal) {
+  const params = new URLSearchParams({
+    page: String(pagina), pageSize: '12',
+    order: orden === 'nombre' ? 'name' : orden === 'presupuesto' ? 'budget' : 'compatibility',
+    budgetMin: filtros.presupuestoMin, budgetMax: filtros.presupuestoMax,
+    minAge: filtros.edadMin, maxAge: filtros.edadMax, city: filtros.ciudad,
   });
+  for (const zona of filtros.zonas) params.append('zone', zona);
+  for (const [dimension, criterio] of Object.entries(habitos)) {
+    if (!criterio.valor) continue;
+    params.set(dimension, String(Number(criterio.valor) / 25 + 1));
+    params.set(`${dimension}Required`, String(criterio.prioridad === 'indispensable'));
+  }
+  return solicitud<{ items: PerfilAfinidad[]; total: number; totalPages: number }>(`/api/v1/search/profiles?${params}`, { signal });
+}
+
+function ContactoPerfil({ usuarioId }: { usuarioId: string }) {
+  const [contacto, setContacto] = useState<Contacto | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    const controller = new AbortController();
+    void solicitud<Contacto>(`/api/v1/profiles/${encodeURIComponent(usuarioId)}`, { signal: controller.signal })
+      .then((datos) => { if (!controller.signal.aborted) setContacto(datos); })
+      .catch(() => { if (!controller.signal.aborted) setError('No pudimos consultar los datos de contacto.'); });
+    return () => controller.abort();
+  }, [usuarioId]);
+  return <>
+    <Aviso error>{error}</Aviso>
+    {contacto?.phone && <Texto>Teléfono {contacto.phone}</Texto>}
+    {contacto?.email && <Texto>Correo {contacto.email}</Texto>}
+    {contacto?.instagram && <Texto>Instagram {contacto.instagram}</Texto>}
+    {contacto?.facebook && <Texto>Facebook {contacto.facebook}</Texto>}
+  </>;
 }
 
 function Resumen({ filtros, habitos }: Criterios) {
@@ -86,7 +100,11 @@ function Busqueda({ usuarioId }: { usuarioId: string }) {
   const [perfiles, setPerfiles] = useState<PerfilAfinidad[]>([]);
   const [pagina, setPagina] = useState(1);
   const [intentoFeed, setIntentoFeed] = useState(0);
-  const [hayMas, setHayMas] = useState(true);
+  const [hayMas, setHayMas] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [catalogo, setCatalogo] = useState<{ name: string; city: string }[]>([]);
+  const [errorZonas, setErrorZonas] = useState('');
+  const [intentoZonas, setIntentoZonas] = useState(0);
   const [cargando, setCargando] = useState(true);
   const [iniciada, setIniciada] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -96,6 +114,8 @@ function Busqueda({ usuarioId }: { usuarioId: string }) {
   const [favoritas, setFavoritas] = useState(false);
   const [edicion, setEdicion] = useState<string | null>(null);
   const [perfilAbierto, setPerfilAbierto] = useState<string | null>(null);
+  const [vistaPrevia, setVistaPrevia] = useState<{ items: PerfilAfinidad[]; total: number } | null>(null);
+  const [errorVistaPrevia, setErrorVistaPrevia] = useState('');
 
   useEffect(() => {
     let activo = true;
@@ -114,15 +134,58 @@ function Busqueda({ usuarioId }: { usuarioId: string }) {
   }, [clave]);
 
   useEffect(() => {
-    let activo = true;
-    void obtenerFeedAfinidad(pagina).then(({ profiles, hasMore }) => {
-      if (!activo) return;
-      setPerfiles((anteriores) => [...new Map([...anteriores, ...profiles.filter((perfil) => perfil.userId !== usuarioId)].map((perfil) => [perfil.userId, perfil])).values()]);
-      setHayMas(hasMore);
-    }).catch((causa: Error) => { if (activo) setErrorFeed(causa.message); })
-      .finally(() => { if (activo) setCargando(false); });
-    return () => { activo = false; };
-  }, [intentoFeed, pagina, usuarioId]);
+    const controller = new AbortController();
+    void solicitud<{ name: string; city: string }[]>('/api/v1/search/zones', { signal: controller.signal })
+      .then((zonas) => { if (!controller.signal.aborted) setCatalogo(zonas); })
+      .catch((causa: Error) => { if (!controller.signal.aborted) setErrorZonas(causa.message); });
+    return () => controller.abort();
+  }, [intentoZonas]);
+
+  const { filtros: aplicados, habitos: habitosAplicados } = datos;
+  useEffect(() => {
+    if (!iniciada) return;
+    const controller = new AbortController();
+    void solicitarPerfiles({ filtros: aplicados, habitos: habitosAplicados }, orden, pagina, controller.signal)
+      .then(({ items, total, totalPages }) => {
+        if (controller.signal.aborted) return;
+        setPerfiles((anteriores) => pagina === 1 ? items : [...anteriores, ...items.filter((item) => !anteriores.some(({ userId }) => userId === item.userId))]);
+        setHayMas(pagina < totalPages);
+        setTotal(total);
+      }).catch((causa: Error) => { if (!controller.signal.aborted) setErrorFeed(causa.message); })
+      .finally(() => { if (!controller.signal.aborted) setCargando(false); });
+    return () => controller.abort();
+  }, [aplicados, habitosAplicados, iniciada, intentoFeed, orden, pagina]);
+
+  useEffect(() => {
+    if (!iniciada || pestana !== 'habitos') return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      void solicitarPerfiles({ filtros: aplicados, habitos }, 'afinidad', 1, controller.signal)
+        .then((datos) => {
+          if (!controller.signal.aborted) {
+            setVistaPrevia(datos);
+            setErrorVistaPrevia('');
+          }
+        })
+        .catch((causa: Error) => {
+          if (!controller.signal.aborted) {
+            setVistaPrevia(null);
+            setErrorVistaPrevia(causa.message);
+          }
+        });
+    }, 300);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [aplicados, habitos, iniciada, pestana]);
+
+  function reiniciarResultados() {
+    setPagina(1);
+    setPerfiles([]);
+    setTotal(0);
+    setHayMas(false);
+    setCargando(true);
+    setErrorFeed('');
+    setIntentoFeed((actual) => actual + 1);
+  }
 
   async function guardar(partes: Partial<Preferencias>) {
     if (guardando || !iniciada) return false;
@@ -132,6 +195,7 @@ function Busqueda({ usuarioId }: { usuarioId: string }) {
     try {
       await AsyncStorage.setItem(clave, JSON.stringify(siguiente));
       setDatos(siguiente);
+      if (partes.filtros || partes.habitos) reiniciarResultados();
       return true;
     } catch {
       setError('No pudimos guardar los cambios en este dispositivo.');
@@ -141,10 +205,9 @@ function Busqueda({ usuarioId }: { usuarioId: string }) {
     }
   }
 
-  const ciudades = [...new Set([filtros.ciudad, ...perfiles.map(({ city }) => city)])].filter((item): item is string => Boolean(item)).sort();
-  const zonas = [...new Set([...filtros.zonas, ...perfiles.filter(({ city }) => !filtros.ciudad || city === filtros.ciudad).map(({ zone }) => zone)])].filter((item): item is string => Boolean(item)).sort();
-  const resultados = buscar(perfiles, datos, orden);
-  const muestra = buscar(perfiles, { filtros: datos.filtros, habitos }, orden);
+  const ciudades = [...new Set([filtros.ciudad, ...catalogo.map(({ city }) => city)])].filter(Boolean).sort();
+  const zonas = [...new Set([...filtros.zonas, ...catalogo.filter(({ city }) => !filtros.ciudad || city === filtros.ciudad).map(({ name }) => name)])].sort();
+  const resultados = perfiles;
   const bloquear = guardando || !iniciada;
 
   async function guardarBusqueda() {
@@ -175,6 +238,8 @@ function Busqueda({ usuarioId }: { usuarioId: string }) {
           <Texto>Ciudad</Texto>
           <Opciones alCambiar={(ciudad) => setFiltros({ ...filtros, ciudad, zonas: [] })} opciones={[[ '', 'Todas'], ...ciudades.map((ciudad) => [ciudad, ciudad] as const)]} valor={filtros.ciudad} />
           <Texto>Zonas de interés</Texto>
+          <Aviso error>{errorZonas}</Aviso>
+          {errorZonas && <Accion alPulsar={() => { setErrorZonas(''); setIntentoZonas((valor) => valor + 1); }} texto="Reintentar zonas" />}
           <View style={estilos.fila}>{zonas.map((zona) => (
             <Accion alPulsar={() => setFiltros({ ...filtros, zonas: filtros.zonas.includes(zona) ? filtros.zonas.filter((item) => item !== zona) : [...filtros.zonas, zona] })} key={zona} seleccionada={filtros.zonas.includes(zona)} texto={zona} />
           ))}</View>
@@ -187,9 +252,9 @@ function Busqueda({ usuarioId }: { usuarioId: string }) {
           <Accion alPulsar={() => { void guardar({ filtros: filtrosIniciales }).then((ok) => { if (ok) setFiltros(filtrosIniciales); }); }} deshabilitada={bloquear} texto="Restablecer filtros" />
           <Accion alPulsar={() => setPestana('guardadas')} texto="Guardar búsqueda actual" />
         </Tarjeta>
-        <Tarjeta titulo={`${resultados.length} ${resultados.length === 1 ? 'perfil encontrado' : 'perfiles encontrados'}${hayMas ? ' entre los cargados' : ''}`}>
+        <Tarjeta titulo={`${total} ${total === 1 ? 'perfil encontrado' : 'perfiles encontrados'}`}>
           <Resumen {...datos} />
-          <Opciones alCambiar={setOrden} opciones={ordenes} valor={orden} />
+          <Opciones alCambiar={(valor) => { if (valor !== orden) { setOrden(valor); reiniciarResultados(); } }} opciones={ordenes} valor={orden} />
           {cargando && <Texto secundario>Buscando perfiles…</Texto>}
           {!cargando && !errorFeed && !resultados.length && <Texto secundario>Prueba con otros criterios o carga más perfiles.</Texto>}
         </Tarjeta>
@@ -205,11 +270,14 @@ function Busqueda({ usuarioId }: { usuarioId: string }) {
               <Accion alPulsar={() => setPerfilAbierto(abierto ? null : perfil.userId)} texto={abierto ? 'Cerrar perfil' : 'Ver perfil'} />
               <Accion alPulsar={() => void guardar({ perfiles: guardado ? datos.perfiles.filter((item) => item !== perfil.userId) : [...datos.perfiles, perfil.userId] })} deshabilitada={bloquear} seleccionada={guardado} texto={guardado ? 'Guardado' : 'Guardar perfil'} />
             </View>
-            {abierto && <Texto>{perfil.bio || 'Este perfil todavía no tiene una biografía.'}</Texto>}
+            {abierto && <>
+              <Texto>{perfil.bio || 'Este perfil todavía no tiene una biografía.'}</Texto>
+              <ContactoPerfil usuarioId={perfil.userId} />
+            </>}
           </Tarjeta>;
         })}
         <Aviso error>{errorFeed}</Aviso>
-        {hayMas && <Accion alPulsar={() => {
+        {(hayMas || errorFeed) && <Accion alPulsar={() => {
           setCargando(true);
           setErrorFeed('');
           if (errorFeed) setIntentoFeed((valor) => valor + 1);
@@ -226,8 +294,9 @@ function Busqueda({ usuarioId }: { usuarioId: string }) {
           </Tarjeta>;
         })}
         <Tarjeta titulo="Vista previa">
-          <Texto>{muestra.length} coincidencias entre los perfiles cargados</Texto>
-          {muestra.slice(0, 3).map((item) => <Texto key={item.userId} secundario>{item.fullName}</Texto>)}
+          <Aviso error>{errorVistaPrevia}</Aviso>
+          {vistaPrevia && <Texto>{vistaPrevia.total} coincidencias</Texto>}
+          {vistaPrevia?.items.slice(0, 3).map((item) => <Texto key={item.userId} secundario>{item.fullName}</Texto>)}
           <Accion alPulsar={() => { void guardar({ habitos }).then((ok) => { if (ok) setPestana('filtros'); }); }} deshabilitada={bloquear} primaria texto="Aplicar hábitos" />
           <Accion alPulsar={() => setHabitos(datos.habitos)} texto="Cancelar cambios" />
         </Tarjeta>

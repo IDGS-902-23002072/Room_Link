@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'expo-router';
 import {
   Pressable,
@@ -15,9 +15,8 @@ import { estilos as estilosModulo } from '../comunes/InterfazModulo';
 
 import {
   obtenerHabitacion,
-  obtenerHabitacionesPublicadas,
+  buscarHabitaciones,
   postularseAHabitacion,
-  TAMANO_PAGINA,
 } from './api';
 import {
   BuscadorHabitaciones,
@@ -26,22 +25,8 @@ import {
 import { FichaHabitacion } from './componentes/FichaHabitacion';
 import { TarjetaHabitacion } from './componentes/TarjetaHabitacion';
 import { adaptarHabitacion, type HabitacionFeed } from './datos/habitaciones';
-import { HABITACIONES_PRUEBA } from './datos/habitacionesPrueba';
 
 type VistaExploracion = 'resultados' | 'detalle';
-
-function coincideFiltro(habitacion: HabitacionFeed, filtro: FiltroHabitacion) {
-  switch (filtro) {
-    case 'Disponibles ya':
-      return habitacion.disponibleYa;
-    case 'Hasta $3,000':
-      return habitacion.renta <= 3000;
-    case 'Hasta $5,000':
-      return habitacion.renta <= 5000;
-    default:
-      return true;
-  }
-}
 
 export function PantallaExploracion() {
   const [vista, setVista] = useState<VistaExploracion>('resultados');
@@ -50,7 +35,9 @@ export function PantallaExploracion() {
   const [pagina, setPagina] = useState(1);
   const [hayMas, setHayMas] = useState(false);
   const [cargando, setCargando] = useState(true);
-  const [cargandoMas, setCargandoMas] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [intento, setIntento] = useState(0);
+  const [errorBusqueda, setErrorBusqueda] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [filtroActivo, setFiltroActivo] = useState<FiltroHabitacion>('Todas');
@@ -60,38 +47,13 @@ export function PantallaExploracion() {
   // Afinidad buscador ↔ anfitrión, por hostId (null = sin test o sin perfil).
   const [compatibilidades, setCompatibilidades] = useState<Record<string, number | null>>({});
   const [tieneTest, setTieneTest] = useState(false);
-  const [avisoPrueba, setAvisoPrueba] = useState<string | null>(null);
-  const modoPrueba = avisoPrueba !== null;
   const { width } = useWindowDimensions();
   const anchoContenido = Math.min(width, 460);
 
   // Consulta la afinidad con cada anfitrión nuevo; sin test o sin perfil queda en null.
-  const cargarCompatibilidades = (hostIds: string[], yaCargadas: Record<string, number | null>) => {
-    const pendientes = [...new Set(hostIds)].filter((id) => !(id in yaCargadas));
-    if (pendientes.length === 0) return;
-    Promise.all(
-      pendientes.map((id) =>
-        obtenerPerfilAfinidad(id)
-          .then((perfil) => [id, perfil.compatibilityScore] as const)
-          .catch(() => [id, null] as const),
-      ),
-    ).then((pares) => {
-      setCompatibilidades((actuales) => ({ ...actuales, ...Object.fromEntries(pares) }));
-    });
-  };
-
-  const conCompatibilidad = (habitacion: HabitacionFeed): HabitacionFeed =>
-    modoPrueba
-      ? habitacion
-      : { ...habitacion, compatibilidad: compatibilidades[habitacion.hostId] ?? null };
-
-  const mostrarDatosPrueba = (motivo: string) => {
-    setHabitaciones(HABITACIONES_PRUEBA);
-    setHayMas(false);
-    setPagina(1);
-    setError(null);
-    setAvisoPrueba(motivo);
-  };
+  const conCompatibilidad = (habitacion: HabitacionFeed): HabitacionFeed => ({
+    ...habitacion, compatibilidad: compatibilidades[habitacion.hostId] ?? null,
+  });
 
   useEffect(() => {
     let activo = true;
@@ -108,57 +70,61 @@ export function PantallaExploracion() {
   }, []);
 
   useEffect(() => {
-    let activo = true;
-    obtenerHabitacionesPublicadas(1)
-      .then((resultado) => {
-        if (!activo) return;
-        if (resultado.length === 0) {
-          mostrarDatosPrueba('Aún no hay habitaciones publicadas.');
-          return;
-        }
-        setHabitaciones(resultado.map(adaptarHabitacion));
-        cargarCompatibilidades(
-          resultado.map((habitacion) => habitacion.hostId),
-          {},
-        );
-        setHayMas(resultado.length === TAMANO_PAGINA);
-        setPagina(1);
-        setError(null);
-      })
-      .catch((cause: unknown) => {
-        if (activo) {
-          mostrarDatosPrueba(
-            cause instanceof Error
-              ? `No se pudo conectar con la API: ${cause.message}`
-              : 'No se pudo cargar el feed de habitaciones.',
-          );
-        }
-      })
-      .finally(() => {
-        if (activo) setCargando(false);
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      const filtros = {
+        texto: busqueda,
+        disponibleYa: filtroActivo === 'Disponibles ya',
+        ...(filtroActivo === 'Hasta $3,000' && { presupuestoMax: 3000 }),
+        ...(filtroActivo === 'Hasta $5,000' && { presupuestoMax: 5000 }),
+      };
+      void buscarHabitaciones(pagina, filtros, controller.signal).then(({ items, total, totalPages }) => {
+        if (controller.signal.aborted) return;
+        setHabitaciones((actuales) => pagina === 1
+          ? items.map(adaptarHabitacion)
+          : [...actuales, ...items.filter((item) => !actuales.some(({ id }) => id === item.id)).map(adaptarHabitacion)]);
+        setTotal(total);
+        setHayMas(pagina < totalPages);
+      }).catch((causa: Error) => {
+        if (!controller.signal.aborted) setErrorBusqueda(causa.message);
+      }).finally(() => {
+        if (!controller.signal.aborted) setCargando(false);
       });
-    return () => {
-      activo = false;
-    };
-  }, []);
+    }, pagina === 1 && busqueda.trim() ? 300 : 0);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [busqueda, filtroActivo, intento, pagina]);
 
-  const habitacionesVisibles = useMemo(() => {
-    const consulta = busqueda.trim().toLocaleLowerCase('es');
-    return habitaciones.filter((habitacion) => {
-      const coincideBusqueda =
-        consulta.length === 0 ||
-        `${habitacion.titulo} ${habitacion.descripcion ?? ''}`
-          .toLocaleLowerCase('es')
-          .includes(consulta);
-      return coincideBusqueda && coincideFiltro(habitacion, filtroActivo);
+  useEffect(() => {
+    const pendientes = [...new Set(habitaciones.map(({ hostId }) => hostId))]
+      .filter((id) => !(id in compatibilidades));
+    if (!pendientes.length) return;
+    let activo = true;
+    void Promise.all(pendientes.map((id) =>
+      obtenerPerfilAfinidad(id)
+        .then((perfil) => [id, perfil.compatibilityScore] as const)
+        .catch(() => [id, null] as const),
+    )).then((pares) => {
+      if (activo) setCompatibilidades((actuales) => ({ ...actuales, ...Object.fromEntries(pares) }));
     });
-  }, [busqueda, filtroActivo, habitaciones]);
+    return () => { activo = false; };
+  }, [habitaciones, compatibilidades]);
+
+  function cambiarBusqueda(texto: string, filtro: FiltroHabitacion) {
+    if (texto === busqueda && filtro === filtroActivo) return;
+    setBusqueda(texto);
+    setFiltroActivo(filtro);
+    setPagina(1);
+    setHabitaciones([]);
+    setHayMas(false);
+    setTotal(0);
+    setCargando(true);
+    setErrorBusqueda(null);
+  }
 
   const abrirHabitacion = async (habitacion: HabitacionFeed) => {
     setHabitacionActiva(habitacion);
     setVista('detalle');
     setError(null);
-    if (modoPrueba) return;
     try {
       const detalle = await obtenerHabitacion(habitacion.id);
       setHabitacionActiva(adaptarHabitacion(detalle));
@@ -167,27 +133,12 @@ export function PantallaExploracion() {
     }
   };
 
-  const cargarMas = async () => {
-    if (!hayMas || cargandoMas) return;
-    const siguientePagina = pagina + 1;
-    setCargandoMas(true);
-    setError(null);
-    try {
-      const resultado = await obtenerHabitacionesPublicadas(siguientePagina);
-      setHabitaciones((actuales) => [...actuales, ...resultado.map(adaptarHabitacion)]);
-      cargarCompatibilidades(
-        resultado.map((habitacion) => habitacion.hostId),
-        compatibilidades,
-      );
-      setHayMas(resultado.length === TAMANO_PAGINA);
-      setPagina(siguientePagina);
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'No se pudieron cargar más habitaciones.',
-      );
-    } finally {
-      setCargandoMas(false);
-    }
+  const cargarMas = () => {
+    if (cargando) return;
+    setCargando(true);
+    setErrorBusqueda(null);
+    if (errorBusqueda) setIntento((valor) => valor + 1);
+    else setPagina((valor) => valor + 1);
   };
 
   const alternarGuardada = (id: string) => {
@@ -202,11 +153,6 @@ export function PantallaExploracion() {
     if (enviandoId !== null || postuladas.has(habitacion.id)) return;
     setEnviandoId(habitacion.id);
     setError(null);
-    if (modoPrueba) {
-      setPostuladas((actuales) => new Set(actuales).add(habitacion.id));
-      setEnviandoId(null);
-      return;
-    }
     try {
       await postularseAHabitacion(
         habitacion.id,
@@ -251,20 +197,14 @@ export function PantallaExploracion() {
             <BuscadorHabitaciones
               busqueda={busqueda}
               filtroActivo={filtroActivo}
-              alBuscar={setBusqueda}
-              alCambiarFiltro={setFiltroActivo}
+              alBuscar={(texto) => cambiarBusqueda(texto.slice(0, 120), filtroActivo)}
+              alCambiarFiltro={(filtro) => cambiarBusqueda(busqueda, filtro)}
             />
             <View style={styles.resumen}>
               <Text style={styles.textoResumen}>
-                {habitacionesVisibles.length} habitaciones disponibles
+                {total} habitaciones encontradas
               </Text>
             </View>
-            {modoPrueba && (
-              <View style={styles.avisoPrueba}>
-                <Text style={styles.tituloAvisoPrueba}>Datos de prueba</Text>
-                <Text style={styles.textoAvisoPrueba}>{avisoPrueba}</Text>
-              </View>
-            )}
             <View style={styles.aviso}>
               <View style={styles.contenidoAviso}>
                 <Text style={styles.tituloAviso}>
@@ -289,11 +229,11 @@ export function PantallaExploracion() {
                 </Pressable>
               </Link>
             </View>
-            {cargando ? (
+            {cargando && !habitaciones.length ? (
               <Text style={styles.estado}>Cargando habitaciones…</Text>
-            ) : habitacionesVisibles.length > 0 ? (
+            ) : habitaciones.length > 0 ? (
               <View style={styles.cuadricula}>
-                {habitacionesVisibles.map((habitacion) => (
+                {habitaciones.map((habitacion) => (
                   <TarjetaHabitacion
                     key={habitacion.id}
                     habitacion={conCompatibilidad(habitacion)}
@@ -306,31 +246,30 @@ export function PantallaExploracion() {
                   />
                 ))}
               </View>
-            ) : (
+            ) : !errorBusqueda && (
               <View style={styles.vacio}>
                 <Text style={styles.textoVacio}>
-                  {habitaciones.length === 0
+                  {!busqueda.trim() && filtroActivo === 'Todas'
                     ? 'Todavía no hay habitaciones publicadas.'
                     : 'No encontramos habitaciones con esos filtros.'}
                 </Text>
-                {habitaciones.length > 0 && (
+                {(Boolean(busqueda.trim()) || filtroActivo !== 'Todas') && (
                   <Pressable
-                    onPress={() => {
-                      setBusqueda('');
-                      setFiltroActivo('Todas');
-                    }}>
+                    onPress={() => cambiarBusqueda('', 'Todas')}>
                     <Text style={styles.limpiarFiltros}>Limpiar búsqueda</Text>
                   </Pressable>
                 )}
               </View>
             )}
-            {hayMas && (
+            {errorBusqueda && <Text accessibilityRole="alert" style={styles.estado}>{errorBusqueda}</Text>}
+            {(hayMas || errorBusqueda) && (
               <Pressable
                 accessibilityRole="button"
+                disabled={cargando}
                 onPress={cargarMas}
                 style={styles.botonTodos}>
                 <Text style={styles.textoBotonTodos}>
-                  {cargandoMas ? 'Cargando…' : 'Ver más habitaciones'}
+                  {cargando ? 'Cargando…' : errorBusqueda ? 'Reintentar' : 'Ver más habitaciones'}
                 </Text>
               </Pressable>
             )}
@@ -423,22 +362,6 @@ const styles = StyleSheet.create({
   resumen: {
     marginTop: 16,
     marginBottom: 10,
-  },
-  avisoPrueba: {
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: '#FFF4D6',
-    marginBottom: 8,
-  },
-  tituloAvisoPrueba: {
-    color: '#7A5B00',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  textoAvisoPrueba: {
-    color: '#7A5B00',
-    fontSize: 12,
-    marginTop: 2,
   },
   aviso: {
     flexDirection: 'row',

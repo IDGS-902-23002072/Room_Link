@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth.js'
-import { API_URL } from '../../services/api.js'
-import { getRecommendationFeed, QUESTIONS } from '../compatibility/compatibility.js'
+import { API_URL, apiRequest } from '../../services/api.js'
+import { QUESTIONS } from '../compatibility/compatibility.js'
 import { readLocal, writeLocal } from './storage.js'
 import { Avatar, Feedback, Heading, Panel, ResourceStatus, Toggle } from './Workspace.jsx'
 import { useResource } from './useResource.js'
@@ -22,41 +22,16 @@ function readSearch(id) {
   return { ...emptySearch, ...readLocal(id, 'advanced-search', {}) }
 }
 
-async function loadProfiles(id, token, signal) {
-  const profiles = new Map()
-  let page = 1
-  let hasMore
-  do {
-    const result = await getRecommendationFeed(id, page, token, signal)
-    for (const profile of result.profiles) {
-      if (profile.userId !== id) profiles.set(profile.userId, profile)
-    }
-    hasMore = result.hasMore
-    page += 1
-  } while (hasMore && !signal.aborted)
-  return [...profiles.values()]
-}
-
-function matchesHabit(profile, key, habit) {
-  return profile.compatibilitySummary?.find((item) => item.dimension === key)?.percentage === Number(habit.value)
-}
-
-function searchResults(profiles, filters, habits, order = 'compatibility') {
-  const criteria = Object.entries(habits).filter(([, item]) => item.value !== '')
-  const score = (profile) => criteria.filter(([key, habit]) => matchesHabit(profile, key, habit)).length
-  return profiles.filter((profile) => (
-    (!filters.city || filters.city === profile.city) &&
-    (!filters.zones.length || filters.zones.includes(profile.zone)) &&
-    (!filters.minAge || profile.age >= Number(filters.minAge)) &&
-    (!filters.maxAge || profile.age <= Number(filters.maxAge)) &&
-    (!filters.budgetMin || (profile.budgetMax ?? profile.budgetMin) != null && Number(profile.budgetMax ?? profile.budgetMin) >= Number(filters.budgetMin)) &&
-    (!filters.budgetMax || (profile.budgetMin ?? profile.budgetMax) != null && Number(profile.budgetMin ?? profile.budgetMax) <= Number(filters.budgetMax)) &&
-    criteria.every(([key, habit]) => habit.priority !== 'required' || matchesHabit(profile, key, habit))
-  )).sort((a, b) => {
-    if (order === 'name') return a.fullName.localeCompare(b.fullName, 'es')
-    if (order === 'budget') return Number(a.budgetMin ?? a.budgetMax ?? Infinity) - Number(b.budgetMin ?? b.budgetMax ?? Infinity) || a.fullName.localeCompare(b.fullName, 'es')
-    return score(b) - score(a) || (b.compatibilityScore ?? -1) - (a.compatibilityScore ?? -1)
+function loadProfiles(filters, habits, order, page, token, signal) {
+  const { zones, ...general } = filters
+  const params = new URLSearchParams({ ...general, order, page, pageSize: resultsPerPage })
+  zones.forEach((zone) => params.append('zone', zone))
+  Object.entries(habits).forEach(([key, habit]) => {
+    if (habit.value === '') return
+    params.set(key, String(Number(habit.value) / 25 + 1))
+    params.set(`${key}Required`, String(habit.priority === 'required'))
   })
+  return apiRequest(`/api/v1/search/profiles?${params}`, { token, signal })
 }
 
 function describeFilters(filters) {
@@ -82,9 +57,13 @@ function Summary({ filters, habits }) {
 export function SearchPage({ tab }) {
   const { session: { token, user } } = useAuth()
   const location = useLocation()
-  const load = useCallback((signal) => loadProfiles(user.id, token, signal), [user.id, token])
-  const resource = useResource(load)
   const [state, setState] = useState(() => readSearch(user.id))
+  const [page, setPage] = useState(1)
+  const [order, setOrder] = useState('compatibility')
+  const load = useCallback((signal) => loadProfiles(state.filters, state.habits, order, page, token, signal), [state.filters, state.habits, order, page, token])
+  const resource = useResource(load)
+  const loadZones = useCallback((signal) => apiRequest('/api/v1/search/zones', { token, signal }), [token])
+  const zoneResource = useResource(loadZones)
   const [error, setError] = useState('')
 
   function save(patch) {
@@ -92,6 +71,7 @@ export function SearchPage({ tab }) {
     try {
       writeLocal(user.id, 'advanced-search', next)
       setState(next)
+      if (patch.filters || patch.habits) setPage(1)
       setError('')
       return true
     } catch (cause) {
@@ -100,29 +80,24 @@ export function SearchPage({ tab }) {
     }
   }
 
-  const profiles = resource.data ?? []
-  const results = searchResults(profiles, state.filters, state.habits)
   return (
     <>
-      {tab === 'filters' && <Filters key={location.key} profiles={profiles} resource={resource} save={save} state={state} />}
-      {tab === 'habits' && <Habits profiles={profiles} resource={resource} save={save} state={state} />}
-      {tab === 'saved' && <SavedSearches profiles={profiles} resource={resource} resultCount={results.length} save={save} state={state} />}
+      {tab === 'filters' && <Filters key={location.key} order={order} page={page} resource={resource} save={save} setOrder={setOrder} setPage={setPage} state={state} zoneResource={zoneResource} />}
+      {tab === 'habits' && <Habits save={save} state={state} token={token} />}
+      {tab === 'saved' && <SavedSearches resource={resource} resultCount={resource.data?.total} save={save} state={state} />}
       <Feedback error={error} />
     </>
   )
 }
 
-function Filters({ profiles, resource, save, state }) {
+function Filters({ order, page, resource, save, setOrder, setPage, state, zoneResource }) {
   const [filters, setFilters] = useState(state.filters)
-  const [order, setOrder] = useState('compatibility')
-  const [page, setPage] = useState(1)
   const [error, setError] = useState('')
-  const results = searchResults(profiles, state.filters, state.habits, order)
-  const pageCount = Math.ceil(results.length / resultsPerPage)
-  const cities = [...new Set([filters.city, ...profiles.map((profile) => profile.city)].filter(Boolean))].sort()
-  const zones = [...new Set([...filters.zones, ...profiles.filter((profile) => !filters.city || profile.city === filters.city).map((profile) => profile.zone)].filter(Boolean))].sort()
+  const { items: cards, total, totalPages: pageCount } = resource.data ?? { items: [], total: 0, totalPages: 0 }
+  const catalog = zoneResource.data ?? []
+  const cities = [...new Set([filters.city, ...catalog.map(({ city }) => city)].filter(Boolean))].sort()
+  const zones = [...new Set([...filters.zones, ...catalog.filter(({ city }) => !filters.city || city === filters.city).map(({ name }) => name)])].sort()
   const field = (name) => ({ value: filters[name], onChange: (event) => setFilters({ ...filters, [name]: event.target.value }) })
-  const cards = results.slice((page - 1) * resultsPerPage, page * resultsPerPage)
 
   function apply(event) {
     event.preventDefault()
@@ -150,6 +125,7 @@ function Filters({ profiles, resource, save, state }) {
                 <label className="field">Máximo<input min="0" type="number" {...field('budgetMax')} /></label>
               </div></fieldset>
               <label className="field">Ciudad<select onChange={(event) => setFilters({ ...filters, city: event.target.value, zones: [] })} value={filters.city}><option value="">Todas las ciudades</option>{cities.map((city) => <option key={city}>{city}</option>)}</select></label>
+              <ResourceStatus label="Cargando zonas." resource={zoneResource} />
               <fieldset><legend>Zonas de interés</legend>{zones.length ? zones.map((zone) => (
                 <label className="room-check" key={zone}><input checked={filters.zones.includes(zone)} onChange={(event) => setFilters({ ...filters, zones: event.target.checked ? [...filters.zones, zone] : filters.zones.filter((item) => item !== zone) })} type="checkbox" />{zone}</label>
               )) : <small>Las zonas aparecen según los perfiles disponibles.</small>}</fieldset>
@@ -168,12 +144,12 @@ function Filters({ profiles, resource, save, state }) {
         </div>
         <div className="room-stack">
           <div className="room-row">
-            {resource.data && <strong role="status">{results.length} {results.length === 1 ? 'perfil encontrado' : 'perfiles encontrados'}</strong>}
+            {resource.data && <strong role="status">{total} {total === 1 ? 'perfil encontrado' : 'perfiles encontrados'}</strong>}
             <label className="field">Ordenar por<select onChange={(event) => { setOrder(event.target.value); setPage(1) }} value={order}><option value="compatibility">Compatibilidad</option><option value="budget">Presupuesto</option><option value="name">Nombre</option></select></label>
           </div>
           <div className="room-actions">{describeFilters(state.filters).map((item) => <span className="room-pill" key={item}>{item}</span>)}</div>
           <ResourceStatus label="Buscando perfiles…" resource={resource} />
-          {resource.data && !results.length && <Panel><p>Sin coincidencias. Ajusta los filtros o los hábitos y vuelve a buscar.</p></Panel>}
+          {resource.data && !cards.length && <Panel><p>Sin coincidencias. Ajusta los filtros o los hábitos y vuelve a buscar.</p></Panel>}
           {cards.map((profile) => {
             const saved = state.profiles.includes(profile.userId)
             return (
@@ -200,10 +176,12 @@ function Filters({ profiles, resource, save, state }) {
   )
 }
 
-function Habits({ profiles, resource, save, state }) {
+function Habits({ save, state, token }) {
   const [habits, setHabits] = useState(state.habits)
   const navigate = useNavigate()
-  const results = searchResults(profiles, state.filters, habits)
+  const preview = useCallback((signal) => loadProfiles(state.filters, habits, "compatibility", 1, token, signal), [state.filters, habits, token])
+  const resource = useResource(preview)
+  const { items: results, total } = resource.data ?? { items: [], total: 0 }
   const count = (priority) => Object.values(habits).filter((habit) => habit.value !== '' && habit.priority === priority).length
   return (
     <>
@@ -232,7 +210,7 @@ function Habits({ profiles, resource, save, state }) {
           <Panel title="Búsqueda actual"><Summary filters={state.filters} habits={{}} /><Link className="button button-secondary" to="/buscar">Editar filtros generales</Link></Panel>
           <Panel title="Vista previa">
             <ResourceStatus label="Calculando coincidencias…" resource={resource} />
-            {resource.data && <p role="status">{results.length} {results.length === 1 ? 'perfil cumple' : 'perfiles cumplen'}</p>}
+            {resource.data && <p role="status">{total} {total === 1 ? 'perfil cumple' : 'perfiles cumplen'}</p>}
             {results.slice(0, 3).map((profile) => <div className="room-person" key={profile.userId}><Avatar name={profile.fullName} /><div><strong>{profile.fullName}</strong>{profile.compatibilityScore != null && <p>{Math.round(profile.compatibilityScore)} % compatible</p>}</div></div>)}
           </Panel>
         </div>
@@ -241,7 +219,7 @@ function Habits({ profiles, resource, save, state }) {
   )
 }
 
-function SavedSearches({ profiles, resource, resultCount, save, state }) {
+function SavedSearches({ resource, resultCount, save, state }) {
   const navigate = useNavigate()
   const [favoriteOnly, setFavoriteOnly] = useState(false)
   const [favorite, setFavorite] = useState(false)
@@ -267,7 +245,7 @@ function SavedSearches({ profiles, resource, resultCount, save, state }) {
             <Panel key={item.id}>
               <div className="room-row"><div className="room-actions">
                 <button aria-label={`Marcar como favorita: ${item.name}`} aria-pressed={item.favorite} className="button button-quiet" onClick={() => update(item.id, { favorite: !item.favorite })} type="button">{item.favorite ? '★' : '☆'}</button><h2>{item.name}</h2>
-              </div>{ready && <span className="room-pill">{searchResults(profiles, item.filters, item.habits).length} coincidencias</span>}</div>
+              </div></div>
               <Summary filters={item.filters} habits={item.habits} />
               <small>Guardada el {new Date(item.createdAt).toLocaleDateString('es-MX')}</small>
               {editing === item.id ? <form className="room-actions" onSubmit={(event) => { event.preventDefault(); if (newName.trim() && update(item.id, { name: newName.trim() })) setEditing(null) }}>
