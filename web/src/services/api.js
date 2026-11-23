@@ -1,4 +1,4 @@
-const API_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:3000').replace(
+export const API_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:3000').replace(
   /\/+$/,
   '',
 )
@@ -10,7 +10,7 @@ export async function apiRequest(path, { token, ...options } = {}) {
       ...options,
       headers: {
         Accept: 'application/json',
-        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
@@ -21,11 +21,14 @@ export async function apiRequest(path, { token, ...options } = {}) {
     )
   }
 
+  if (response.status === 204) return null
   const body = await response.json().catch(() => null)
   if (!response.ok) {
-    throw new Error(
+    const error = new Error(
       body?.error || `La API respondió con estado ${response.status}.`,
     )
+    error.status = response.status
+    throw error
   }
   if (body === null) {
     throw new Error('La API devolvió una respuesta vacía o inválida.')
