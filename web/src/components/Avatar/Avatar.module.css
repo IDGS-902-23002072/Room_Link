@@ -1,0 +1,31 @@
+.avatar {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--teal-soft);
+  color: var(--ink);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  object-fit: cover;
+}
+
+.sm {
+  width: 36px;
+  height: 36px;
+  font-size: var(--text-xs);
+}
+
+.md {
+  width: 44px;
+  height: 44px;
+  font-size: var(--text-sm);
+}
+
+.lg {
+  width: 96px;
+  height: 96px;
+  font-size: var(--text-2xl);
+}

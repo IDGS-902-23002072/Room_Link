@@ -1,0 +1,51 @@
+.empty {
+  display: grid;
+  min-height: 280px;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-5);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--paper);
+  text-align: center;
+}
+
+.icon {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--teal-soft);
+  color: var(--muted);
+}
+
+.icon svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.6;
+}
+
+.title {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+
+.description {
+  max-width: 42ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.action {
+  margin-top: var(--space-2);
+}

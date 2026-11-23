@@ -1,6 +1,11 @@
-import PropTypes from 'prop-types'
 import { useEffect, useMemo, useState } from 'react'
-import { AppLink } from '../../components/AppLink.jsx'
+import Badge from '../../components/Badge/Badge.jsx'
+import Button from '../../components/Button/Button.jsx'
+import Card from '../../components/Card/Card.jsx'
+import Meter from '../../components/Meter/Meter.jsx'
+import Notice from '../../components/Notice/Notice.jsx'
+import PageHeader from '../../components/PageHeader/PageHeader.jsx'
+import ProgressSteps from '../../components/ProgressSteps/ProgressSteps.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
 import {
   QUESTIONS,
@@ -12,113 +17,10 @@ import {
   saveCompatibilityTest,
   saveLocalDraft,
 } from './compatibility.js'
-import './compatibility.css'
+import ResultsRadar from './ResultsRadar.jsx'
+import styles from './Questionnaire.module.css'
 
-function QuestionnaireSteps({ step, answers }) {
-  return (
-    <aside aria-label="Pasos del cuestionario" className="questionnaire-sidebar">
-      <h2>Cuestionario de convivencia</h2>
-      <p>Paso {step + 1} de {QUESTIONS.length}</p>
-      <ol>
-        {QUESTIONS.map(({ id, category }, index) => {
-          const answered = answers[id] !== undefined
-          const current = step === index
-          return (
-            <li className={current ? 'current' : answered ? 'answered' : ''} key={id}>
-              <span aria-hidden="true">{answered ? '✓' : index + 1}</span>
-              <span>{category}</span>
-            </li>
-          )
-        })}
-      </ol>
-    </aside>
-  )
-}
-
-QuestionnaireSteps.propTypes = {
-  answers: PropTypes.objectOf(PropTypes.number).isRequired,
-  step: PropTypes.number.isRequired,
-}
-
-function QuestionStepper({ step, answers }) {
-  return (
-    <ol aria-label="Progreso del cuestionario" className="question-stepper">
-      {QUESTIONS.map(({ id }, index) => (
-        <li
-          aria-current={index === step ? 'step' : undefined}
-          className={index === step ? 'current' : answers[id] !== undefined ? 'answered' : ''}
-          key={id}
-        >
-          {answers[id] !== undefined && index !== step ? '✓' : index + 1}
-        </li>
-      ))}
-    </ol>
-  )
-}
-
-QuestionStepper.propTypes = {
-  answers: PropTypes.objectOf(PropTypes.number).isRequired,
-  step: PropTypes.number.isRequired,
-}
-
-function ResultsRadar({ summary }) {
-  const center = 100
-  const radius = 68
-  const angleFor = (index) => (-Math.PI / 2) + (index * Math.PI * 2) / summary.length
-  const pointFor = (index, scale) => {
-    const angle = angleFor(index)
-    return `${center + Math.cos(angle) * radius * scale},${center + Math.sin(angle) * radius * scale}`
-  }
-  const resultPoints = summary
-    .map(({ percentage }, index) => pointFor(index, percentage / 100))
-    .join(' ')
-
-  return (
-    <section aria-label="Gráfica de preferencias por dimensión" className="results-radar">
-      <svg aria-hidden="true" viewBox="0 0 200 200">
-        {[0.25, 0.5, 0.75, 1].map((scale) => (
-          <polygon
-            className="radar-grid"
-            key={scale}
-            points={summary.map((_, index) => pointFor(index, scale)).join(' ')}
-          />
-        ))}
-        {summary.map(({ category }, index) => (
-          <line
-            className="radar-axis"
-            key={category}
-            x1={center}
-            x2={center + Math.cos(angleFor(index)) * radius}
-            y1={center}
-            y2={center + Math.sin(angleFor(index)) * radius}
-          />
-        ))}
-        <polygon className="radar-result" points={resultPoints} />
-        {summary.map(({ percentage }, index) => (
-          <circle
-            className="radar-point"
-            key={index}
-            cx={center + Math.cos(angleFor(index)) * radius * percentage / 100}
-            cy={center + Math.sin(angleFor(index)) * radius * percentage / 100}
-            r="3"
-          />
-        ))}
-      </svg>
-      <div className="radar-labels">
-        {summary.map(({ category, percentage }) => (
-          <span key={category}>{category}<strong>{percentage}%</strong></span>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-ResultsRadar.propTypes = {
-  summary: PropTypes.arrayOf(PropTypes.shape({
-    category: PropTypes.string.isRequired,
-    percentage: PropTypes.number.isRequired,
-  })).isRequired,
-}
+const STEPS = QUESTIONS.map(({ id, category }) => ({ id, title: category }))
 
 function firstUnanswered(answers) {
   const index = QUESTIONS.findIndex(({ id }) => answers[id] === undefined)
@@ -255,143 +157,170 @@ export default function Questionnaire() {
   }
 
   if (loading) {
-    return <div className="loading-screen">Recuperando tu test…</div>
+    return (
+      <div className={styles.loading} role="status">
+        Recuperando tu test…
+      </div>
+    )
   }
 
   if (showResults) {
     return (
-      <section className="compatibility-page results-page">
-        <header className="results-heading">
-          <p className="eyebrow">MÓDULO 03 · RESULTADOS</p>
-          <h1>Tu perfil de convivencia</h1>
-          <p className="muted">Así se distribuyen tus preferencias en cada dimensión.</p>
-        </header>
-        <div className="results-layout">
-          <ResultsRadar summary={summary} />
-          <div className="results-dimensions">
+      <section className={styles.resultsPage}>
+        <PageHeader
+          description="Así se distribuyen tus preferencias en cada dimensión."
+          eyebrow="RESULTADOS · CONVIVENCIA"
+          title="Tu perfil de convivencia"
+        />
+
+        <div className={styles.resultsLayout}>
+          <Card className={styles.radarPanel}>
+            <ResultsRadar summary={summary} />
+          </Card>
+
+          <div className={styles.dimensions}>
             {summary.map((item) => (
-              <article className="result-dimension" key={item.dimension}>
-                <span className="dimension-mark" aria-hidden="true">{item.category.slice(0, 1)}</span>
-                <div className="result-dimension-copy">
-                  <div className="summary-heading">
+              <Card className={styles.dimension} key={item.dimension}>
+                <span aria-hidden="true" className={styles.dimensionMark}>
+                  {item.category.slice(0, 1)}
+                </span>
+                <div className={styles.dimensionBody}>
+                  <div className={styles.dimensionHead}>
                     <h2>{item.category}</h2>
-                    <span className={`level-pill level-${item.level}`}>{item.level}</span>
+                    <Badge tone={item.level === 'alto' ? 'accent' : 'neutral'}>
+                      {item.level}
+                    </Badge>
                   </div>
-                  <div
-                    aria-label={`${item.category}: ${item.percentage}%`}
-                    className="meter-track"
-                    role="img"
-                  >
-                    <span style={{ width: `${item.percentage}%` }} />
-                  </div>
+                  <Meter label={`${item.category}: ${item.percentage}%`} value={item.percentage} />
                 </div>
-                <strong className="result-dimension-value">{item.percentage}%</strong>
-              </article>
+                <strong className={styles.dimensionValue}>{item.percentage}%</strong>
+              </Card>
             ))}
           </div>
         </div>
-        {error && <div className="form-error notice" role="alert">{error}</div>}
-        {notice && <div className="inline-notice" role="status">{notice}</div>}
-        <div className="result-actions wireframe-result-actions">
-          <button className="button button-secondary" onClick={editTest} type="button">
-            Editar respuestas
-          </button>
-          <button
-            className="button button-primary"
-            disabled={!complete || saving}
-            onClick={finishTest}
-            type="button"
-          >
+
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        {notice ? <Notice tone="success">{notice}</Notice> : null}
+
+        <div className={styles.resultActions}>
+          <Button onClick={editTest} variant="secondary">Editar respuestas</Button>
+          <Button disabled={!complete || saving} onClick={finishTest}>
             {saving ? 'Guardando…' : 'Guardar respuestas'}
-          </button>
-          <AppLink className="button button-primary" href="/recomendados">
-            Ver roomies compatibles
-          </AppLink>
-          <button className="button button-secondary" onClick={repeatTest} type="button">
-            Repetir test
-          </button>
+          </Button>
+          <Button href="/recomendados">Ver roomies compatibles</Button>
+          <Button onClick={repeatTest} variant="secondary">Repetir test</Button>
         </div>
       </section>
     )
   }
 
   return (
-    <section className="compatibility-page questionnaire-layout">
-      <QuestionnaireSteps step={step} answers={answers} />
-      <div className="questionnaire-main">
-        <div className="questionnaire-topline">
-          <AppLink className="back-link" href="/explorar">← Volver a explorar</AppLink>
-          <span className="eyebrow">TEST DE CONVIVENCIA</span>
-        </div>
-        <QuestionStepper step={step} answers={answers} />
-        <header className="questionnaire-heading">
-          <p className="eyebrow">PREGUNTA {step + 1} DE {QUESTIONS.length} · {question.category}</p>
-          <h1>{question.prompt}</h1>
-          <p className="muted">Elige la opción que mejor te describa.</p>
-        </header>
-        <form
-          className="question-card"
-          onSubmit={(event) => {
-            event.preventDefault()
-            goNext()
-          }}
-        >
-          <fieldset>
-            <legend>Selecciona una respuesta</legend>
-            <div className="answer-options">
-              {question.options.map((option, index) => {
-                const value = index + 1
-                const selected = answers[question.id] === value
-                return (
-                  <label className={`answer-option${selected ? ' selected' : ''}`} key={option}>
-                    <input
-                      checked={selected}
-                      name={question.id}
-                      onChange={() => answerQuestion(value)}
-                      type="radio"
-                      value={value}
-                    />
-                    <span className="answer-scale">{value}</span>
-                    <span>{option}</span>
-                  </label>
-                )
-              })}
+    <section className={styles.page}>
+      <div className={styles.layout}>
+        <aside aria-label="Pasos del cuestionario" className={styles.sidebar}>
+          <div className={styles.sidebarInner}>
+            <h2>Cuestionario de convivencia</h2>
+            <p>Paso {step + 1} de {QUESTIONS.length}</p>
+            <ProgressSteps
+              answered={answers}
+              current={step}
+              label="Pasos del cuestionario"
+              steps={STEPS}
+              variant="list"
+            />
+          </div>
+        </aside>
+
+        <div className={styles.main}>
+          <Button className={styles.back} href="/explorar" variant="quiet">
+            ← Volver a explorar
+          </Button>
+
+          <ProgressSteps
+            answered={answers}
+            className={styles.stepper}
+            current={step}
+            label="Progreso del cuestionario"
+            steps={STEPS}
+          />
+
+          <header className={styles.heading}>
+            <p className={styles.eyebrow}>
+              PREGUNTA {step + 1} DE {QUESTIONS.length} · {question.category}
+            </p>
+            <h1>{question.prompt}</h1>
+            <p className={styles.lead}>Elige la opción que mejor te describa.</p>
+          </header>
+
+          <Card
+            as="form"
+            className={styles.questionCard}
+            onSubmit={(event) => {
+              event.preventDefault()
+              goNext()
+            }}
+          >
+            <fieldset className={styles.fieldset}>
+              <legend className={styles.legend}>Selecciona una respuesta</legend>
+              <div className={styles.options}>
+                {question.options.map((option, index) => {
+                  const value = index + 1
+                  const selected = answers[question.id] === value
+                  return (
+                    <label className={`${styles.option}${selected ? ` ${styles.optionSelected}` : ''}`} key={option}>
+                      <input
+                        checked={selected}
+                        className={styles.radio}
+                        name={question.id}
+                        onChange={() => answerQuestion(value)}
+                        type="radio"
+                        value={value}
+                      />
+                      <span aria-hidden="true" className={styles.scale}>{value}</span>
+                      <span className={styles.optionText}>{option}</span>
+                      {selected ? (
+                        <span aria-hidden="true" className={styles.selectedMark}>
+                          ✓ Seleccionada
+                        </span>
+                      ) : null}
+                    </label>
+                  )
+                })}
+              </div>
+            </fieldset>
+
+            <p className={styles.hint}>
+              Escala de 1 a 5 · Tus respuestas se guardan automáticamente
+            </p>
+            {error ? <Notice tone="error">{error}</Notice> : null}
+            {notice ? <Notice tone="info">{notice}</Notice> : null}
+
+            <div className={styles.actions}>
+              <Button
+                disabled={step === 0}
+                onClick={() => {
+                  setError('')
+                  setStep((current) => current - 1)
+                }}
+                variant="secondary"
+              >
+                Anterior
+              </Button>
+              <Button disabled={answers[question.id] === undefined} type="submit">
+                {step === QUESTIONS.length - 1 ? 'Ver resultados' : 'Siguiente'}
+              </Button>
             </div>
-          </fieldset>
-          <div aria-live="polite" className="answer-hint">
-            Escala de 1 a 5 · Tus respuestas se guardan automáticamente
-          </div>
-          {error && <p className="form-error" role="alert">{error}</p>}
-          {notice && <p className="inline-notice" role="status">{notice}</p>}
-          <div className="question-actions">
-            <button
-              className="button button-secondary"
-              disabled={step === 0}
-              onClick={() => {
-                setError('')
-                setStep((current) => current - 1)
-              }}
-              type="button"
-            >
-              Anterior
-            </button>
-            <button
-              className="button button-primary"
-              disabled={answers[question.id] === undefined}
-              type="submit"
-            >
-              {step === QUESTIONS.length - 1 ? 'Ver resultados' : 'Siguiente'}
-            </button>
-          </div>
-        </form>
-        <button
-          className="finish-link"
-          disabled={!complete || saving}
-          onClick={finishTest}
-          type="button"
-        >
-          {saving ? 'Guardando respuestas…' : 'Finalizar y guardar test'}
-        </button>
+          </Card>
+
+          <Button
+            className={styles.finish}
+            disabled={!complete || saving}
+            onClick={finishTest}
+            variant="quiet"
+          >
+            {saving ? 'Guardando respuestas…' : 'Finalizar y guardar test'}
+          </Button>
+        </div>
       </div>
     </section>
   )
