@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import { useEffect, useState } from 'react';
 import { Link } from 'expo-router';
 import {
@@ -10,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MarcaRoomLink } from '@/components/MarcaRoomLink';
 import { cerrarSesion } from '@/auth/api-auth';
 import { useSesion } from '@/auth/SesionContext';
 
@@ -249,15 +252,15 @@ export function PantallaPerfil() {
         contentContainerStyle={[styles.contenido, { width: anchoContenido }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
-        <Text style={styles.marca}>ROOMLINK / 05</Text>
+        <MarcaRoomLink />
 
         <View style={styles.encabezado}>
           <View style={styles.avatar}>
             <Text style={styles.iniciales}>{iniciales}</Text>
           </View>
           <View style={styles.encabezadoTexto}>
-            <Text style={styles.titulo}>Mi perfil</Text>
-            <Text style={styles.subtitulo}>Así te verán otros roomies</Text>
+            <Text accessibilityRole="header" style={styles.titulo}>Mi perfil</Text>
+            <Text style={styles.subtitulo}>Edita tu perfil y tus preferencias de vivienda</Text>
           </View>
         </View>
 
@@ -429,7 +432,7 @@ export function PantallaPerfil() {
               setError(null);
               setAviso(null);
               setExito(null);
-            }} deshabilitada={guardando || (perfil === perfilGuardado && !nacimiento)} texto="Cancelar cambios" />
+            }} deshabilitada={guardando || (perfil === perfilGuardado && !nacimiento)} peligro texto="Cancelar cambios" />
 
             <View style={styles.tarjeta}>
               <Text style={styles.tituloSeccion}>Acciones y cuenta</Text>
@@ -446,7 +449,7 @@ export function PantallaPerfil() {
                     pressed && styles.botonPresionado,
                   ]}>
                   <Text style={styles.textoBotonSecundario}>
-                    Centro de notificaciones (HU-14)
+                    Centro de notificaciones
                   </Text>
                 </Pressable>
               </Link>
@@ -472,7 +475,7 @@ export function PantallaPerfil() {
                     pressed && styles.botonPresionado,
                   ]}>
                   <Text style={styles.textoBotonSecundario}>
-                    Acuerdos de convivencia (HU-12)
+                    Acuerdos de convivencia
                   </Text>
                 </Pressable>
               </Link>
@@ -565,7 +568,7 @@ const styles = StyleSheet.create({
   areaSegura: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#FBF9FC',
+    backgroundColor: color.blanco,
   },
   contenido: {
     flexGrow: 1,
@@ -574,28 +577,24 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 104,
   },
-  marca: {
-    color: '#817987',
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    marginBottom: 10,
-  },
   encabezado: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginVertical: 16,
+    padding: 17,
+    borderRadius: 22,
+    backgroundColor: color.mentaSuave,
   },
   avatar: {
-    width: 46,
-    height: 46,
+    width: 54,
+    height: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 24,
-    backgroundColor: '#E9DAEC',
+    borderRadius: 16,
+    backgroundColor: color.menta,
   },
   iniciales: {
-    color: '#84658D',
+    color: color.accion,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -604,34 +603,35 @@ const styles = StyleSheet.create({
     marginLeft: 11,
   },
   titulo: {
-    color: '#28232D',
-    fontSize: 23,
-    fontWeight: '700',
-    letterSpacing: -0.4,
+    color: color.tinta,
+    fontSize: 29,
+    fontWeight: '800',
+    letterSpacing: -0.65,
   },
   subtitulo: {
-    color: '#817987',
-    fontSize: 10,
+    color: color.secundario,
+    fontSize: 13,
+    lineHeight: 19,
     marginTop: 3,
   },
   estado: {
-    color: '#817987',
+    color: color.secundario,
     fontSize: 12,
     textAlign: 'center',
     padding: 22,
   },
   tarjeta: {
-    padding: 13,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: color.blanco,
     borderWidth: 1,
-    borderColor: '#F0EBF1',
+    borderColor: color.borde,
     marginTop: 12,
   },
   tituloSeccion: {
-    color: '#28232D',
-    fontSize: 12,
-    fontWeight: '700',
+    color: color.tinta,
+    fontSize: 17,
+    fontWeight: '800',
   },
   filaTitulo: {
     flexDirection: 'row',
@@ -639,18 +639,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   ayudaSeccion: {
-    color: '#817987',
-    fontSize: 9,
-    lineHeight: 14,
+    color: color.secundario,
+    fontSize: 13,
+    lineHeight: 18,
     marginTop: 3,
   },
   contador: {
-    color: '#817987',
+    color: color.secundario,
     fontSize: 10,
     fontWeight: '600',
   },
   contadorExcedido: {
-    color: '#B23A3A',
+    color: color.rosaTexto,
   },
   filaCampos: {
     flexDirection: 'row',
@@ -668,11 +668,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#FCE8E8',
+    backgroundColor: color.rosa,
     marginTop: 12,
   },
   textoError: {
-    color: '#8A3030',
+    color: color.rosaTexto,
     fontSize: 11,
     lineHeight: 16,
     textAlign: 'center',
@@ -681,11 +681,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#E9DAEC',
+    backgroundColor: color.menta,
     marginTop: 12,
   },
   textoAviso: {
-    color: '#6F5B76',
+    color: color.accion,
     fontSize: 11,
     lineHeight: 16,
     textAlign: 'center',
@@ -694,11 +694,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#9BDFDA',
+    backgroundColor: color.menta,
     marginTop: 12,
   },
   textoExito: {
-    color: '#25363A',
+    color: color.accion,
     fontSize: 11,
     fontWeight: '600',
     lineHeight: 16,
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 11,
-    backgroundColor: '#84658D',
+    backgroundColor: color.accion,
     marginTop: 14,
   },
   botonPresionado: {
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   textoBoton: {
-    color: '#FFFFFF',
+    color: color.blanco,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -728,13 +728,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 11,
-    backgroundColor: '#F6F1F7',
+    backgroundColor: color.fondo,
     borderWidth: 1,
-    borderColor: '#E9DAEC',
+    borderColor: color.menta,
     marginTop: 10,
   },
   textoBotonSecundario: {
-    color: '#6F5B76',
+    color: color.accion,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -743,24 +743,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 11,
-    backgroundColor: '#E9DAEC',
+    backgroundColor: color.menta,
     marginTop: 8,
   },
   textoBotonAdmin: {
-    color: '#5E4466',
+    color: color.accion,
     fontSize: 12,
     fontWeight: '700',
   },
   botonCerrarSesion: {
-    minHeight: 38,
+    minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 11,
-    backgroundColor: '#FCE8E8',
+    backgroundColor: color.rosa,
     marginTop: 8,
   },
   textoCerrarSesion: {
-    color: '#8A3030',
+    color: color.rosaTexto,
     fontSize: 12,
     fontWeight: '600',
   },
