@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import { StyleSheet } from 'react-native';
 
 export const estilos = StyleSheet.create({
@@ -20,11 +22,11 @@ export const estilos = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 16,
     borderRadius: 11,
-    backgroundColor: '#84658D',
+    backgroundColor: color.accion,
     marginTop: 8,
   },
   textoBoton: {
-    color: '#FFFFFF',
+    color: color.blanco,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -39,11 +41,11 @@ export const estilos = StyleSheet.create({
     justifyContent: 'space-between',
   },
   etiquetaMedidor: {
-    color: '#28232D',
+    color: color.tinta,
     fontSize: 11,
   },
   valorMedidor: {
-    color: '#28232D',
+    color: color.tinta,
     fontSize: 10,
     fontWeight: '600',
   },
