@@ -127,6 +127,20 @@ describe("Authorization gates (RNF-01.2)", () => {
     expect(compat.status).toBe(401);
   });
 
+  it("requires host or admin for every listing mutation", async () => {
+    const { app } = buildApp();
+    const token = await login(app, "intruder@roomlink.test");
+    for (const [method, path] of [
+      ["POST", ""], ["POST", "/photos"], ["PUT", "/room/rules"], ["PUT", "/room/costs"],
+      ["PATCH", "/room"], ["PATCH", "/room/publish"], ["PATCH", "/room/pause"],
+      ["PATCH", "/room/reactivate"], ["PATCH", "/room/close"],
+    ] as const) {
+      const res = await app.request("/api/v1/rooms" + path, { method, headers: { Authorization: `Bearer ${token}` } });
+      expect(res.status).toBe(403);
+      await expect(res.json()).resolves.toMatchObject({ code: "HOST_REQUIRED" });
+    }
+  });
+
   it("forbids access when the authenticated user does not match :userId in compatibility", async () => {
     const { app } = buildApp();
     const intruderToken = await login(app, "intruder@roomlink.test");

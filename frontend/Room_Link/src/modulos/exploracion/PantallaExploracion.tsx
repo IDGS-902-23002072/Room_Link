@@ -117,7 +117,12 @@ export function PantallaExploracion() {
       .then((resultado) => {
         if (!activo) return;
         if (resultado.length === 0) {
-          mostrarDatosPrueba('Aún no hay habitaciones publicadas.');
+          if (__DEV__) mostrarDatosPrueba('Aún no hay habitaciones publicadas.');
+          else {
+            setHabitaciones([]);
+            setHayMas(false);
+            setError(null);
+          }
           return;
         }
         setHabitaciones(resultado.map(adaptarHabitacion));
@@ -131,11 +136,15 @@ export function PantallaExploracion() {
       })
       .catch((cause: unknown) => {
         if (activo) {
-          mostrarDatosPrueba(
-            cause instanceof Error
-              ? `No se pudo conectar con la API: ${cause.message}`
-              : 'No se pudo cargar el feed de habitaciones.',
-          );
+          const mensaje = cause instanceof Error
+            ? cause.message
+            : 'No se pudo cargar el feed de habitaciones.';
+          if (__DEV__) mostrarDatosPrueba(mensaje);
+          else {
+            setHabitaciones([]);
+            setHayMas(false);
+            setError(mensaje);
+          }
         }
       })
       .finally(() => {

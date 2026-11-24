@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { cerrarAnuncio, obtenerAnuncioPorId } from '@/modulos/anuncios/api';
 
 import {
   decidirPostulacion,
@@ -70,6 +71,8 @@ export default function PantallaPostulaciones({
   const [cargandoPerfil, setCargandoPerfil] = useState(false);
   const [mensaje, setMensaje] = useState('');
   const [decidiendo, setDecidiendo] = useState(false);
+  const [ofrecerCierre, setOfrecerCierre] = useState(false);
+  const [cerrado, setCerrado] = useState(false);
 
   useEffect(() => {
     let activo = true;
@@ -120,10 +123,29 @@ export default function PantallaPostulaciones({
       setSel(null);
       setMensaje('');
       setTab(decision === 'waitlist' ? 'nuevas' : 'resueltas');
+      if (decision === 'accept' && !cerrado) {
+        const anuncio = await obtenerAnuncioPorId(listingId).catch(() => null);
+        setOfrecerCierre(anuncio?.status === 'published' || anuncio?.status === 'paused');
+      }
     } catch (e) {
       setError(
         e instanceof Error ? e.message : 'No se pudo registrar la decisión.',
       );
+    } finally {
+      setDecidiendo(false);
+    }
+  }
+
+  async function cerrar() {
+    if (decidiendo) return;
+    setDecidiendo(true);
+    setError(null);
+    try {
+      await cerrarAnuncio(listingId);
+      setCerrado(true);
+      setOfrecerCierre(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo cerrar el anuncio.');
     } finally {
       setDecidiendo(false);
     }
@@ -155,6 +177,20 @@ export default function PantallaPostulaciones({
               {titulo} · {posts.length}{' '}
               {posts.length === 1 ? 'postulación' : 'postulaciones'}
             </Text>
+
+            {ofrecerCierre && (
+              <View style={styles.card}>
+                <Text style={styles.cardNombre}>¿Ya encontraste roomie?</Text>
+                <Text style={styles.cardMensaje}>El anuncio cerrado dejará de recibir postulaciones.</Text>
+                <Pressable accessibilityRole="button" disabled={decidiendo} onPress={cerrar} style={styles.botonSecundario}>
+                  <Text style={[styles.botonSecundarioTexto, { color: COL.peligro }]}>Cerrar anuncio</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" disabled={decidiendo} onPress={() => setOfrecerCierre(false)} style={styles.botonSecundario}>
+                  <Text style={styles.botonSecundarioTexto}>Mantener anuncio abierto</Text>
+                </Pressable>
+              </View>
+            )}
+            {cerrado && <Text accessibilityRole="alert">Anuncio cerrado.</Text>}
 
             <View style={styles.tabs}>
               {([

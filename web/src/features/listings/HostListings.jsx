@@ -218,7 +218,7 @@ function ManageListing({ room, token, refresh }) {
       <Feedback error={error}>{notice}</Feedback>
       {status === 'draft' && <Panel title="Publicar habitación">
         <p>Guarda las reglas y los costos para revisar la información antes de publicar.</p>
-        {photoCount < 3 && <p role="status">Faltan {3 - photoCount} fotos para publicar.</p>}
+        {photoCount < 3 && <p role="status">{photoCount === 2 ? 'Falta una foto para publicar.' : `Faltan ${3 - photoCount} fotos para publicar.`}</p>}
         <button className="button button-mint" disabled={working || !reviewed || mode !== 'terms' || photoCount < 3} onClick={() => changeStatus('publish')} type="button">Publicar habitación</button>
       </Panel>}
       {['published', 'paused'].includes(status) && <Panel title="Disponibilidad del anuncio">

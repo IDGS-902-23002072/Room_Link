@@ -456,6 +456,7 @@ describe("Modular Monolith MVC API", () => {
       const host = await userRepo.findByEmail("nuevo_estudiante@uni.edu");
       expect(host).not.toBeNull();
 
+      host!.grantHostRole();
       const formData = new FormData();
       // No se envía hostId: el backend lo toma de la sesión.
       formData.append("titulo", "Cuarto amueblado a 5 min del campus");

@@ -6,6 +6,8 @@ import { useAuth } from '../../hooks/useAuth.js'
 import { requestAuth } from '../../services/authService.js'
 import GoogleButton from './GoogleButton.jsx'
 
+const registrationFields = { EMAIL_ALREADY_EXISTS: 'email', WEAK_PASSWORD: 'password', TERMS_REQUIRED: 'terms' }
+
 const forms = {
   login: ['Inicia sesión', 'Entra a tu cuenta para conversar con tus roomies y retomar tu búsqueda.', 'Iniciar sesión'],
   register: ['Crea tu cuenta', 'Da el primer paso para encontrar un hogar compartido.', 'Crear cuenta'],
@@ -28,6 +30,7 @@ export default function Login({ mode }) {
   const [submitting, setSubmitting] = useState(false)
   const busy = useRef(false)
   const [error, setError] = useState('')
+  const [fieldError, setFieldError] = useState(null)
   const [message, setMessage] = useState(location.state?.message ?? '')
   const [title, description, action] = forms[mode]
   const login = mode === 'login'
@@ -39,12 +42,15 @@ export default function Login({ mode }) {
     if (busy.current) return
     busy.current = true
     setError('')
+    setFieldError(null)
     setMessage('')
     setSubmitting(true)
     try {
       await task()
     } catch (cause) {
-      setError(cause.message)
+      const field = register && registrationFields[cause.code]
+      if (field) setFieldError({ field, message: cause.message })
+      else setError(cause.message)
     } finally {
       busy.current = false
       setSubmitting(false)
@@ -57,6 +63,14 @@ export default function Login({ mode }) {
       const normalizedEmail = email.trim()
       if (login) return authenticate('login', { email: normalizedEmail, password })
       if (register) {
+        if (password.length < 8) {
+          setFieldError({ field: 'password', message: 'La contraseña debe tener al menos 8 caracteres.' })
+          return
+        }
+        if (!accepted) {
+          setFieldError({ field: 'terms', message: 'Acepta los términos de servicio para continuar.' })
+          return
+        }
         await requestAuth('register', { email: normalizedEmail, password, termsAccepted: accepted })
         navigate('/login', {
           replace: true,
@@ -76,6 +90,18 @@ export default function Login({ mode }) {
     })
   }
 
+  function fieldFeedback(field) {
+    return fieldError?.field === field
+      ? <span id={`access-error-${field}`} className="feature-error" role="alert">{fieldError.message}</span>
+      : null
+  }
+
+  function fieldAttributes(field) {
+    return fieldError?.field === field
+      ? { 'aria-invalid': true, 'aria-describedby': `access-error-${field}` }
+      : {}
+  }
+
   return (
     <main className="access-page">
       <section className="access-panel" aria-labelledby="access-title">
@@ -85,10 +111,13 @@ export default function Login({ mode }) {
             <h1 id="access-title">{title}</h1>
             <p>{description}</p>
           </div>
-          {!reset && <label className="field">
-            Correo electrónico
-            <input autoComplete="email" type="email" placeholder="nombre@correo.com" required value={email} onChange={(event) => setEmail(event.target.value)} />
-          </label>}
+          {!reset && <div>
+            <label className="field">
+              Correo electrónico
+              <input autoComplete="email" type="email" placeholder="nombre@correo.com" required value={email} {...fieldAttributes('email')} onChange={(event) => { setEmail(event.target.value); setFieldError(null) }} />
+            </label>
+            {fieldFeedback('email')}
+          </div>}
           {reset && !linkToken && <label className="field">
             Código de recuperación
             <input autoComplete="one-time-code" required value={token} onChange={(event) => setToken(event.target.value)} />
@@ -96,19 +125,23 @@ export default function Login({ mode }) {
           {!forgot && <div className="access-password">
             <label className="field">
               {reset ? 'Nueva contraseña' : 'Contraseña'}
-              <input autoComplete={login ? 'current-password' : 'new-password'} required minLength={login ? undefined : 8} type={visible ? 'text' : 'password'} placeholder={login ? 'Tu contraseña' : 'Mínimo 8 caracteres'} value={password} onChange={(event) => setPassword(event.target.value)} />
+              <input autoComplete={login ? 'current-password' : 'new-password'} required minLength={reset ? 8 : undefined} type={visible ? 'text' : 'password'} placeholder={login ? 'Tu contraseña' : 'Mínimo 8 caracteres'} value={password} {...fieldAttributes('password')} onChange={(event) => { setPassword(event.target.value); setFieldError(null) }} />
             </label>
             <button className="password-toggle" type="button" onClick={() => setVisible((value) => !value)}>{visible ? 'Ocultar' : 'Mostrar'}</button>
           </div>}
+          {fieldFeedback('password')}
           {reset && <label className="field">
             Confirma la contraseña
             <input autoComplete="new-password" required minLength={8} type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />
           </label>}
           {login && <Link className="access-link forgot-link" to="/recuperar" state={location.state}>¿Olvidaste tu contraseña?</Link>}
-          {register && <label className="access-check">
-            <input type="checkbox" required checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />
-            Acepto los términos de servicio y el aviso de privacidad.
-          </label>}
+          {register && <div>
+            <label className="access-check">
+              <input type="checkbox" checked={accepted} {...fieldAttributes('terms')} onChange={(event) => { setAccepted(event.target.checked); setFieldError(null) }} />
+              Acepto los términos de servicio y el aviso de privacidad.
+            </label>
+            {fieldFeedback('terms')}
+          </div>}
           {error && <p className="feature-feedback feature-error" role="alert">{error}</p>}
           {message && <p className="feature-feedback feature-success" role="status">{message}</p>}
           <button className="button button-mint button-wide" disabled={submitting}>
