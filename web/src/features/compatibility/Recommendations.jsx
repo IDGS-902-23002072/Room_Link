@@ -1,11 +1,9 @@
+import PropTypes from 'prop-types'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import Button from '../../components/Button/Button.jsx'
-import Card from '../../components/Card/Card.jsx'
-import EmptyState from '../../components/EmptyState/EmptyState.jsx'
-import Field from '../../components/Field/Field.jsx'
-import Notice from '../../components/Notice/Notice.jsx'
-import PageHeader from '../../components/PageHeader/PageHeader.jsx'
+import { AppLink } from '../../components/AppLink.jsx'
+import { goBack, push } from '../../routes/navigation.js'
+import { useAuth } from '../../hooks/useAuth.js'
 import { asyncEffect } from '../../hooks/asyncEffect.js'
 import { useRoomLinkQuery } from '../../hooks/useRoomLinkQuery.js'
 import {
@@ -321,80 +319,62 @@ export default function Recommendations() {
   if (candidateId) return <CandidateDetail key={candidateId} candidateId={decodeURIComponent(candidateId)} />
 
   return (
-    <section className={styles.page}>
-      <PageHeader
-        actions={<Button href="/cuestionario" variant="secondary">Revisar mi test</Button>}
-        description="Roomies recomendados para compartir tu próximo espacio."
-        eyebrow="EXPLORAR · COMPATIBILIDAD"
-        title="Encuentra tu gente"
-      />
+    <section className="recommendations-page">
+      <header className="recommendations-heading">
+        <div>
+          <p className="eyebrow">MÓDULO 04 · EXPLORAR</p>
+          <h1>Encuentra tu gente</h1>
+          <p className="muted">Roomies recomendados para compartir tu próximo espacio.</p>
+        </div>
+        <div className="feature-actions">
+          <AppLink className="button button-mint" href="/habitaciones">Explorar habitaciones</AppLink>
+          <AppLink className="button button-secondary" href="/cuestionario">Revisar mi test</AppLink>
+        </div>
+      </header>
 
-      {feed && !feed.hasTest ? (
-        <Card as="div" className={styles.cta}>
+      {feed && !feed.hasTest && (
+        <div className="recommendation-cta">
           <div>
-            <h2>Haz tu test de convivencia</h2>
+            <strong>Haz tu test de convivencia</strong>
             <p>Completa tus respuestas para recibir recomendaciones por afinidad.</p>
           </div>
-          <Button href="/cuestionario">Hacer mi test</Button>
-        </Card>
-      ) : null}
+          <AppLink className="button button-primary" href="/cuestionario">Hacer mi test</AppLink>
+        </div>
+      )}
 
-      <div className={styles.toolbar}>
-        <div className={styles.search}>
-          <label className="sr-only" htmlFor="feed-search">
-            Buscar roomies
-          </label>
-          <svg aria-hidden="true" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="6" />
-            <path d="m16 16 4 4" />
-          </svg>
+      <div className="feed-toolbar">
+        <label className="feed-search">
+          <span aria-hidden="true">⌕</span>
           <input
-            autoComplete="off"
-            id="feed-search"
-            name="search"
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por nombre, zona o intereses…"
-            spellCheck={false}
+            placeholder="Buscar por nombre, zona o intereses"
             type="search"
             value={search}
           />
-        </div>
-
-        <Field htmlFor="feed-filter" label="Filtros" variant="inline">
-          <select
-            autoComplete="off"
-            name="filter"
-            onChange={(event) => setFilter(event.target.value)}
-            value={filter}
-          >
+        </label>
+        <label className="feed-filter-label">
+          <span>Filtros</span>
+          <select onChange={(event) => setFilter(event.target.value)} value={filter}>
             <option>Todas</option>
             <option>Con foto</option>
             <option>Con presupuesto</option>
           </select>
-        </Field>
-
-        <Field htmlFor="feed-sort" label="Ordenar por" variant="inline">
-          <select
-            autoComplete="off"
-            name="sort"
-            onChange={(event) => setSort(event.target.value)}
-            value={sort}
-          >
+        </label>
+        <label className="feed-sort-label">
+          <span>Ordenar por</span>
+          <select onChange={(event) => setSort(event.target.value)} value={sort}>
             <option value="compatibility">Compatibilidad</option>
             <option value="name">Nombre</option>
             <option value="budget">Presupuesto</option>
           </select>
-        </Field>
+        </label>
       </div>
 
-      {error ? <Notice tone="error">{error}</Notice> : null}
-
+      {error && <div className="notice notice-error" role="alert">{error}</div>}
       {loading ? (
-        <div className={styles.loading} role="status">
-          Buscando perfiles compatibles…
-        </div>
+        <div className="loading-screen feed-loading">Buscando perfiles compatibles…</div>
       ) : filteredProfiles.length ? (
-        <div aria-busy={loading} className={styles.grid}>
+        <div aria-busy={loading} className="candidate-grid">
           {filteredProfiles.map((profile) => (
             <CandidateCard
               key={profile.userId}
@@ -405,52 +385,50 @@ export default function Recommendations() {
           ))}
         </div>
       ) : (
-        <EmptyState
-          action={
-            search || filter !== 'Todas' ? (
-              <Button
-                onClick={() => {
-                  setSearch('')
-                  setFilter('Todas')
-                }}
-                variant="secondary"
-              >
-                Limpiar filtros
-              </Button>
-            ) : null
-          }
-          description={
-            feed?.profiles?.length
-              ? 'Prueba con otro nombre o ajusta los filtros para ver más resultados.'
-              : 'Vuelve más tarde para descubrir nuevos roomies.'
-          }
-          title={
-            feed?.profiles?.length
-              ? 'No encontramos coincidencias'
-              : 'Aún no hay perfiles para mostrar'
-          }
-        />
+        <div className="empty-feed">
+          <div className="empty-icon" aria-hidden="true">⌕</div>
+          <h2>{feed?.profiles?.length ? 'No encontramos coincidencias' : 'Aún no hay perfiles para mostrar'}</h2>
+          <p className="muted">
+            {feed?.profiles?.length
+              ? 'Prueba con otro nombre o filtro.'
+              : 'Vuelve más tarde para descubrir nuevos roomies.'}
+          </p>
+          {search || filter !== 'Todas' ? (
+            <button
+              className="button button-secondary"
+              onClick={() => {
+                setSearch('')
+                setFilter('Todas')
+              }}
+              type="button"
+            >
+              Limpiar filtros
+            </button>
+          ) : null}
+        </div>
       )}
 
-      {!loading ? (
-        <nav aria-label="Paginación de perfiles" className={styles.pagination}>
-          <Button
-            disabled={page <= 1}
+      {!loading && (
+        <nav aria-label="Paginación de perfiles" className="feed-pagination">
+          <button
+            className="button button-secondary"
+            disabled={page <= 1 || loading}
             onClick={() => changePage(page - 1)}
-            variant="secondary"
+            type="button"
           >
             Anterior
-          </Button>
+          </button>
           <span>Página {page}</span>
-          <Button
-            disabled={!feed?.hasMore}
+          <button
+            className="button button-secondary"
+            disabled={!feed?.hasMore || loading}
             onClick={() => changePage(page + 1)}
-            variant="secondary"
+            type="button"
           >
-            Siguiente
-          </Button>
+            {loading ? 'Cargando…' : 'Siguiente'}
+          </button>
         </nav>
-      ) : null}
+      )}
     </section>
   )
 }
