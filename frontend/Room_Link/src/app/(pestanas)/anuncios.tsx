@@ -4,9 +4,10 @@ import PantallaConvertirseArrendador from '@/modulos/anuncios/PantallaConvertirs
 
 export default function RutaAnuncios() {
   const { sesion } = useSesion();
-  const esArrendador = sesion?.usuario.roles?.includes('host') ?? false;
+  const roles = sesion?.usuario.roles ?? [];
+  const puedeGestionar = roles.includes('host') || roles.includes('admin');
 
-  // Registro exhaustivo de arrendador (RNF-03.4): solo los host ven Mis
+  // Registro exhaustivo de arrendador (RNF-03.4): los roles autorizados ven Mis
   // publicaciones; el resto ve el onboarding para convertirse en arrendador.
-  return esArrendador ? <PantallaAnuncios /> : <PantallaConvertirseArrendador />;
+  return puedeGestionar ? <PantallaAnuncios /> : <PantallaConvertirseArrendador />;
 }
