@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -149,16 +151,16 @@ export default function PantallaReglasCostos({ id, onVolver, onPublicado }: {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F8F5F9', paddingBottom: Platform.OS === 'web' ? 76 : 0 },
+  screen: { flex: 1, backgroundColor: color.blanco, paddingBottom: Platform.OS === 'web' ? 76 : 0 },
   scroll: { flex: 1 },
   content: { padding: 22, gap: 16 },
-  title: { fontSize: 25, fontWeight: '700', color: '#2B2430' },
-  heading: { fontSize: 17, fontWeight: '700', color: '#2B2430' },
-  panel: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, gap: 12 },
+  title: { fontSize: 25, fontWeight: '700', color: color.tinta },
+  heading: { fontSize: 17, fontWeight: '700', color: color.tinta },
+  panel: { backgroundColor: color.blanco, borderRadius: 16, padding: 16, gap: 12 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   field: { gap: 6 },
   input: { borderWidth: 1, borderColor: '#D8CFE0', borderRadius: 8, padding: 10 },
-  action: { backgroundColor: '#CFEFE8', padding: 13, borderRadius: 12, alignItems: 'center' },
+  action: { backgroundColor: color.menta, padding: 13, borderRadius: 12, alignItems: 'center' },
   actionText: { color: '#214E42', fontWeight: '700' },
   link: { color: '#644E70', paddingVertical: 5 },
   error: { color: '#9B3B53', backgroundColor: '#FCEAF0', padding: 10, borderRadius: 8 },
