@@ -1,7 +1,7 @@
 // M09 — Postulaciones de una habitación (vista del arrendador/host).
 // Consume el backend de `applications` (ya existente):
 //   GET   /api/v1/applications/listing/:listingId  → lista de postulaciones (gateada al host dueño)
-//   PATCH /api/v1/applications/:id/decide          → { decision: 'accept' | 'reject' }
+//   PATCH /api/v1/applications/:id/decide          → { decision: 'accept' | 'reject' | 'waitlist' }
 // y el perfil público del candidato para la pantalla de detalle (M09.2).
 
 import { solicitud } from '../compatibilidad/api';
@@ -27,7 +27,7 @@ export interface PerfilCandidato {
   isVerified: boolean;
 }
 
-export type Decision = 'accept' | 'reject';
+export type Decision = 'accept' | 'reject' | 'waitlist';
 
 export function listarPostulaciones(listingId: string) {
   return solicitud<Postulacion[]>(

@@ -1,6 +1,12 @@
 import type { NotificationsService } from "./notifications.service.js";
 import type { DomainEvent, InProcessEventBus } from "./event-bus.js";
 
+const applicationTitles = new Map<unknown, string>([
+  ["accepted", "Tu postulación fue aceptada."],
+  ["rejected", "Tu postulación fue rechazada."],
+  ["waitlisted", "Tu postulación quedó en lista de espera."],
+]);
+
 export interface ListingHostResolver {
   (listingId: string): Promise<string | null>;
 }
@@ -14,6 +20,7 @@ export class NotificationsEventConsumer {
   constructor(
     private readonly service: NotificationsService,
     private readonly resolveListingHostId: ListingHostResolver,
+    private readonly sendEmail?: (userId: string, title: string) => Promise<void>,
   ) {}
 
   register(bus: InProcessEventBus): () => void {
@@ -24,6 +31,14 @@ export class NotificationsEventConsumer {
     switch (event.type) {
       case "UserRegisteredEvent":
         return this.onUserRegistered(event);
+      case "ConnectionRequestedEvent":
+        return this.notify(event.payload.addresseeId, "connection_request", "Recibiste una solicitud de conexión.", { connectionId: event.aggregateId });
+      case "ApplicationStatusChanged": {
+        const title = applicationTitles.get(event.payload.status);
+        if (title) return this.notify(event.payload.applicantId, "application_status_changed", title,
+          { listingId: event.payload.listingId, applicationId: event.aggregateId, status: event.payload.status });
+        return;
+      }
       case "ConnectionAcceptedEvent":
         return this.onConnectionAccepted(event);
       case "ListingModeratedEvent":
@@ -34,6 +49,19 @@ export class NotificationsEventConsumer {
         return this.onSanctionIssued(event);
       default:
         return;
+    }
+  }
+
+  private async notify(
+    userId: unknown,
+    type: "connection_request" | "application_status_changed",
+    title: string,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    if (typeof userId !== "string") return;
+    await this.service.createIfAllowed({ userId, type, title, payload });
+    if (this.sendEmail && await this.service.isEmailEnabled(userId, type)) {
+      await this.sendEmail(userId, title);
     }
   }
 

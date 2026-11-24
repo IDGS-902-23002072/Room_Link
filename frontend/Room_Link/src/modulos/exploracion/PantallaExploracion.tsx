@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'expo-router';
 import {
   Pressable,
@@ -15,6 +15,7 @@ import { estilos as estilosModulo } from '../comunes/InterfazModulo';
 
 import {
   obtenerHabitacion,
+  obtenerMisPostulaciones,
   buscarHabitaciones,
   postularseAHabitacion,
 } from './api';
@@ -42,6 +43,9 @@ export function PantallaExploracion() {
   const [busqueda, setBusqueda] = useState('');
   const [filtroActivo, setFiltroActivo] = useState<FiltroHabitacion>('Todas');
   const [postuladas, setPostuladas] = useState<Set<string>>(new Set());
+  const [estadoPostulaciones, setEstadoPostulaciones] = useState<'cargando' | 'listo' | 'error'>('cargando');
+  const [intentoPostulaciones, setIntentoPostulaciones] = useState(0);
+  const envioEnCurso = useRef(false);
   const [enviandoId, setEnviandoId] = useState<string | null>(null);
   const [guardadas, setGuardadas] = useState<Set<string>>(new Set());
   // Afinidad buscador ↔ anfitrión, por hostId (null = sin test o sin perfil).
@@ -149,20 +153,38 @@ export function PantallaExploracion() {
     });
   };
 
+  useEffect(() => {
+    let activo = true;
+    obtenerMisPostulaciones().then((solicitudes) => {
+      if (!activo) return;
+      setPostuladas((actuales) => new Set([...actuales, ...solicitudes.map(({ listingId }) => listingId)]));
+      setEstadoPostulaciones('listo');
+    }).catch(() => {
+      if (activo) setEstadoPostulaciones('error');
+    });
+    return () => { activo = false; };
+  }, [intentoPostulaciones]);
+
+  const bloqueoPostulacion = estadoPostulaciones === 'cargando' ? 'Consultando postulación…'
+    : estadoPostulaciones === 'error' ? 'Postulación no disponible'
+    : undefined;
+
   const postularse = async (habitacion: HabitacionFeed, mensaje: string | null) => {
-    if (enviandoId !== null || postuladas.has(habitacion.id)) return;
+    if (envioEnCurso.current || bloqueoPostulacion || postuladas.has(habitacion.id)) return;
+    envioEnCurso.current = true;
     setEnviandoId(habitacion.id);
     setError(null);
     try {
-      await postularseAHabitacion(
-        habitacion.id,
-        mensaje,
-        compatibilidades[habitacion.hostId] ?? null,
-      );
+      await postularseAHabitacion(habitacion.id, mensaje);
       setPostuladas((actuales) => new Set(actuales).add(habitacion.id));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo enviar la postulación.');
+      if (cause instanceof Error && 'code' in cause && cause.code === 'APPLICATION_ALREADY_SENT') {
+        setPostuladas((actuales) => new Set(actuales).add(habitacion.id));
+      } else {
+        setError(cause instanceof Error ? cause.message : 'No se pudo enviar la postulación.');
+      }
     } finally {
+      envioEnCurso.current = false;
       setEnviandoId(null);
     }
   };
@@ -238,6 +260,7 @@ export function PantallaExploracion() {
                     key={habitacion.id}
                     habitacion={conCompatibilidad(habitacion)}
                     postulada={postuladas.has(habitacion.id)}
+                    bloqueoPostulacion={bloqueoPostulacion}
                     enviando={enviandoId === habitacion.id}
                     guardada={guardadas.has(habitacion.id)}
                     alAbrir={() => abrirHabitacion(habitacion)}
@@ -292,6 +315,7 @@ export function PantallaExploracion() {
               <FichaHabitacion
                 habitacion={conCompatibilidad(habitacionActiva)}
                 postulada={postuladas.has(habitacionActiva.id)}
+                bloqueoPostulacion={bloqueoPostulacion}
                 enviando={enviandoId === habitacionActiva.id}
                 alPostularse={(mensaje) => postularse(habitacionActiva, mensaje)}
                 alCerrar={() => setVista('resultados')}
@@ -300,6 +324,14 @@ export function PantallaExploracion() {
           </>
         ) : (
           <Text style={styles.estado}>Cargando habitación…</Text>
+        )}
+        {estadoPostulaciones === 'error' && (
+          <Pressable accessibilityRole="button" style={styles.error} onPress={() => {
+            setEstadoPostulaciones('cargando');
+            setIntentoPostulaciones((intento) => intento + 1);
+          }}>
+            <Text style={estilosModulo.enlace}>No pudimos consultar tus postulaciones. Reintentar.</Text>
+          </Pressable>
         )}
         {error && (
           <View accessibilityRole="alert" style={styles.error}>

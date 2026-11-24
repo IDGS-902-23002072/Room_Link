@@ -266,6 +266,17 @@ describe("Regression smoke — flujo end-to-end con fakes in-memory", () => {
     });
     expect(decide.status).toBe(200);
     expect((await decide.json()).status).toBe("accepted");
+
+    const mine = await app.request("/api/v1/applications/me", { headers: auth(tokens.seeker) });
+    expect(mine.status).toBe(200);
+    expect(await mine.json()).toEqual([
+      expect.objectContaining({ id: applicationId, listingId, status: "accepted" }),
+    ]);
+
+    const other = await app.request("/api/v1/applications/me?applicantId=seeker-1", { headers: auth(tokens.third) });
+    expect(other.status).toBe(200);
+    expect(await other.json()).toEqual([]);
+    expect((await app.request("/api/v1/applications/me")).status).toBe(401);
   });
 
   it("host crea agreement y seeker lo firma", async () => {

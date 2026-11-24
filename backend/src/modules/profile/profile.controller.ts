@@ -19,10 +19,7 @@ export interface ProfileControllerDependencies {
    * Inyectado desde `app.ts` para no acoplar el perfil al módulo de conexiones.
    */
   areConnected: (viewerId: string, ownerId: string) => Promise<boolean>;
-<<<<<<< HEAD
-  getEmail: (userId: string) => Promise<string | null>;
-=======
->>>>>>> 6e2243ba004a596a2090f8f2a94a1b20ddc0391c
+  getEmail?: (userId: string) => Promise<string | null>;
 }
 
 export class ProfileController {
@@ -55,16 +52,12 @@ export class ProfileController {
             : false;
         visibility = { isOwner: false, isConnected, privacy };
       }
-<<<<<<< HEAD
       c.header("Cache-Control", "private, no-store");
       const dto = ProfileView.toPublicProfile(profile, visibility);
-      if (visibility.isConnected && visibility.privacy?.showEmailToConnections && this.deps) {
+      if (visibility.isConnected && visibility.privacy?.showEmailToConnections && this.deps?.getEmail) {
         return c.json({ ...dto, email: await this.deps.getEmail(userId) }, 200);
       }
       return c.json(dto, 200);
-=======
-      return c.json(ProfileView.toPublicProfile(profile, visibility), 200);
->>>>>>> 6e2243ba004a596a2090f8f2a94a1b20ddc0391c
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Perfil no encontrado";
       return c.json({ error: msg }, 404);

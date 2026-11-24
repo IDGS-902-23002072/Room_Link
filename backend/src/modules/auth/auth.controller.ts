@@ -18,7 +18,6 @@ export class AuthController {
         email: body.email ?? "",
         password: body.password ?? "",
         termsAccepted: body.termsAccepted === true,
-        role: body.role,
       });
       return context.json(
         AuthView.toAuthResponse(user, undefined, undefined, "Usuario registrado exitosamente"),

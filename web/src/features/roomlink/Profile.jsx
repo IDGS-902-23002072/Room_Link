@@ -1,14 +1,14 @@
 import { useCallback, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth.js'
-import { API_URL, apiRequest } from '../../services/api.js'
+import { apiAssetUrl, apiRequest } from '../../services/api.js'
 import { readLocal, writeLocal } from './storage.js'
 import { Avatar, Feedback, Heading, Panel, ResourceStatus, Toggle } from './Workspace.jsx'
 import { useResource } from './useResource.js'
 
 const profilePath = (id) => `/api/v1/profiles/${encodeURIComponent(id)}`
 const json = (method, values) => ({ method, body: JSON.stringify(values) })
-const photoUrl = (photo) => photo ? new URL(photo.url, API_URL).href : undefined
+const photoUrl = (photo) => photo ? apiAssetUrl(photo.url) : undefined
 
 async function loadProfile(path, token, signal) {
   const options = { token, signal }
@@ -112,8 +112,8 @@ function ProfileForm({ profile, photos, path, token, user }) {
             {values.city && <p className="muted">{values.city}</p>}
             <span className="room-pill">Perfil completo al {Math.round(progress / 6 * 100)} %</span>
             <div className="room-actions">
-              <button aria-expanded={preview} className="button button-secondary" onClick={() => setPreview(!preview)} type="button">{preview ? 'Ocultar vista previa' : 'Ver perfil público'}</button>
-              <Link className="button button-secondary" to="/perfil/fotos">Gestionar fotos</Link>
+              <button aria-expanded={preview} className="button button-subtle" onClick={() => setPreview(!preview)} type="button">{preview ? 'Ocultar vista previa' : 'Ver perfil público'}</button>
+              <Link className="button button-subtle" to="/perfil/fotos">Gestionar fotos</Link>
             </div>
             {preview && <div className="room-rule"><h3>Vista previa</h3><p>{values.bio || 'Aún no has escrito una biografía.'}</p>{values.instagram && <p>Instagram {values.instagram}</p>}</div>}
           </Panel>
@@ -124,8 +124,8 @@ function ProfileForm({ profile, photos, path, token, user }) {
       <div className="room-save">
         <p className="muted" role="status">{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</p>
         <div className="room-actions">
-          <button className="button button-secondary" disabled={busy || !dirty} onClick={() => { setValues(saved); setError('') }} type="button">Cancelar</button>
-          <button className="button button-primary" disabled={busy || !dirty} type="submit">{busy ? 'Guardando…' : 'Guardar cambios'}</button>
+          <button className="button button-rose" disabled={busy || !dirty} onClick={() => { setValues(saved); setError('') }} type="button">Cancelar</button>
+          <button className="button button-mint" disabled={busy || !dirty} type="submit">{busy ? 'Guardando…' : 'Guardar cambios'}</button>
         </div>
       </div>
     </form>
@@ -175,7 +175,7 @@ export function PhotosPage() {
     <>
       <Heading title="Fotos y verificación">Administra tu galería y consulta el estado de verificación de tu identidad.</Heading>
       <ResourceStatus label="Cargando tus fotos…" resource={resource} />
-      {resource.data && !resource.data.profile && <Panel><p>Crea tu perfil para subir fotos o solicitar la verificación.</p><Link className="button button-primary" to="/perfil">Completar datos personales</Link></Panel>}
+      {resource.data && !resource.data.profile && <Panel><p>Crea tu perfil para subir fotos o solicitar la verificación.</p><Link className="button button-mint" to="/perfil">Completar datos personales</Link></Panel>}
       {resource.data?.profile && (
         <div className="room-grid">
           <Panel title="Galería del perfil">
@@ -186,9 +186,9 @@ export function PhotosPage() {
                 <div key={photo.id}>
                   <img alt={`Foto de perfil ${index + 1}`} className="room-photo" src={photoUrl(photo)} />
                   {photo.isMain ? <span className="room-pill">Foto principal</span> : (
-                    <button className="button button-secondary" disabled={busy} onClick={() => act(() => apiRequest(`${path}/photos/order`, { token, ...json('PUT', { photoIds: [photo.id, ...photos.filter((item) => item.id !== photo.id).map((item) => item.id)] }) }))} type="button">Hacer principal</button>
+                    <button className="button button-subtle" disabled={busy} onClick={() => act(() => apiRequest(`${path}/photos/order`, { token, ...json('PUT', { photoIds: [photo.id, ...photos.filter((item) => item.id !== photo.id).map((item) => item.id)] }) }))} type="button">Hacer principal</button>
                   )}
-                  <button aria-label={`Eliminar foto ${index + 1}`} className="button button-quiet" disabled={busy} onClick={() => {
+                  <button aria-label={`Eliminar foto ${index + 1}`} className="button button-rose" disabled={busy} onClick={() => {
                     if (window.confirm('¿Eliminar esta foto del perfil?')) act(() => apiRequest(`${path}/photos/${encodeURIComponent(photo.id)}`, { token, method: 'DELETE' }))
                   }} type="button">Eliminar</button>
                 </div>
@@ -204,15 +204,15 @@ export function PhotosPage() {
           </Panel>
           <div className="room-stack">
             <Panel title="Verifica tu identidad">
-              <span className="room-pill">{statuses[status] ?? status}</span>
+              <span className={status === 'rejected' ? 'room-pill feature-error' : 'room-pill'}>{statuses[status] ?? status}</span>
               <ol>
                 <li>Prepara una identificación oficial vigente.</li>
                 <li>Presenta tu identificación en persona al equipo de RoomLink.</li>
                 <li>Consulta aquí el estado de revisión.</li>
               </ol>
               <p className="muted">Acuerda la revisión con tu equipo de RoomLink. Conserva tu identificación durante la revisión.</p>
-              <button className="button button-primary" disabled={busy || status === 'pending' || status === 'verified'} onClick={() => act(() => apiRequest(`${path}/verification/request`, { token, method: 'POST' }))} type="button">Iniciar verificación</button>
-              {status === 'pending' && <button className="button button-secondary" onClick={resource.refresh} type="button">Actualizar estado</button>}
+              <button className="button button-mint" disabled={busy || status === 'pending' || status === 'verified'} onClick={() => act(() => apiRequest(`${path}/verification/request`, { token, method: 'POST' }))} type="button">Iniciar verificación</button>
+              {status === 'pending' && <button className="button button-subtle" onClick={resource.refresh} type="button">Actualizar estado</button>}
             </Panel>
             <Panel title="Recomendación"><p>Sube fotos claras de ti. Evita documentos de identidad y datos personales en la galería pública.</p></Panel>
           </div>
@@ -259,25 +259,96 @@ export function IdentityReviewsPage() {
     {resource.data?.items.map((candidate) => <Panel key={candidate.userId} title={candidate.fullName}>
       <p className="muted">ID de cuenta {candidate.userId}</p>
       <div className="room-actions">
-        <button className="button button-primary" disabled={busy} onClick={() => decide(candidate, 'verified')} type="button">Aprobar</button>
-        <button className="button button-secondary" disabled={busy} onClick={() => decide(candidate, 'rejected')} type="button">Rechazar</button>
+        <button className="button button-mint" disabled={busy} onClick={() => decide(candidate, 'verified')} type="button">Aprobar</button>
+        <button className="button button-subtle" disabled={busy} onClick={() => decide(candidate, 'rejected')} type="button">Rechazar</button>
       </div>
     </Panel>)}
     {(page > 1 || resource.data?.hasMore) && <nav aria-label="Paginación de solicitudes" className="room-row">
-      <button className="button button-secondary" disabled={busy || page === 1} onClick={() => setPage(page - 1)} type="button">Anterior</button>
-      <button className="button button-secondary" disabled={busy || !resource.data?.hasMore} onClick={() => setPage(page + 1)} type="button">Siguiente</button>
+      <button className="button button-subtle" disabled={busy || page === 1} onClick={() => setPage(page - 1)} type="button">Anterior</button>
+      <button className="button button-subtle" disabled={busy || !resource.data?.hasMore} onClick={() => setPage(page + 1)} type="button">Siguiente</button>
     </nav>}
   </div>
 }
 
 const accountDefaults = { locale: 'es-MX', timeZone: 'America/Mexico_City', visible: true, paused: false, matches: true }
 const notificationOptions = [
+  ['application_status_changed', 'Cambios en postulaciones', 'Cuando el anfitrión responda a tu postulación.'],
+  ['connection_request', 'Solicitudes de conexión', 'Cuando alguien te envíe una solicitud.'],
   ['new_message', 'Nuevos mensajes', 'Cuando un roomie te envíe un mensaje.'],
   ['matches', 'Perfiles compatibles', 'Preferencia guardada en este navegador.'],
   ['agreement_pending', 'Acuerdos de convivencia', 'Solicitudes de aceptación de acuerdos.'],
   ['system', 'Novedades de RoomLink', 'Avisos generales de la plataforma.'],
 ]
 const preferencePath = '/api/v1/notifications/preferences'
+
+function HostEnrollment() {
+  const { session: { token, user }, becomeHost } = useAuth()
+  const isHost = user.roles?.includes('host')
+  const path = profilePath(user.id)
+  const load = useCallback(async (signal) => {
+    if (isHost) return null
+    try {
+      return await apiRequest(path, { token, signal })
+    } catch (error) {
+      if (error.status === 404) return null
+      throw error
+    }
+  }, [isHost, path, token])
+  const profile = useResource(load)
+  const [accepted, setAccepted] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const hasProfile = Boolean(profile.data?.fullName?.trim())
+  const canEnroll = ['pending', 'verified'].includes(profile.data?.identityStatus)
+
+  async function enroll(event) {
+    event.preventDefault()
+    if (!hasProfile || !canEnroll || !accepted || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      await becomeHost(accepted)
+    } catch (cause) {
+      setError(cause.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Panel title="Arrendador">
+      {isHost ? <p className="room-note" role="status">Tu cuenta ya tiene el rol de arrendador.</p> : (
+        <>
+          <ResourceStatus label="Comprobando tu perfil…" resource={profile} />
+          {!profile.loading && !profile.error && !hasProfile && (
+            <>
+              <p>Completa tu perfil para activar el rol de arrendador.</p>
+              <Link className="button button-subtle" to="/perfil">Completar perfil</Link>
+            </>
+          )}
+          {hasProfile && !canEnroll && (
+            <>
+              <p>Solicita la verificación de tu identidad para continuar.</p>
+              <Link className="button button-subtle" to="/perfil/fotos">Ir a fotos y verificación</Link>
+            </>
+          )}
+          {hasProfile && canEnroll && (
+            <form className="room-stack" onSubmit={enroll}>
+              <label className="room-check">
+                <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} required />
+                Acepto los términos de responsabilidad del arrendador.
+              </label>
+              <button className="button button-mint" disabled={!accepted || saving}>
+                {saving ? 'Activando…' : 'Convertirme en arrendador'}
+              </button>
+              <Feedback error={error} />
+            </form>
+          )}
+        </>
+      )}
+    </Panel>
+  )
+}
 
 export function AccountPage() {
   const { session: { token, user } } = useAuth()
@@ -286,9 +357,12 @@ export function AccountPage() {
   return (
     <>
       <Heading title="Cuenta y notificaciones">Configura tus preferencias y decide qué avisos recibir en la web.</Heading>
-      <ResourceStatus label="Cargando tus preferencias…" resource={resource} />
-      {resource.data && <AccountForm preferences={resource.data.preferences} token={token} user={user} />}
-      <ContactPrivacy key={user.id} path={`${profilePath(user.id)}/privacy`} token={token} />
+      <div className="room-stack">
+        <HostEnrollment />
+        <ResourceStatus label="Cargando tus preferencias…" resource={resource} />
+        {resource.data && <AccountForm preferences={resource.data.preferences} token={token} user={user} />}
+        <ContactPrivacy key={user.id} path={`${profilePath(user.id)}/privacy`} token={token} />
+      </div>
     </>
   )
 }
@@ -340,7 +414,7 @@ function ContactPrivacyForm({ initial, path, token }) {
       {privacyFields.map(([key, label]) => <Toggle checked={values[key]} key={key} label={label} onChange={(checked) => setValues({ ...values, [key]: checked })} />)}
     </fieldset>
     <Feedback error={error}>{message}</Feedback>
-    <button className="button button-primary" disabled={busy || !dirty} type="submit">Guardar privacidad</button>
+    <button className="button button-mint" disabled={busy || !dirty} type="submit">Guardar privacidad</button>
   </form>
 }
 
@@ -353,8 +427,10 @@ function AccountForm({ preferences, token, user }) {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [emailPrefs, setEmailPrefs] = useState(() => Object.fromEntries(preferences.map(({ type, emailOptIn }) => [type, emailOptIn === true])))
+  const [savedEmailPrefs, setSavedEmailPrefs] = useState(emailPrefs)
   const [permission, setPermission] = useState(() => window.Notification?.permission ?? 'unsupported')
-  const dirty = Object.keys(saved).some((key) => saved[key] !== values[key])
+  const dirty = Object.keys(saved).some((key) => saved[key] !== values[key]) || Object.keys(emailPrefs).some((key) => emailPrefs[key] !== savedEmailPrefs[key])
   const set = (key, value) => setValues({ ...values, [key]: value })
 
   async function save(event) {
@@ -363,13 +439,14 @@ function AccountForm({ preferences, token, user }) {
     setError('')
     setMessage('')
     try {
-      const changes = preferences.filter(({ type }) => values[type] !== saved[type])
+      const changes = preferences.filter(({ type }) => values[type] !== saved[type] || emailPrefs[type] !== savedEmailPrefs[type])
       if (changes.length) {
-        await apiRequest(preferencePath, { token, ...json('PUT', { preferences: changes.map((pref) => ({ ...pref, inApp: values[pref.type] })) }) })
+        await apiRequest(preferencePath, { token, ...json('PUT', { preferences: changes.map((pref) => ({ type: pref.type, inApp: values[pref.type], email: Boolean(emailPrefs[pref.type]) })) }) })
       }
       const local = Object.fromEntries(Object.keys(accountDefaults).map((key) => [key, values[key]]))
       if (Object.keys(local).some((key) => local[key] !== saved[key])) writeLocal(user.id, 'account-preferences', local)
       setSaved(values)
+      setSavedEmailPrefs(emailPrefs)
       setMessage('Preferencias guardadas.')
     } catch (cause) {
       setError(cause.message)
@@ -425,23 +502,29 @@ function AccountForm({ preferences, token, user }) {
           <Panel title="Notificaciones web">
             {notificationOptions.map(([key, label, description]) => <Toggle checked={Boolean(values[key])} description={description} key={key} label={label} onChange={(checked) => set(key, checked)} />)}
           </Panel>
+          <Panel title="Avisos por correo">
+            <p>Los avisos se envían al correo verificado de tu cuenta.</p>
+            {notificationOptions.filter(([type]) => ['application_status_changed', 'connection_request'].includes(type)).map(([type, label]) =>
+              <Toggle key={type} label={label} checked={Boolean(emailPrefs[type])} onChange={(checked) => setEmailPrefs((current) => ({ ...current, [type]: checked }))} />
+            )}
+          </Panel>
         </div>
         <div className="room-stack">
           <Panel title="Permiso del navegador">
-            <span className="room-pill">{{ granted: 'Notificaciones permitidas', denied: 'Permiso bloqueado', default: 'Permiso pendiente', unsupported: 'No disponible' }[permission]}</span>
-            <button className="button button-secondary" disabled={permission === 'denied' || permission === 'unsupported'} onClick={testNotice} type="button">{permission === 'granted' ? 'Enviar aviso de prueba' : 'Permitir avisos y probar'}</button>
+            <span className={permission === 'denied' ? 'room-pill feature-error' : 'room-pill'}>{{ granted: 'Notificaciones permitidas', denied: 'Permiso bloqueado', default: 'Permiso pendiente', unsupported: 'No disponible' }[permission]}</span>
+            <button className="button button-subtle" disabled={permission === 'denied' || permission === 'unsupported'} onClick={testNotice} type="button">{permission === 'granted' ? 'Enviar aviso de prueba' : 'Permitir avisos y probar'}</button>
             <p className="muted">Puedes cambiar el permiso desde la configuración del navegador.</p>
           </Panel>
           <Panel title="Seguridad de la cuenta">
             <p>Solicita instrucciones para cambiar tu contraseña.</p>
-            <button className="button button-secondary" disabled={busy || !user.email} onClick={resetPassword} type="button">Cambiar contraseña</button>
+            <button className="button button-subtle" disabled={busy || !user.email} onClick={resetPassword} type="button">Cambiar contraseña</button>
             <h3>Sesión actual</h3><p className="muted">Navegador web · {user.email}</p>
             <p className="muted">La gestión de otras sesiones aún no está disponible.</p>
           </Panel>
         </div>
       </div>
       <Feedback error={error}>{message}</Feedback>
-      <div className="room-save"><p className="muted">{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</p><div className="room-actions"><button className="button button-secondary" disabled={busy || !dirty} onClick={() => setValues(saved)} type="button">Cancelar</button><button className="button button-primary" disabled={busy || !dirty} type="submit">Guardar cambios</button></div></div>
+      <div className="room-save"><p className="muted">{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</p><div className="room-actions"><button className="button button-rose" disabled={busy || !dirty} onClick={() => { setValues(saved); setEmailPrefs(savedEmailPrefs) }} type="button">Cancelar</button><button className="button button-mint" disabled={busy || !dirty} type="submit">Guardar cambios</button></div></div>
     </form>
   )
 }

@@ -20,11 +20,11 @@ import PantallaFotos, {
   type Foto,
 } from "./PantallaFotos";
 
+import PantallaReglasCostos from "./PantallaReglasCostos";
 import PantallaAnunciosPrincipal from "./PantallaAnunciosPrincipal";
 
 import {
   crearAnuncio,
-  publicarAnuncio,
   obtenerAnuncioPorId,
   obtenerUrlFoto,
   actualizarAnuncio,
@@ -40,6 +40,7 @@ type Vista =
   | "publicar"
   | "ubicacion"
   | "fotos"
+  | "reglasCostos"
   | "cargandoEdicion";
 
 type Coordenadas = {
@@ -356,106 +357,6 @@ export function PantallaAnuncios() {
   // ====================================================
   // ENVIAR A PUBLICACIÓN
   // ====================================================
-  /*
-    const enviarRevision = async (fotos: Foto[]) => {
-      if (enviando) return;
-
-      if (!coordenadas || !datosHabitacion.ubicacion.trim()) {
-        Alert.alert(
-          "Ubicación requerida",
-          "Selecciona la ubicación de la habitación."
-        );
-        return;
-      }
-
-      if (fotos.length < 3) {
-        Alert.alert(
-          "Fotografías insuficientes",
-          "Debes agregar al menos 3 fotografías para publicar."
-        );
-        return;
-      }
-
-      setEnviando(true);
-
-      try {
-        const datosApi = construirDatosAnuncio(
-          datosHabitacion,
-          fotos
-        );
-
-        if (modoEdicion && habitacionIdEdicion) {
-          // Identificar fotografías existentes y nuevas.
-          const fotosParaGuardar = convertirFotosEdicion(fotos);
-
-          await actualizarAnuncio(habitacionIdEdicion, {
-            ...datosApi,
-            fotos: fotosParaGuardar,
-          });
-
-          Alert.alert(
-            "¡Cambios guardados!",
-            "La publicación se actualizó correctamente.",
-            [
-              {
-                text: "Aceptar",
-                onPress: reiniciarFormulario,
-              },
-            ]
-          );
-
-          return;
-        }
-
-        let habitacionId = habitacionIdPendiente;
-
-        if (!habitacionId) {
-          // Crear una publicación nueva.
-          const habitacion = await crearAnuncio(datosApi);
-
-          habitacionId = habitacion.id;
-
-          setHabitacionIdPendiente(habitacion.id);
-        } else {
-          // Actualizar el borrador que ya existía.
-          const fotosParaGuardar = convertirFotosEdicion(fotos);
-
-          await actualizarAnuncio(habitacionId, {
-            ...datosApi,
-            fotos: fotosParaGuardar,
-          });
-        }
-
-        // Publicar el borrador.
-        await publicarAnuncio(habitacionId);
-
-        Alert.alert(
-          "¡Publicación exitosa!",
-          `Tu habitación "${datosHabitacion.titulo}" se guardó y publicó correctamente.\n\nFotografías almacenadas: ${fotos.length}`,
-          [
-            {
-              text: "Aceptar",
-              onPress: reiniciarFormulario,
-            },
-          ]
-        );
-      } catch (error) {
-        const mensaje =
-          error instanceof Error
-            ? error.message
-            : "Ocurrió un error al guardar la habitación.";
-
-        Alert.alert(
-          "No se pudieron guardar los cambios",
-          mensaje
-        );
-      } finally {
-        setEnviando(false);
-      }
-    };
-    */
-
-
   const enviarRevision = async (fotos: Foto[]) => {
     if (enviando) return;
 
@@ -496,21 +397,9 @@ export function PantallaAnuncios() {
           fotos: fotosParaGuardar,
         });
 
-        // Si era un borrador, publicarlo después de actualizarlo.
         if (estadoEdicion === "draft") {
-          await publicarAnuncio(habitacionIdEdicion);
-
-          Alert.alert(
-            "¡Publicación exitosa!",
-            `Tu habitación "${datosHabitacion.titulo}" se actualizó y publicó correctamente.`,
-            [
-              {
-                text: "Aceptar",
-                onPress: reiniciarFormulario,
-              },
-            ]
-          );
-
+          setHabitacionIdPendiente(habitacionIdEdicion);
+          setVista("reglasCostos");
           return;
         }
 
@@ -550,20 +439,7 @@ export function PantallaAnuncios() {
         });
       }
 
-      // Publicar la habitación.
-      await publicarAnuncio(habitacionId);
-
-      Alert.alert(
-        "¡Publicación exitosa!",
-        `Tu habitación "${datosHabitacion.titulo}" se guardó y publicó correctamente.\n\nFotografías almacenadas: ${fotos.length}`,
-        [
-          {
-            text: "Aceptar",
-            onPress: reiniciarFormulario,
-          },
-        ]
-      );
-
+      setVista("reglasCostos");
     } catch (error) {
       const mensaje =
         error instanceof Error
@@ -643,6 +519,19 @@ export function PantallaAnuncios() {
         fotosIniciales={fotosIniciales}
         onVolver={() => setVista("ubicacion")}
         onEnviarRevision={enviarRevision}
+      />
+    );
+  }
+
+  if (vista === "reglasCostos" && habitacionIdPendiente) {
+    return (
+      <PantallaReglasCostos
+        id={habitacionIdPendiente}
+        onVolver={reiniciarFormulario}
+        onPublicado={() => {
+          reiniciarFormulario();
+          Alert.alert("Habitación publicada", "El anuncio ya puede recibir postulaciones.");
+        }}
       />
     );
   }

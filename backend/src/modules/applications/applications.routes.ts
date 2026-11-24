@@ -14,6 +14,7 @@ export const createApplicationsRoutes = (
   router.use("*", createAuthMiddleware(authService));
 
   router.post("/", controller.apply);
+  router.get("/me", controller.getMine);
   router.get("/listing/:listingId", controller.getByListing);
   router.patch("/:id/decide", controller.decide);
 

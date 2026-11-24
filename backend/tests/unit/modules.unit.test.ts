@@ -50,6 +50,9 @@ class InMemoryUserRepository implements IUserRepository {
     this.users.set(user.id, user);
   }
 
+  async grantHostRole(id: string): Promise<void> {
+    this.users.get(id)?.grantHostRole();
+  }
   async delete(id: string): Promise<void> {
     this.users.delete(id);
   }
@@ -315,7 +318,14 @@ class InMemoryApplicationRepository
   public apps: Map<string, Application> = new Map();
 
   async findById(id: string): Promise<Application | null> {
-    return this.apps.get(id) ?? null;
+    const app = this.apps.get(id);
+    if (!app) return null;
+    const { createdAt, decidedAt } = app.toJSON();
+    return new Application({
+      id: app.id, listingId: app.listingId, applicantId: app.applicantId, status: app.status,
+      message: app.message, compatibilityScore: app.compatibilityScore,
+      createdAt: new Date(String(createdAt)), decidedAt: decidedAt ? new Date(String(decidedAt)) : null,
+    });
   }
 
   async findByListingId(listingId: string): Promise<Application[]> {
@@ -335,8 +345,10 @@ class InMemoryApplicationRepository
     return app;
   }
 
-  async update(app: Application): Promise<void> {
+  async update(app: Application, previousStatus: Application["status"]) {
+    if (this.apps.get(app.id)?.status !== previousStatus) return false;
     this.apps.set(app.id, app);
+    return true;
   }
 }
 
@@ -444,6 +456,7 @@ describe("Modular Monolith MVC API", () => {
       const host = await userRepo.findByEmail("nuevo_estudiante@uni.edu");
       expect(host).not.toBeNull();
 
+      host!.grantHostRole();
       const formData = new FormData();
       // No se envía hostId: el backend lo toma de la sesión.
       formData.append("titulo", "Cuarto amueblado a 5 min del campus");

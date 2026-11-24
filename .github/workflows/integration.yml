@@ -15,7 +15,6 @@ jobs:
   integration-backend:
     name: Backend · integration tests
     runs-on: ubuntu-latest
-    if: hashFiles('backend/package.json') != ''
     services:
       mysql:
         image: mysql:8.4
@@ -45,6 +44,11 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Configurar migraciones de MySQL
+        env:
+          MYSQL_PWD: roomlink_root
+        run: docker exec -e MYSQL_PWD "${{ job.services.mysql.id }}" mysql -uroot -e 'SET GLOBAL log_bin_trust_function_creators = 1'
 
       - name: Apply migrations
         env:

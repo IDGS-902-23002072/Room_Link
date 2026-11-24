@@ -1,59 +1,42 @@
-# ✅ CHECKLIST — Estado de RoomLink
+# Checklist de entrega de RoomLink
 
-> Actualizado 2026-11-20 (tarde). App móvil unificada en `frontend/Room_Link`. Backend en `develop`.
-> Leyenda: ✅ hecho · ⬜ falta · ⚠️ problema/decisión · ➖ descartado a propósito.
-> Verificado contra `develop` tras integrar Guzman (M06/M08 conectados), Roberto (M15 + perfil/búsqueda) y Avril (estados/borradores).
+Corte del 24 de noviembre de 2026. Base auditada: `develop` y tag publicado [`v0.1.0`](https://github.com/IDGS-902-23002072/Room_Link/releases/tag/v0.1.0), código de Vite y Expo y las ocho historias del documento de definición. Los responsables reflejan las asignaciones del proyecto. La columna de cierre distingue trabajo de producto de las pruebas que siguen pendientes.
 
----
+## Las ocho historias de usuario
 
-## 1. Backend (`develop`)
-- ✅ 14 módulos (auth, profile, rooms+feed, applications, compatibility, messaging, moderation, connections, notifications, sanctions, agreements, search, analytics, activity-log).
-- ✅ Gate de calidad verificado hoy: **typecheck 0** · **unit+smoke 173/173**. (Integración MySQL requiere la DB levantada: re-correr `npm run test:integration`.)
-- ✅ Registro exhaustivo de arrendador (`POST /auth/become-host`, valida identidad + términos).
-- ✅ **#8** — bloquea postularse a tu propia publicación.
-- ✅ **HU-07** — el **% de afinidad lo calcula el servidor** (antes se guardaba el valor que mandaba el cliente → manipulable). Inyectado en `ApplicationsController` vía compatibilidad.
-- ✅ **HU-02** — **no se filtran teléfono/redes**: `ProfileView.toPublicProfile` oculta contacto salvo al dueño o a conexiones aceptadas autorizadas; búsqueda/descubrimiento los oculta siempre. Cubierto por `tests/unit/profile-visibility.unit.test.ts` (6 casos).
-- ⬜ **Google OAuth real** (hoy stub) — RNF-04.3 / HU-01. Necesita credenciales.
-- ⬜ **SMTP real** (hoy stub) — correo de recuperación con enlace que precargue el token (HU-01). Necesita credenciales.
-- ⬜ **HU-07 (resto)** — lista de espera y notificar al postulante cada decisión.
-- ⬜ **HU-06 (API)** — validar reglas/servicios/depósito **antes de publicar** (hoy la API deja activar sin completarlos).
+| Historia y responsable | Qué existe | Qué falta para cerrar |
+|---|---|---|
+| **HU-01 · M01 · César** | Playwright Vite cubre registro con términos, correo duplicado y contraseña corta junto al campo, bloqueo tras cinco intentos y restablecimiento por SMTP local con revocación de sesión. El backend verifica expiración a los 30 min y desbloqueo a los 15 min. | Google y SMTP de producción quedan fuera de este cierre. |
+| **HU-02 · M02 · Roberto** | Perfil y galería en Vite y Expo. La web captura fecha de nacimiento para la edad y aplica los límites de 300 caracteres y seis fotos. El backend filtra contacto según la privacidad y la conexión. | Exponer los controles de privacidad de contacto en Vite y verificar qué puede ver una cuenta ajena, pendiente y aceptada. Probar edición y reflejo público con dos sesiones, incluyendo biografía, séptima foto, orden de galería y visibilidad después de recargar. Acordar el procedimiento de verificación si se va a ofrecer como parte de la entrega. |
+| **HU-03 · M03 · Omar** | El E2E web contesta las siete preguntas, revisa el resumen, recarga, edita y verifica el nuevo cálculo. MySQL tiene cobertura de guardados simultáneos. | — |
+| **HU-04 · M04 · Omar** | El E2E web verifica la invitación sin test, foto, nombre, edad, zona, presupuesto, orden descendente y búsqueda vacía con limpieza. Los anuncios de demostración de Expo solo se muestran en desarrollo. | — |
+| **HU-05 · M05 · Roberto** | Vite carga el feed completo y filtra en el navegador. La API tiene rutas de búsqueda. | Conectar la búsqueda al endpoint según el tipo de resultado, con paginación y preferencias compatibles con su contrato. Verificar que presupuesto y zona tengan datos reales y que combinar zona, edad, presupuesto y hábitos conserve resultados y total coherentes. Añadir E2E de cero resultados y limpiar filtros. |
+| **HU-06 · M07/M08 · Avril y Guzmán** | Vite prueba el bloqueo con dos fotos, edición con conservación de fotos y costos, publicación, pausa y reactivación. La API exige rol de anfitrión o admin en las mutaciones y conserva las restricciones de propietario. | Verificación en APK instalado. |
+| **HU-07 · M09 · Guzmán** | Playwright verifica fecha, afinidad, lista de espera, rechazo con aviso, aceptación y persistencia al recargar. Vite y Expo permiten cerrar el anuncio al aceptar. | Confirmar el recorrido en APK y smoke tras publicar la versión. |
+| **HU-08 · M11 · Avril** | API para enviar, responder, listar y cancelar conexiones. Expo tiene gestión y la web conserva el estado pendiente al recargar el perfil candidato. El chat se habilita en la API al aceptar. | Completar bandeja web de recibidas/enviadas y campo de introducción opcional. Asegurar aviso de rechazo y que un reintento idempotente no duplique avisos. E2E Vite de ambas cuentas con aceptación y rechazo, estados, avisos y chat vinculado a esa conexión. |
 
-## 2. Frontend móvil — `frontend/Room_Link`
-Pantallas por módulo (M01–M15):
-- ✅ M01 Auth · M02 Perfil · M03 Onboarding convivencia · M04 Exploración · M05 Búsqueda roomies · M06 Compatibilidad detallada (Guzman) · M07 Mis publicaciones (Avril) · M08 Reglas/costos/zona (Guzman) · **M09 Postulaciones del arrendador (verificado E2E)** · M10 Chat · M11 Conexiones · M12 Acuerdos · M13/M14 Moderación · **M15 Dashboard admin (Roberto — `modulos/analytics`)**.
-- ✅ **Registro exhaustivo de arrendador** (gate rol host + pantalla "Conviértete en arrendador").
-- ✅ **Onboarding obligatorio** (#0/#12): perfil → encuesta antes de usar la app. (Commiteado.)
-- ✅ **HU-05 (parcial)** — "Restablecer filtros" ahora borra también los hábitos.
-- ⬜ **HU-05 (núcleo)** — Buscar roomies filtra **client-side** sobre una página del feed. El backend YA tiene `search` server-side con `total`; falta **rewirear la pantalla** a `/api/v1/search/profiles` (y, si se quiere filtrar hábitos en servidor, extender `SearchFilters`). No verificable sin dispositivo.
-- ⬜ **HU-01 (UI)** — Google sign-in en Expo (la API ya verifica token Google si está configurada); mostrar error de correo/contraseña junto al campo.
-- ⬜ **HU-02 (UI)** — controles de privacidad en la pantalla de perfil (el backend ya los respeta).
-- ⬜ **HU-04** — usar `hasTest` para invitar a la encuesta; capturar zona/presupuesto del candidato.
-- ⬜ **HU-06 (flujo)** — integrar reglas/costos **dentro del flujo de publicar** (hoy en la pantalla de detalle).
-- ⬜ **HU-08** — mensaje libre/opcional en la solicitud (hoy manda saludo fijo); notificar al recibir y al rechazar.
+## Módulos complementarios y cierre operativo
 
-## 3. Bugs QA (0–12)
-- ✅ **#0/#12** onboarding · **#8** auto-postulación · **#2/#3/#4/#6/#7** publicar/editar/fecha/ubicación (Avril).
-- ⬜ **#1** permiso de notificaciones no se guarda → verificar tras cambios de Avril.
-- ⬜ **#5.1** indicar "mínimo 3 fotos" en Fotos del espacio.
-- ⬜ **#10** Descubrir 500 con cuenta de postulante → re-verificar (pruebas recientes dieron 200).
-- ➖ **#9** (guardar perfiles) y **#11** (abrir chat por ID) — se quedan (decisión de producto).
+| Módulo y responsable | Qué existe | Qué falta para cerrar |
+|---|---|---|
+| **M06 · Compatibilidad detallada y mapa · Guzmán** | Playwright cubre selección manual, geocodificación, puntos cercanos y recuperación tras un 503. El mapa y su enlace siguen accesibles durante el fallo. | Overpass público devolvió 502 al consultar León. El E2E usó un proveedor controlado. Falta confirmar los lugares cercanos con el proveedor real. |
+| **M10 · Chat · César** | E2E web con postulación aceptada y conexión aceptada. Verifica recepción, lectura, persistencia, reconexión y acceso denegado a una cuenta ajena a la sala. | Verificación en APK. |
+| **M12 · Acuerdos · Roberto** | Hay API de creación, revisión, firmas y versiones, y pantallas web y Expo. El formulario web deja título, fecha propuesta y normas personalizadas en el borrador local. | Definir qué campos deben viajar al acuerdo y persistirlos si forman parte de la versión firmada. Probar dos participantes, permisos, ambas firmas, una nueva versión y persistencia al volver a entrar. |
+| **M13 · Moderación y sanciones · César y Avril** | E2E web de denuncia por fraude, priorización automática, permisos de admin, aprobación, historial y aviso al anfitrión. API y Expo incluyen gestión de sanciones. | Avril: gestión web de sanciones y pruebas de emisión, revocación y bloqueo. |
+| **M14 · Notificaciones · Por asignar** | E2E Vite cubre preferencias persistentes, respeto del aviso de conexión, avisos de postulación y moderación, y lectura. | APK: permiso y entrega de avisos. La sincronización actual depende de la sesión activa. Para recibir con la app cerrada hace falta transporte push. SMTP real queda fuera de este cierre. |
+| **M15 · Dashboard administrativo · Roberto** | Vite y Expo consultan la API de analítica. | Validar métricas con datos conocidos, filtros de fecha, privacidad por rol y estados vacíos. Comparar web y móvil con el mismo rango. |
 
-## 4. Equipo / ramas (todo integrado en `develop`)
-- ✅ **Roberto** — perfil extendido, búsqueda (M05), acuerdos, verificación, **M15 dashboard admin**.
-- ✅ **Avril** — estados de publicación + borradores + fixes del form.
-- ✅ **Guzman** — backend conectado con sus pantallas (M06/M08), ya integrado (no es app separada con mocks).
+- [x] **Entrega web y API** · Se publicó [`v0.1.0`](https://github.com/IDGS-902-23002072/Room_Link/releases/tag/v0.1.0) por tag. Azure respondió en `/health` y `/ready`. [Despliegue](https://github.com/IDGS-902-23002072/Room_Link/actions/runs/45435082825)
+- [x] **QA automático** · El workflow de QA final pasó los recorridos por rol, SMTP local, PWA, Expo y restauración de MySQL. [GitHub Actions](https://github.com/IDGS-902-23002072/Room_Link/actions/runs/45434292032)
+- [x] **QA de César y Guzmán** · 11 escenarios Playwright con Vite y Expo Web, y 192 pruebas de backend entre unitarias, integración MySQL y smoke.
+- [ ] **Cierre operativo** · Validar Overpass y el APK instalado. ADB no detectó dispositivo ni emulador. Usar el flujo `frontend/tests/maestro/login-por-rol.yaml` en Android. Ejecutar el smoke de producción tras un nuevo release. Los casos web que dependen de la implementación de Roberto y Avril siguen en sus respectivas HU. El lint global de Expo conserva 10 errores y 1 aviso previos.
+- [ ] **Control del release** · El procedimiento de `v0.1.0` esperó manualmente el QA del SHA antes de etiquetar. Si el equipo requiere una barrera automática, hacer que el workflow de release compruebe el resultado del SHA etiquetado antes de desplegar.
 
-## 5. Despliegue (Azure, capa gratuita)
-- ✅ Terraform 100% free-tier (`infra/terraform/`): VM `Standard_B1s` + MySQL/Node/Caddy por cloud-init, HTTPS con el DNS gratuito de Azure. Región **canadacentral** (B1s con capacidad verificada).
-- ✅ Móvil configurada: `frontend/Room_Link/.env.production` → FQDN de Azure. CORS lee `FRONTEND_ORIGIN`.
-- ⬜ **Correr la provisión** (lo hace el usuario; `terraform apply`/git están gateados para el agente): ver [`infra/terraform/DEPLOY.md`](infra/terraform/DEPLOY.md).
-- ⬜ GitHub Secrets + push de tag para disparar `release.yml`.
+## Rama de Roberto
 
-## 6. Transversal / cierre
-- ⬜ OAuth + SMTP reales · Integration tests por módulo · Branch protection · Release `develop → main`.
+El commit [`66f1fc1`](https://github.com/IDGS-902-23002072/Room_Link/commit/66f1fc10eb8066f471a1bd1e400c0470b5a3b21f) incorpora `10eae69` con búsqueda paginada, controles de privacidad, administración de verificación y cambios de autorización/versionado de acuerdos. Vite compila en la rama aislada. El backend de `66f1fc1` falla el typecheck por marcadores de conflicto en `app.ts`, `profile.controller.ts` y `search.view.ts`. El parche funcional produce ocho conflictos al aplicarse sobre `develop`. Sigue pendiente integrar con los cambios actuales y repetir QA.
 
----
-
-### Resumen
-**Verificado y en `develop`:** los 15 módulos + onboarding + registro de arrendador + HU-07 (score server-side) + HU-02 (sin fuga de contacto) + HU-05 parcial. Despliegue Azure listo para provisionar.
-**Para "versión completa" faltan, por orden de valor:** rewire de Buscar roomies al search server-side (HU-05), flujo de publicar con reglas/costos (HU-06), notificaciones de postulación/conexión (HU-07/HU-08), y credenciales reales (Google + SMTP, HU-01).
+- **M02.** Validar con cuentas ajenas, pendientes y aceptadas, incluida la visibilidad del correo y la decisión de identidad por admin.
+- **M05.** Hay filtros y paginación de roomies. Falta probar filtros combinados, totales y limpieza con MySQL y Vite. La búsqueda de habitaciones con filtros avanzados se conectó en Expo; Vite conserva su catálogo actual.
+- **M12.** Hay cambios para crear acuerdos con una postulación aceptada y revisar versiones entre participantes. Título, inicio y normas personalizados siguen en el borrador local web. Falta validar dos firmas, nueva versión y acceso de terceros.
+- **M15.** El dashboard ya estaba integrado. El cambio nuevo no adjunta una prueba automatizada de métricas en MySQL. Falta evidencia reproducible por rango y rol con los mismos datos para Vite y Expo.

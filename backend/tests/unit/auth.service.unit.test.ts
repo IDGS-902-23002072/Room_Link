@@ -90,6 +90,19 @@ describe("AuthService", () => {
     await expect(service.login({ email: user.email, password: "NuevaSegura456" })).resolves.toBeDefined();
   });
 
+  it("rejects an unused reset token exactly 30 minutes after issue", async () => {
+    const clock = new MutableClock();
+    const users = new InMemoryUserRepository();
+    const fakes = createAuthFakes(clock);
+    const service = new AuthService(users, fakes.dependencies);
+    const user = await register(service);
+    await service.requestPasswordReset(user.email);
+    clock.advance(30);
+    await expect(service.resetPassword(fakes.emails[0]!.token, "NuevaSegura456"))
+      .rejects.toMatchObject({ code: "INVALID_RESET_TOKEN" });
+    await expect(service.login({ email: user.email, password: "Segura123" })).resolves.toBeDefined();
+  });
+
   it("does not reveal whether an email exists during recovery", async () => {
     const users = new InMemoryUserRepository();
     const fakes = createAuthFakes();

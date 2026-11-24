@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth.js'
-import { API_URL, apiRequest } from '../../services/api.js'
+import { apiAssetUrl, apiRequest } from '../../services/api.js'
 import { QUESTIONS } from '../compatibility/compatibility.js'
 import { readLocal, writeLocal } from './storage.js'
 import { Avatar, Feedback, Heading, Panel, ResourceStatus, Toggle } from './Workspace.jsx'
@@ -115,7 +115,7 @@ function Filters({ order, page, resource, save, setOrder, setPage, state, zoneRe
 
   return (
     <>
-      <Heading action={<Link className="button button-secondary" to="/buscar/guardadas#guardar">Guardar búsqueda</Link>} title="Encuentra a tu próximo roomie">Ajusta los criterios para encontrar personas que buscan compartir un hogar.</Heading>
+      <Heading action={<Link className="button button-subtle" to="/buscar/guardadas#guardar">Guardar búsqueda</Link>} title="Encuentra a tu próximo roomie">Ajusta los criterios para encontrar personas que buscan compartir un hogar.</Heading>
       <div className="room-grid room-grid-filters">
         <div className="room-stack">
           <Panel title="Filtros generales">
@@ -134,13 +134,13 @@ function Filters({ order, page, resource, save, setOrder, setPage, state, zoneRe
                 <label className="field">Hasta<input min="18" type="number" {...field('maxAge')} /></label>
               </div></fieldset>
               <Feedback error={error} />
-              <button className="button button-primary" type="submit">Aplicar filtros</button>
-              <button className="button button-secondary" onClick={() => {
+              <button className="button button-mint" type="submit">Aplicar filtros</button>
+              <button className="button button-rose" onClick={() => {
                 if (save({ filters: emptyFilters })) { setFilters(emptyFilters); setPage(1); setError('') }
               }} type="button">Restablecer filtros</button>
             </form>
           </Panel>
-          <Link className="button button-secondary" to="/buscar/habitos">Configurar hábitos de convivencia</Link>
+          <Link className="button button-subtle" to="/buscar/habitos">Configurar hábitos de convivencia</Link>
         </div>
         <div className="room-stack">
           <div className="room-row">
@@ -155,21 +155,21 @@ function Filters({ order, page, resource, save, setOrder, setPage, state, zoneRe
             return (
               <Panel key={profile.userId}>
                 <div className="room-candidate">
-                  <Avatar name={profile.fullName} src={profile.photoUrl ? new URL(profile.photoUrl, API_URL).href : undefined} />
+                  <Avatar name={profile.fullName} src={profile.photoUrl ? apiAssetUrl(profile.photoUrl) : undefined} />
                   <div className="room-stack">
                     <div className="room-row"><h2>{profile.fullName}{profile.age ? `, ${profile.age}` : ''}</h2>{profile.compatibilityScore != null && <span className="room-pill">{Math.round(profile.compatibilityScore)} % compatible</span>}</div>
                     <p className="muted">{[profile.occupation, profile.zone, profile.city].filter(Boolean).join(' · ')}</p>
                     {(profile.budgetMin != null || profile.budgetMax != null) && <p>{[...new Set([profile.budgetMin, profile.budgetMax].filter((value) => value != null))].map((value) => money.format(value)).join(' – ')} MXN / mes</p>}
                     <div className="room-actions">
-                      <Link className="button button-primary" to={`/perfil/candidato/${encodeURIComponent(profile.userId)}`}>Ver perfil</Link>
-                      <button aria-pressed={saved} className="button button-secondary" onClick={() => save({ profiles: saved ? state.profiles.filter((id) => id !== profile.userId) : [...state.profiles, profile.userId] })} type="button">{saved ? '♥ Guardado' : '♡ Guardar'}</button>
+                      <Link className="button button-mint" to={`/perfil/candidato/${encodeURIComponent(profile.userId)}`}>Ver perfil</Link>
+                      <button aria-pressed={saved} className="button button-subtle" onClick={() => save({ profiles: saved ? state.profiles.filter((id) => id !== profile.userId) : [...state.profiles, profile.userId] })} type="button">{saved ? '♥ Guardado' : '♡ Guardar'}</button>
                     </div>
                   </div>
                 </div>
               </Panel>
             )
           })}
-          {pageCount > 1 && <nav aria-label="Páginas de resultados" className="room-row"><button className="button button-secondary" disabled={page <= 1} onClick={() => setPage(page - 1)} type="button">Anterior</button><span>Página {page} de {pageCount}</span><button className="button button-secondary" disabled={page >= pageCount} onClick={() => setPage(page + 1)} type="button">Siguiente</button></nav>}
+          {pageCount > 1 && <nav aria-label="Páginas de resultados" className="room-row"><button className="button button-subtle" disabled={page <= 1} onClick={() => setPage(page - 1)} type="button">Anterior</button><span>Página {page} de {pageCount}</span><button className="button button-subtle" disabled={page >= pageCount} onClick={() => setPage(page + 1)} type="button">Siguiente</button></nav>}
         </div>
       </div>
     </>
@@ -204,10 +204,10 @@ function Habits({ save, state, token }) {
               )
             })}
           </Panel>
-          <div className="room-save"><p>{count('required')} indispensables · {count('preferred')} preferencias</p><div className="room-actions"><button className="button button-secondary" onClick={() => setHabits(state.habits)} type="button">Cancelar</button><button className="button button-primary" onClick={() => { if (save({ habits })) navigate('/buscar') }} type="button">Aplicar hábitos</button></div></div>
+          <div className="room-save"><p>{count('required')} indispensables · {count('preferred')} preferencias</p><div className="room-actions"><button className="button button-rose" onClick={() => setHabits(state.habits)} type="button">Cancelar</button><button className="button button-mint" onClick={() => { if (save({ habits })) navigate('/buscar') }} type="button">Aplicar hábitos</button></div></div>
         </div>
         <div className="room-stack">
-          <Panel title="Búsqueda actual"><Summary filters={state.filters} habits={{}} /><Link className="button button-secondary" to="/buscar">Editar filtros generales</Link></Panel>
+          <Panel title="Búsqueda actual"><Summary filters={state.filters} habits={{}} /><Link className="button button-subtle" to="/buscar">Editar filtros generales</Link></Panel>
           <Panel title="Vista previa">
             <ResourceStatus label="Calculando coincidencias…" resource={resource} />
             {resource.data && <p role="status">{total} {total === 1 ? 'perfil cumple' : 'perfiles cumplen'}</p>}
@@ -249,11 +249,11 @@ function SavedSearches({ resource, resultCount, save, state }) {
               <Summary filters={item.filters} habits={item.habits} />
               <small>Guardada el {new Date(item.createdAt).toLocaleDateString('es-MX')}</small>
               {editing === item.id ? <form className="room-actions" onSubmit={(event) => { event.preventDefault(); if (newName.trim() && update(item.id, { name: newName.trim() })) setEditing(null) }}>
-                <label className="field">Nuevo nombre<input maxLength={80} onChange={(event) => setNewName(event.target.value)} required value={newName} /></label><button className="button button-primary" type="submit">Guardar nombre</button><button className="button button-quiet" onClick={() => setEditing(null)} type="button">Cancelar</button>
+                <label className="field">Nuevo nombre<input maxLength={80} onChange={(event) => setNewName(event.target.value)} required value={newName} /></label><button className="button button-mint" type="submit">Guardar nombre</button><button className="button button-quiet" onClick={() => setEditing(null)} type="button">Cancelar</button>
               </form> : <div className="room-actions">
-                <button className="button button-secondary" onClick={() => { setEditing(item.id); setNewName(item.name) }} type="button">Renombrar</button>
-                <button className="button button-secondary" onClick={() => { if (window.confirm(`¿Eliminar la búsqueda «${item.name}»?`)) save({ searches: state.searches.filter(({ id }) => id !== item.id) }) }} type="button">Eliminar</button>
-                <button className="button button-primary" onClick={() => { if (save({ filters: item.filters, habits: item.habits })) navigate('/buscar') }} type="button">Ver resultados</button>
+                <button className="button button-subtle" onClick={() => { setEditing(item.id); setNewName(item.name) }} type="button">Renombrar</button>
+                <button className="button button-rose" onClick={() => { if (window.confirm(`¿Eliminar la búsqueda «${item.name}»?`)) save({ searches: state.searches.filter(({ id }) => id !== item.id) }) }} type="button">Eliminar</button>
+                <button className="button button-mint" onClick={() => { if (save({ filters: item.filters, habits: item.habits })) navigate('/buscar') }} type="button">Ver resultados</button>
               </div>}
             </Panel>
           ))}
@@ -270,7 +270,7 @@ function SavedSearches({ resource, resultCount, save, state }) {
               <h3>Resumen de criterios</h3><Summary filters={state.filters} habits={state.habits} />
               {ready && <small>{resultCount} coincidencias actuales</small>}
               <Toggle checked={favorite} description="Acceso rápido a esta búsqueda." label="Marcar como favorita" onChange={setFavorite} />
-              <button className="button button-primary" disabled={!name.trim()} type="submit">Guardar nueva búsqueda</button>
+              <button className="button button-mint" disabled={!name.trim()} type="submit">Guardar nueva búsqueda</button>
             </form>
           </Panel>
         </div>

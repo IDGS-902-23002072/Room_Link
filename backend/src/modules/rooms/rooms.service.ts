@@ -507,7 +507,10 @@ export class RoomsService {
     if (room.status === "closed") {
       throw new Error("Una publicación cerrada no puede modificarse.");
     }
-    if (!Array.isArray(items) || items.length > 20) {
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new Error("Registra al menos un concepto o indica que no hay cargos adicionales.");
+    }
+    if (items.length > 20) {
       throw new Error("Se permiten máximo 20 conceptos de costo.");
     }
 
@@ -829,6 +832,10 @@ export class RoomsService {
       monthlyRent: room.monthlyRent,
       maxRoommates: room.maxRoommates ?? null,
     });
+    const [rules, costs] = await Promise.all([this.getRules(id), this.getCostItems(id)]);
+    if (!rules || costs.length === 0) {
+      throw new Error("Guarda las reglas y el desglose de costos antes de publicar. Si no hay cargos adicionales, regístralo en el desglose.");
+    }
     // Cambiar estado draft -> published.
     room.publish();
 

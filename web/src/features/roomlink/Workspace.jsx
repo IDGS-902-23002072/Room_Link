@@ -47,7 +47,7 @@ export function Panel({ title, children }) {
 }
 
 export function Feedback({ error, children }) {
-  if (error) return <p className="notice notice-error" role="alert">{error}</p>
+  if (error) return <p className="feature-feedback feature-error" role="alert">{error}</p>
   return children ? <p className="room-note" role="status">{children}</p> : null
 }
 
@@ -71,5 +71,5 @@ export function Avatar({ name, src }) {
 export function ResourceStatus({ resource, label }) {
   if (resource.loading) return <p className="room-note" role="status">{label}</p>
   if (!resource.error) return null
-  return <div className="room-stack"><Feedback error={resource.error} /><button className="button button-secondary" onClick={resource.refresh} type="button">Reintentar</button></div>
+  return <div className="room-stack"><Feedback error={resource.error} /><button className="button button-subtle" onClick={resource.refresh} type="button">Reintentar</button></div>
 }

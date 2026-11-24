@@ -58,7 +58,8 @@ Documento vivo. Lista todas las rutas HTTP del backend, su requisito de autentic
 
 | Método | Ruta                  | Auth    | Notas                                                                    |
 |--------|-----------------------|---------|--------------------------------------------------------------------------|
-| POST   | `/`                   | Privada | Crea solicitud. `applicantId` se toma de la sesión, no del body.         |
+| POST   | `/`                   | Privada | Crea solicitud con la identidad de sesión. Si ya existe, devuelve `409 APPLICATION_ALREADY_SENT`. |
+| GET    | `/me`                 | Privada | Lista las postulaciones de la cuenta autenticada con su estado actual. |
 | GET    | `/listing/:listingId` | Privada | Solo el host del listing (o admin) ve sus solicitudes.                   |
 | PATCH  | `/:id/decide`         | Privada | Solo el host del listing asociado (o admin) decide `accept`/`reject`.    |
 
@@ -120,6 +121,8 @@ Eventos consumidos y notificación generada:
 Los listeners corren in-process sobre `InProcessEventBus`; el bus delega siempre a `coreOutboxEvents` (persistencia garantizada). Un listener que falla no interrumpe la publicación.
 
 ## `/api/v1/moderation`
+
+Una denuncia de anuncio crea una entrada de revisión pendiente cuando el anuncio aún carece de registro de revisión. Los envíos concurrentes de la misma persona no crean denuncias activas duplicadas. Los reportes activos por fraude, acoso y perfiles falsos aparecen primero y exponen `priority: "high"`. Aprobar, rechazar, retirar o sancionar requiere una decisión administrativa.
 
 | Método | Ruta                                          | Auth    | Notas                                                                 |
 |--------|-----------------------------------------------|---------|-----------------------------------------------------------------------|

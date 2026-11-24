@@ -1,4 +1,4 @@
-import { configuracionApi, solicitud } from '../compatibilidad/api';
+import { solicitud } from '../compatibilidad/api';
 
 export type EstadoHabitacion = 'draft' | 'published' | 'closed' | string;
 
@@ -30,6 +30,10 @@ export interface PostulacionRespuesta {
   compatibilityScore: number | null;
   createdAt: string;
   decidedAt: string | null;
+}
+
+export function obtenerMisPostulaciones() {
+  return solicitud<PostulacionRespuesta[]>('/api/v1/applications/me');
 }
 
 export const TAMANO_PAGINA = 12;
@@ -65,21 +69,16 @@ export function obtenerHabitacion(id: string) {
 
 /**
  * El buscador (usuario actual) se postula a una habitación publicada.
- * compatibilityScore es la afinidad entre el buscador y el anfitrión.
  */
 export async function postularseAHabitacion(
   listingId: string,
   message: string | null = null,
-  compatibilityScore: number | null = null,
 ) {
-  const { userId } = configuracionApi();
   return solicitud<PostulacionRespuesta>('/api/v1/applications', {
     method: 'POST',
     body: JSON.stringify({
       listingId,
-      applicantId: userId,
       message: message && message.trim().length > 0 ? message.trim() : null,
-      compatibilityScore,
     }),
   });
 }

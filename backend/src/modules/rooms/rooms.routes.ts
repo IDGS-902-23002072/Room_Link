@@ -1,4 +1,5 @@
 
+import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 
 import {
@@ -27,6 +28,13 @@ export const createRoomsRoutes = (
   // ====================================================
 
   const authenticate = createAuthMiddleware(authService);
+  const requireHost: MiddlewareHandler<{ Variables: AuthVariables }> = async (context, next) => {
+    const roles = context.get("auth").roles;
+    if (!roles.includes("host") && !roles.includes("admin")) {
+      return context.json({ error: "Activa el rol de arrendador para gestionar anuncios.", code: "HOST_REQUIRED" }, 403);
+    }
+    await next();
+  };
 
   // ====================================================
   // RUTAS PÚBLICAS DE CONSULTA
@@ -57,9 +65,9 @@ export const createRoomsRoutes = (
 
   // Reglas de la casa y desglose de costos (HU-06 / M08).
   router.get("/:id/rules", controller.getRules);
-  router.put("/:id/rules", authenticate, controller.updateRules);
+  router.put("/:id/rules", authenticate, requireHost, controller.updateRules);
   router.get("/:id/costs", controller.getCostItems);
-  router.put("/:id/costs", authenticate, controller.updateCostItems);
+  router.put("/:id/costs", authenticate, requireHost, controller.updateCostItems);
 
   // Consultar una publicación por su ID.
   router.get("/:id", controller.getById);
@@ -72,6 +80,7 @@ export const createRoomsRoutes = (
   router.post(
     "/",
     authenticate,
+    requireHost,
     controller.create,
   );
 
@@ -79,6 +88,7 @@ export const createRoomsRoutes = (
   router.patch(
     "/:id",
     authenticate,
+    requireHost,
     controller.update,
   );
 
@@ -86,6 +96,7 @@ export const createRoomsRoutes = (
   router.post(
     "/photos",
     authenticate,
+    requireHost,
     controller.uploadPhotos,
   );
 
@@ -97,6 +108,7 @@ export const createRoomsRoutes = (
   router.patch(
     "/:id/publish",
     authenticate,
+    requireHost,
     controller.publish,
   );
 
@@ -104,6 +116,7 @@ export const createRoomsRoutes = (
   router.patch(
     "/:id/pause",
     authenticate,
+    requireHost,
     controller.pause,
   );
 
@@ -111,6 +124,7 @@ export const createRoomsRoutes = (
   router.patch(
     "/:id/reactivate",
     authenticate,
+    requireHost,
     controller.reactivate,
   );
 
@@ -118,6 +132,7 @@ export const createRoomsRoutes = (
   router.patch(
     "/:id/close",
     authenticate,
+    requireHost,
     controller.close,
   );
 

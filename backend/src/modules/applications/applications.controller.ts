@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { errorResponse } from "../../shared/AppError.js";
 import type { AuthVariables } from "../auth/index.js";
 import type { ApplicationsService } from "./applications.service.js";
 import { ApplicationView } from "./applications.view.js";
@@ -31,7 +32,7 @@ export class ApplicationsController {
   apply = async (c: AuthContext) => {
     try {
       const body = await c.req.json();
-      if (!body.listingId) {
+      if (typeof body.listingId !== "string" || !body.listingId.trim()) {
         return c.json({ error: "listingId es obligatorio" }, 400);
       }
 
@@ -58,8 +59,18 @@ export class ApplicationsController {
       });
 
       return c.json(ApplicationView.toResponse(app), 201);
-    } catch (err: any) {
-      return c.json({ error: err.message ?? "Error al enviar solicitud" }, 400);
+    } catch (err: unknown) {
+      const { error, code, status } = errorResponse(err);
+      return c.json({ error, code }, status as 400 | 409 | 500);
+    }
+  };
+
+  getMine = async (c: AuthContext) => {
+    try {
+      const applications = await this.applicationsService.getByApplicant(c.get("auth").userId);
+      return c.json(ApplicationView.toList(applications));
+    } catch {
+      return c.json({ error: "No se pudieron obtener tus postulaciones." }, 500);
     }
   };
 
@@ -93,9 +104,10 @@ export class ApplicationsController {
       if (!id) {
         return c.json({ error: "id es obligatorio" }, 400);
       }
-      const body = await c.req.json();
-      if (body.decision !== "accept" && body.decision !== "reject") {
-        return c.json({ error: "decision debe ser 'accept' o 'reject'" }, 400);
+      const body = await c.req.json().catch(() => null);
+      const decision = body?.decision;
+      if (decision !== "accept" && decision !== "reject" && decision !== "waitlist") {
+        return c.json({ error: "decision debe ser 'accept', 'reject' o 'waitlist'" }, 400);
       }
 
       // Buscar el application para derivar el listing y validar ownership
@@ -112,10 +124,11 @@ export class ApplicationsController {
         );
       }
 
-      const updated = await this.applicationsService.decide(id, body.decision);
+      const updated = await this.applicationsService.decide(id, decision);
       return c.json(ApplicationView.toResponse(updated), 200);
-    } catch (err: any) {
-      return c.json({ error: err.message ?? "Error al resolver solicitud" }, 400);
+    } catch (err: unknown) {
+      const { error, code, status } = errorResponse(err);
+      return c.json({ error, code }, status as 400 | 404 | 409 | 500);
     }
   };
 }
