@@ -1,10 +1,12 @@
-import { Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import Button from '../components/Button/Button.jsx'
 import Notice from '../components/Notice/Notice.jsx'
 import PageHeader from '../components/PageHeader/PageHeader.jsx'
 import Shell from '../components/Shell/Shell.jsx'
 import Questionnaire from '../features/compatibility/Questionnaire.jsx'
 import Recommendations from '../features/compatibility/Recommendations.jsx'
+import RoomDetail from '../features/rooms/RoomDetail.jsx'
+import RoomFeed from '../features/rooms/RoomFeed.jsx'
 import { useAuth } from '../hooks/useAuth.js'
 import Dashboard from '../pages/Dashboard/Dashboard.jsx'
 import Login from '../pages/Login/Login.jsx'
@@ -70,6 +72,11 @@ function LoginRoute() {
   )
 }
 
+function RoomDetailRoute() {
+  const { roomId } = useParams()
+  return <RoomDetail roomId={roomId} />
+}
+
 function NotFound() {
   return (
     <main className={styles.notFound}>
@@ -77,7 +84,7 @@ function NotFound() {
         <PageHeader
           eyebrow="ROOMLINK"
           title="No encontramos esta página"
-          description="Es posible que el enlace haya cambiado. Vuelve a explorar los perfiles disponibles."
+          description="Es posible que el enlace haya cambiado. Vuelve a explorar las habitaciones disponibles."
         />
         <Button href="/explorar">Ir a explorar</Button>
       </div>
@@ -90,8 +97,9 @@ export default function AppRoutes() {
     <Routes>
       <Route element={<LoginRoute />} path="/login" />
       <Route element={<ProtectedLayout />}>
-        <Route element={<Recommendations />} path="/" />
-        <Route element={<Recommendations />} path="/explorar" />
+        <Route element={<RoomFeed />} path="/" />
+        <Route element={<RoomFeed />} path="/explorar" />
+        <Route element={<RoomDetailRoute />} path="/habitacion/:roomId" />
         <Route element={<Recommendations />} path="/recomendados" />
         <Route element={<Recommendations />} path="/perfil/candidato/:candidateId" />
         <Route element={<Questionnaire />} path="/cuestionario" />

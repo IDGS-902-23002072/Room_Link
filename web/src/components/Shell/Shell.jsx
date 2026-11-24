@@ -33,7 +33,10 @@ export default function Shell({ children }) {
 
         <nav aria-label="Navegación principal" className={styles.nav}>
           <NavLink className={navClass} to="/explorar">
-            Explorar
+            Habitaciones
+          </NavLink>
+          <NavLink className={navClass} to="/recomendados">
+            Roomies
           </NavLink>
           <span aria-disabled="true" className={styles.navDisabled} title="Disponible próximamente">
             Mensajes
