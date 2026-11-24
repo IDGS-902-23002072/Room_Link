@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
@@ -49,7 +51,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#38BDB2",
   },
   texto: {
-    color: "#88768D",
+    color: color.secundario,
     fontSize: 11,
     marginTop: 7,
   },
