@@ -7,12 +7,250 @@ import Field from '../../components/Field/Field.jsx'
 import Notice from '../../components/Notice/Notice.jsx'
 import PageHeader from '../../components/PageHeader/PageHeader.jsx'
 import { asyncEffect } from '../../hooks/asyncEffect.js'
-import { useAuth } from '../../hooks/useAuth.js'
-import { push } from '../../routes/navigation.js'
-import CandidateCard from './CandidateCard.jsx'
-import CandidateDetail from './CandidateDetail.jsx'
-import { getRecommendationFeed } from './compatibility.js'
-import styles from './Recommendations.module.css'
+import { useRoomLinkQuery } from '../../hooks/useRoomLinkQuery.js'
+import {
+  getCandidate,
+  getRecommendationFeed,
+  sendConnectionRequest,
+} from './compatibility.js'
+import './recommendations.css'
+
+const DIMENSIONS = {
+  schedule: 'Horarios',
+  cleanliness: 'Limpieza',
+  noise: 'Ruido',
+  pets: 'Mascotas',
+  smoking: 'Tabaco',
+  visits: 'Visitas',
+  genderPref: 'Género',
+}
+
+function formatBudget(minimum, maximum) {
+  if (!minimum && !maximum) return 'Presupuesto no indicado'
+  const min = minimum ? `$${Number(minimum).toLocaleString('es-MX')}` : 'Sin mínimo'
+  const max = maximum ? `$${Number(maximum).toLocaleString('es-MX')}` : 'Sin máximo'
+  return `${min} - ${max} MXN`
+}
+
+function CandidateCard({ profile, showScore, onOpen }) {
+  const initials = profile.fullName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0] || '')
+    .join('')
+    .toUpperCase()
+
+  return (
+    <article className="candidate-card">
+      <button
+        aria-label={`Ver perfil de ${profile.fullName}`}
+        className="candidate-photo-button"
+        onClick={onOpen}
+        type="button"
+      >
+        {profile.photoUrl ? (
+          <img alt="" className="candidate-photo" loading="lazy" src={profile.photoUrl} />
+        ) : (
+          <span aria-hidden="true" className="candidate-placeholder">{initials}</span>
+        )}
+      </button>
+      <div className="candidate-card-body">
+        <div className="candidate-title-row">
+          <h2>{profile.fullName}, {profile.age}</h2>
+          {showScore && profile.compatibilityScore !== null && (
+            <span className="compatibility-badge">
+              {Math.round(profile.compatibilityScore)}%
+            </span>
+          )}
+        </div>
+        <p className="candidate-location">
+          {profile.zone || 'Zona no indicada'}
+          {profile.city ? ` · ${profile.city}` : ''}
+        </p>
+        <p className="candidate-budget">
+          {formatBudget(profile.budgetMin, profile.budgetMax)}
+        </p>
+        <button aria-label={`Ver perfil de ${profile.fullName}`} className="candidate-open" onClick={onOpen} type="button">
+          Ver perfil <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </article>
+  )
+}
+
+CandidateCard.propTypes = {
+  onOpen: PropTypes.func.isRequired,
+  profile: PropTypes.shape({
+    age: PropTypes.number,
+    budgetMax: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    budgetMin: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    city: PropTypes.string,
+    compatibilityScore: PropTypes.number,
+    fullName: PropTypes.string.isRequired,
+    photoUrl: PropTypes.string,
+    userId: PropTypes.string.isRequired,
+    zone: PropTypes.string,
+  }).isRequired,
+  showScore: PropTypes.bool.isRequired,
+}
+
+function CandidateDetail({ candidateId }) {
+  const { session } = useAuth()
+  const navigate = useNavigate()
+  const [detail, setDetail] = useState({
+    candidateId: null,
+    profile: null,
+    error: '',
+  })
+  const [requestError, setRequestError] = useState('')
+  const [sending, setSending] = useState(false)
+  const [requestSent, setRequestSent] = useState(false)
+  const [connectionAttempt, setConnectionAttempt] = useState(0)
+  const connections = useRoomLinkQuery('/api/v1/connections', session.token, connectionAttempt)
+  const activeConnection = connections.data?.find(({ requesterId, addresseeId, status }) =>
+    (requesterId === candidateId || addresseeId === candidateId) && ['pending', 'accepted'].includes(status),
+  )
+  const connectionLabel = activeConnection?.status === 'accepted' ? 'Conexión aceptada'
+    : activeConnection?.requesterId === candidateId ? 'Solicitud recibida'
+    : activeConnection || requestSent ? 'Solicitud enviada' : null
+
+  useEffect(
+    () => asyncEffect(async (isActive) => {
+      try {
+        const result = await getCandidate(session.user.id, candidateId, session.token)
+        if (isActive()) setDetail({ candidateId, profile: result, error: '' })
+      } catch (cause) {
+        if (isActive()) {
+          setDetail({
+            candidateId,
+            profile: null,
+            error: cause instanceof Error ? cause.message : 'No se pudo cargar el perfil.',
+          })
+        }
+      }
+    }),
+    [candidateId, session.token, session.user.id],
+  )
+
+  async function requestConnection() {
+    if (sending || connectionLabel || connections.loading || connections.error) return
+    setSending(true)
+    setRequestError('')
+    try {
+      await sendConnectionRequest(session.user.id, candidateId, session.token)
+      setRequestSent(true)
+    } catch (cause) {
+      setRequestError(
+        cause instanceof Error ? cause.message : 'No se pudo enviar la solicitud.',
+      )
+    } finally {
+      setSending(false)
+    }
+  }
+
+  if (detail.candidateId !== candidateId) {
+    return <div className="loading-screen">Cargando perfil…</div>
+  }
+  if (detail.error) {
+    return (
+      <section className="recommendations-page">
+        <button className="back-link back-button" onClick={() => goBack(navigate, '/recomendados')} type="button">
+          ← Volver a roomies
+        </button>
+        <div className="notice notice-error" role="alert">{detail.error}</div>
+      </section>
+    )
+  }
+  const profile = detail.profile
+  if (!profile) return null
+
+  const initials = profile.fullName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0] || '')
+    .join('')
+    .toUpperCase()
+
+  return (
+    <section className="recommendations-page">
+      <button className="back-link back-button" onClick={() => goBack(navigate, '/recomendados')} type="button">
+        ← Volver a roomies
+      </button>
+      <article className="candidate-detail">
+        <div className="candidate-detail-hero">
+          {profile.photoUrl ? (
+            <img alt={`Foto de ${profile.fullName}`} src={profile.photoUrl} />
+          ) : (
+            <span aria-hidden="true" className="candidate-placeholder detail-placeholder">{initials}</span>
+          )}
+          <div className="candidate-detail-identity">
+            <h1>{profile.fullName}</h1>
+            <p>{profile.age} años · {profile.zone || 'Zona no indicada'}{profile.city ? `, ${profile.city}` : ''}</p>
+            {profile.compatibilityScore !== null && (
+              <div className="detail-score-block">
+                <span>Compatibilidad contigo</span>
+                <strong>{Math.round(profile.compatibilityScore)}%</strong>
+              </div>
+            )}
+            {requestError && <p className="form-error" role="alert">{requestError}</p>}
+            {connections.error && <p className="form-error" role="alert">No se pudo consultar el estado de la conexión.</p>}
+            {connections.error && <button className="button button-secondary" type="button" onClick={() => setConnectionAttempt((value) => value + 1)}>Reintentar</button>}
+            <button
+              className="button button-primary button-wide"
+              disabled={sending || Boolean(connectionLabel) || connections.loading || Boolean(connections.error)}
+              onClick={requestConnection}
+              type="button"
+            >
+              {connectionLabel || (sending ? 'Enviando…' : connections.loading ? 'Consultando…' : 'Enviar solicitud')}
+            </button>
+            <button className="button button-secondary button-wide" onClick={() => goBack(navigate, '/recomendados')} type="button">
+              Volver a roomies
+            </button>
+          </div>
+        </div>
+        <div className="candidate-detail-content">
+          <section className="detail-section">
+            <h2>Sobre mí</h2>
+            <p>{profile.bio || 'Este perfil aún no tiene una descripción.'}</p>
+          </section>
+          <section className="detail-section">
+            <h2>Estilo de vida</h2>
+            <div className="lifestyle-tags">
+              <span>{formatBudget(profile.budgetMin, profile.budgetMax)}</span>
+              {profile.occupation && <span>{profile.occupation}</span>}
+              {profile.compatibilitySummary?.slice(0, 4).map(({ dimension, level }) => (
+                <span key={dimension}>{DIMENSIONS[dimension] || dimension}: {level}</span>
+              ))}
+            </div>
+          </section>
+          <section className="detail-section">
+            <h2>Respuestas del test</h2>
+            {profile.compatibilitySummary?.length ? (
+              <div className="detail-answer-list">
+                {profile.compatibilitySummary.map(({ dimension, percentage }) => (
+                  <div className="detail-answer" key={dimension}>
+                    <strong>{DIMENSIONS[dimension] || dimension}</strong>
+                    <span className="detail-answer-value">1</span>
+                    <div aria-label={`${DIMENSIONS[dimension] || dimension}: ${percentage}%`} className="meter-track" role="img">
+                      <span style={{ width: `${percentage}%` }} />
+                    </div>
+                    <span className="detail-answer-value">5</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">Este perfil aún no tiene un resumen de test.</p>
+            )}
+          </section>
+        </div>
+      </article>
+    </section>
+  )
+}
+
+CandidateDetail.propTypes = {
+  candidateId: PropTypes.string.isRequired,
+}
 
 export default function Recommendations() {
   const { session } = useAuth()
@@ -80,7 +318,7 @@ export default function Recommendations() {
     setPage(nextPage)
   }
 
-  if (candidateId) return <CandidateDetail candidateId={candidateId} />
+  if (candidateId) return <CandidateDetail key={candidateId} candidateId={decodeURIComponent(candidateId)} />
 
   return (
     <section className={styles.page}>

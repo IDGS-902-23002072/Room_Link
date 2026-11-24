@@ -1,3 +1,5 @@
+import { obtenerToken, obtenerUserId } from '../../auth/sesion';
+
 export type DimensionCompatibilidad =
   | 'schedule'
   | 'cleanliness'
@@ -45,34 +47,37 @@ export interface FeedAfinidad {
   profiles: PerfilAfinidad[];
 }
 
-const UUID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
-
-export function configuracionApi() {
+/** URL base de la API (desde el entorno). No requiere sesión. */
+function urlBase(): string {
   const baseUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
-  const userId = process.env.EXPO_PUBLIC_USER_ID?.trim();
-
-  if (!baseUrl || !userId) {
-    throw new Error(
-      'Configura EXPO_PUBLIC_API_URL y EXPO_PUBLIC_USER_ID en frontend/Room_Link/.env.',
-    );
+  if (!baseUrl) {
+    throw new Error('Configura EXPO_PUBLIC_API_URL en frontend/Room_Link/.env.');
   }
-  if (!UUID_PATTERN.test(userId)) {
-    throw new Error(
-      'EXPO_PUBLIC_USER_ID debe ser el UUID de un usuario existente en la base de datos.',
-    );
-  }
+  return baseUrl;
+}
 
-  return { baseUrl, userId };
+/**
+ * Config que requiere sesión: devuelve el userId del usuario autenticado
+ * (ya NO un UUID hardcodeado del .env). El backend valida el token (RNF-01.2).
+ */
+export function configuracionApi() {
+  const userId = obtenerUserId();
+  if (!userId) {
+    throw new Error('No hay una sesión activa. Iniciá sesión para continuar.');
+  }
+  return { baseUrl: urlBase(), userId };
 }
 
 export async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
-  const { baseUrl } = configuracionApi();
+  const baseUrl = urlBase();
+  const token = obtenerToken();
   let response: Response;
   try {
     response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },
     });
@@ -85,7 +90,7 @@ export async function solicitud<T>(path: string, init?: RequestInit): Promise<T>
   }
 
   const body = (await response.json().catch(() => null)) as
-    | (T & { error?: string })
+    | (T & { error?: string; code?: string })
     | null;
   if (!response.ok) {
     if (response.status >= 500) {
@@ -93,7 +98,9 @@ export async function solicitud<T>(path: string, init?: RequestInit): Promise<T>
         `La API respondió con un error interno (${response.status}). Comprueba que MySQL esté iniciado y que /ready responda con estado "ready".`,
       );
     }
-    throw new Error(body?.error ?? `La API respondió con estado ${response.status}.`);
+    throw Object.assign(new Error(body?.error ?? `La API respondió con estado ${response.status}.`), {
+      code: body?.code,
+    });
   }
   if (body === null) {
     throw new Error('La API devolvió una respuesta vacía o inválida.');
@@ -105,12 +112,12 @@ function rutaUsuario(userId: string, suffix = '') {
   return `/api/v1/compatibility/${encodeURIComponent(userId)}${suffix}`;
 }
 
-export function obtenerTestCompatibilidad() {
+export async function obtenerTestCompatibilidad() {
   const { userId } = configuracionApi();
   return solicitud<ResultadoTest>(rutaUsuario(userId));
 }
 
-export function guardarTestCompatibilidad(answers: RespuestasCompatibilidad) {
+export async function guardarTestCompatibilidad(answers: RespuestasCompatibilidad) {
   const { userId } = configuracionApi();
   return solicitud<ResultadoTest>(rutaUsuario(userId), {
     method: 'PUT',
@@ -118,21 +125,21 @@ export function guardarTestCompatibilidad(answers: RespuestasCompatibilidad) {
   });
 }
 
-export function obtenerFeedAfinidad(page: number) {
+export async function obtenerFeedAfinidad(page: number) {
   const { userId } = configuracionApi();
   return solicitud<FeedAfinidad>(
     `${rutaUsuario(userId, '/feed')}?page=${page}`,
   );
 }
 
-export function obtenerPerfilAfinidad(candidateId: string) {
+export async function obtenerPerfilAfinidad(candidateId: string) {
   const { userId } = configuracionApi();
   return solicitud<PerfilAfinidad>(
     rutaUsuario(userId, `/candidates/${encodeURIComponent(candidateId)}`),
   );
 }
 
-export function enviarSolicitudConexion(
+export async function enviarSolicitudConexion(
   candidateId: string,
   introMessage: string | null = null,
 ) {

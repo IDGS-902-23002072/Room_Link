@@ -14,10 +14,16 @@ export const config = {
   },
   database: {
     host: process.env.DB_HOST ?? "127.0.0.1",
-    port: parsePort(process.env.DB_PORT, 3306),
+    port: parsePort(process.env.DB_PORT, 3307),
     user: process.env.DB_USER ?? "roomlink_app",
     password: process.env.DB_PASSWORD ?? "roomlink_school",
     database: process.env.DB_NAME ?? "roomlink",
+  },
+  auth: {
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
+    secureCookies:
+      process.env.COOKIE_SECURE === "true" ||
+      (process.env.COOKIE_SECURE !== "false" && process.env.NODE_ENV === "production"),
   },
 } as const;
 

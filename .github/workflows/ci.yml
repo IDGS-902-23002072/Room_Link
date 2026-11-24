@@ -36,8 +36,8 @@ jobs:
       - name: Lint
         run: npm run lint --if-present
 
-      - name: Unit tests
-        run: npm test -- --testPathPattern='\.unit\.test\.' --ci --coverage --maxWorkers=2
+      - name: Unit tests (vitest)
+        run: npm test
 
       - name: Upload coverage
         if: always()

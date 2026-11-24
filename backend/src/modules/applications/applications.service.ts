@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { Application, type IApplicationRepository } from "../../domain/index.js";
 
+import type { DomainEventPublisher } from "../auth/auth.ports.js";
+
 export interface CreateApplicationInput {
   listingId: string;
   applicantId: string;
@@ -9,7 +11,7 @@ export interface CreateApplicationInput {
 }
 
 export class ApplicationsService {
-  constructor(private appRepo: IApplicationRepository) {}
+  constructor(private appRepo: IApplicationRepository, private readonly events?: DomainEventPublisher) {}
 
   async apply(input: CreateApplicationInput): Promise<Application> {
     const app = new Application({
@@ -25,8 +27,16 @@ export class ApplicationsService {
     return await this.appRepo.create(app);
   }
 
+  async getByApplicant(applicantId: string): Promise<Application[]> {
+    return this.appRepo.findByApplicantId(applicantId);
+  }
+
   async getByListing(listingId: string): Promise<Application[]> {
     return await this.appRepo.findByListingId(listingId);
+  }
+
+  async getById(id: string): Promise<Application | null> {
+    return await this.appRepo.findById(id);
   }
 
   async decide(id: string, decision: "accept" | "reject"): Promise<Application> {
@@ -42,6 +52,11 @@ export class ApplicationsService {
     }
 
     await this.appRepo.update(app);
+    await this.events?.publish({
+      type: "ApplicationStatusChanged",
+      aggregateId: app.id,
+      payload: { applicantId: app.applicantId, listingId: app.listingId, status: app.status },
+    });
     return app;
   }
 }

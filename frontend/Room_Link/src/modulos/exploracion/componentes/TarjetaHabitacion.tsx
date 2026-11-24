@@ -15,6 +15,7 @@ function iniciales(nombre: string | null) {
 export function TarjetaHabitacion({
   habitacion,
   postulada,
+  bloqueoPostulacion,
   enviando,
   guardada,
   alAbrir,
@@ -23,6 +24,7 @@ export function TarjetaHabitacion({
 }: {
   habitacion: HabitacionFeed;
   postulada: boolean;
+  bloqueoPostulacion?: string | undefined;
   enviando: boolean;
   guardada: boolean;
   alAbrir: () => void;
@@ -38,7 +40,7 @@ export function TarjetaHabitacion({
   };
 
   return (
-    <View style={styles.tarjeta}>
+    <View testID={`habitacion-${habitacion.id}`} style={styles.tarjeta}>
       <View style={styles.encabezado}>
         <View style={styles.avatar}>
           <Text style={styles.iniciales}>{iniciales(habitacion.anfitrion)}</Text>
@@ -126,16 +128,16 @@ export function TarjetaHabitacion({
         ) : (
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ disabled: enviando }}
-            disabled={enviando}
+            accessibilityState={{ disabled: enviando || Boolean(bloqueoPostulacion) }}
+            disabled={enviando || Boolean(bloqueoPostulacion)}
             onPress={alPostularme}
             style={({ pressed }) => [
               styles.botonPostular,
-              enviando && styles.botonDeshabilitado,
+              (enviando || bloqueoPostulacion) && styles.botonDeshabilitado,
               pressed && styles.presionada,
             ]}>
             <Text style={styles.textoPostular}>
-              {enviando ? 'Enviando…' : 'Postularme'}
+              {enviando ? 'Enviando…' : bloqueoPostulacion ?? 'Postularme'}
             </Text>
           </Pressable>
         )}

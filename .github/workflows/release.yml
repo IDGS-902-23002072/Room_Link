@@ -1,60 +1,122 @@
-name: Release
+name: Release & Deploy (Azure)
 
 on:
   push:
     tags:
       - "v*.*.*"
-  workflow_dispatch:
-    inputs:
-      profile:
-        description: Perfil EAS a usar
-        required: true
-        default: preview
-        type: choice
-        options: [preview, production]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: roomlink-production
+  cancel-in-progress: false
 
 jobs:
-  eas-build:
-    name: EAS build (${{ github.event.inputs.profile || 'preview' }})
+  deploy-azure:
+    name: Publicar API y sitio web en Azure
     runs-on: ubuntu-latest
-    if: hashFiles('frontend/package.json') != ''
-    defaults:
-      run:
-        working-directory: frontend
-    permissions:
-      contents: read
+    outputs:
+      api_url: ${{ steps.production.outputs.api_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          node-version: 22
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Setup EAS CLI
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      # Build se dispara contra el perfil elegido. Para que esto funcione
-      # hay que haber configurado `eas.json` dentro de frontend/ y haber corrido
-      # `eas build:configure` una vez. Hasta entonces el step siguiente falla
-      # a propósito con mensaje claro.
-      - name: Build (Android + iOS)
+      - name: Leer URL pública de producción
+        id: production
         run: |
-          if [ ! -f eas.json ]; then
-            echo "::error::Falta frontend/eas.json. Correr 'eas build:configure' localmente y commitear." >&2
-            exit 1
-          fi
-          eas build --non-interactive --no-wait \
-            --profile "${PROFILE:-preview}" \
-            --platform all
+          node --env-file=frontend/Room_Link/.env.production --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const value = process.env.EXPO_PUBLIC_API_URL;
+          const url = new URL(value);
+          if (url.protocol !== 'https:' || value !== url.origin) {
+            throw new Error('EXPO_PUBLIC_API_URL debe ser un origen HTTPS sin ruta ni barra final');
+          }
+          appendFileSync(process.env.GITHUB_OUTPUT, 'api_url=' + value + '\n');
+          NODE
+
+      - name: Instalar y compilar backend
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+
+      # La app Expo de frontend/ es solo móvil: se entrega como APK compilado
+      # en local y nunca pasa por GitHub. Aquí se publica el sitio web de web/.
+      - name: Compilar sitio web (Vite) para producción
+        working-directory: web
         env:
-          PROFILE: ${{ github.event.inputs.profile || 'preview' }}
+          VITE_API_URL: ${{ steps.production.outputs.api_url }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+        run: |
+          npm ci
+          npm run build
+          rm -rf ../backend/public
+          cp -R dist ../backend/public
+          test -s ../backend/public/index.html
+
+      - name: Empaquetar release
+        run: |
+          test -s backend/dist/src/server.js
+          test -s backend/dist/src/db/migrate.js
+          tar -czf roomlink-release.tar.gz -C backend dist drizzle public package.json package-lock.json
+
+      - name: Desplegar por SSH
+        env:
+          SSH_HOST: ${{ secrets.AZURE_VM_HOST }}
+          SSH_USER: ${{ secrets.AZURE_VM_USER }}
+          SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          : "${SSH_HOST:?Falta AZURE_VM_HOST}"
+          : "${SSH_USER:?Falta AZURE_VM_USER}"
+          : "${SSH_KEY:?Falta AZURE_VM_SSH_KEY}"
+          : "${SSH_KNOWN_HOSTS:?Falta AZURE_VM_KNOWN_HOSTS}"
+          install -m 700 -d ~/.ssh
+          umask 077
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/id_deploy' EXIT
+          target="$SSH_USER@$SSH_HOST"
+          options=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -i "$HOME/.ssh/id_deploy")
+          scp "${options[@]}" roomlink-release.tar.gz "$target:/opt/roomlink/roomlink-release.tar.gz"
+          ssh "${options[@]}" "$target" 'bash -s' < scripts/deploy-azure-release.sh
+
+      - name: Verificar HTTPS, API y sitio web
+        env:
+          API_URL: ${{ steps.production.outputs.api_url }}
+        run: |
+          for attempt in $(seq 1 20); do
+            if curl -fsS --max-time 10 "$API_URL/health" \
+                 | jq -e '.status == "ok" and .service == "room-link-backend"' >/dev/null \
+              && curl -fsS --max-time 10 "$API_URL/ready" \
+                 | jq -e '.status == "ready" and .database == "connected"' >/dev/null \
+              && curl -fsS --max-time 10 "$API_URL/" -o /dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "El despliegue no pasó la verificación HTTPS." >&2
+          exit 1
+
+  github-release:
+    name: Crear GitHub Release
+    needs: deploy-azure
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publicar Release en GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            API y sitio web en Azure: ${{ needs.deploy-azure.outputs.api_url }}

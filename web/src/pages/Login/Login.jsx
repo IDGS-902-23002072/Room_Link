@@ -1,125 +1,134 @@
-import PropTypes from 'prop-types'
-import { useState } from 'react'
-import BrandMark from '../../components/BrandMark/BrandMark.jsx'
-import Button from '../../components/Button/Button.jsx'
-import Field from '../../components/Field/Field.jsx'
-import Notice from '../../components/Notice/Notice.jsx'
+import { useRef, useState } from 'react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import interior from '../../assets/roomlink-interior.webp'
+import { Brand } from '../../features/cesar-ui.jsx'
 import { useAuth } from '../../hooks/useAuth.js'
-import styles from './Login.module.css'
+import { requestAuth } from '../../services/authService.js'
+import GoogleButton from './GoogleButton.jsx'
 
-const HIGHLIGHTS = [
-  'Perfiles con hábitos y rutinas compatibles',
-  'Un test breve para encontrar afinidades reales',
-  'Un espacio tranquilo para decidir con calma',
-]
+const forms = {
+  login: ['Inicia sesión', 'Entra a tu cuenta para conversar con tus roomies y retomar tu búsqueda.', 'Iniciar sesión'],
+  register: ['Crea tu cuenta', 'Da el primer paso para encontrar un hogar compartido.', 'Crear cuenta'],
+  forgot: ['Recupera tu acceso', 'Escribe tu correo para solicitar instrucciones de recuperación.', 'Solicitar instrucciones'],
+  reset: ['Elige una contraseña', 'Crea una nueva contraseña para volver a entrar a RoomLink.', 'Guardar contraseña'],
+}
 
-function Login({ onLogin }) {
-  const { login } = useAuth()
-  const [email, setEmail] = useState('')
+export default function Login({ mode }) {
+  const { authenticate, session, forgetSession } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [search] = useSearchParams()
+  const [email, setEmail] = useState(location.state?.email ?? '')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const linkToken = search.get('token')?.trim()
+  const [token, setToken] = useState('')
+  const [accepted, setAccepted] = useState(false)
+  const [visible, setVisible] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const busy = useRef(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState(location.state?.message ?? '')
+  const [title, description, action] = forms[mode]
+  const login = mode === 'login'
+  const register = mode === 'register'
+  const forgot = mode === 'forgot'
+  const reset = mode === 'reset'
 
-  async function handleSubmit(event) {
-    event.preventDefault()
-    if (submitting) return
+  async function submit(task) {
+    if (busy.current) return
+    busy.current = true
     setError('')
+    setMessage('')
     setSubmitting(true)
     try {
-      const user = await login(email.trim(), password)
-      onLogin(user)
+      await task()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo iniciar sesión.')
+      setError(cause.message)
     } finally {
+      busy.current = false
       setSubmitting(false)
     }
   }
 
+  async function handleSubmit(event) {
+    event.preventDefault()
+    await submit(async () => {
+      const normalizedEmail = email.trim()
+      if (login) return authenticate('login', { email: normalizedEmail, password })
+      if (register) {
+        await requestAuth('register', { email: normalizedEmail, password, termsAccepted: accepted })
+        navigate('/login', {
+          replace: true,
+          state: { ...location.state, email: normalizedEmail, message: 'Tu cuenta está lista. Ya puedes iniciar sesión.' },
+        })
+        return
+      }
+      if (forgot) {
+        const result = await requestAuth('password/forgot', { email: normalizedEmail })
+        setMessage(result.message)
+        return
+      }
+      if (password !== confirmation) throw new Error('Las contraseñas deben coincidir.')
+      const result = await requestAuth('password/reset', { token: linkToken || token.trim(), password })
+      if (session) forgetSession()
+      navigate('/login', { replace: true, state: { message: result.message } })
+    })
+  }
+
   return (
-    <main className={styles.page}>
-      <aside className={styles.story} aria-label="Sobre RoomLink">
-        <BrandMark />
-
-        <div className={styles.storyCopy}>
-          <p className={styles.storyEyebrow}>CONVIVENCIA CON INTENCIÓN</p>
-          <h1 className={styles.storyTitle}>Un hogar empieza con las personas correctas.</h1>
-          <p className={styles.storyLead}>
-            RoomLink te ayuda a encontrar roomies que comparten tus hábitos, tu ritmo y
-            tu forma de vivir. Sin prisas y con información clara.
-          </p>
-        </div>
-
-        <ul className={styles.highlights}>
-          {HIGHLIGHTS.map((item) => (
-            <li key={item}>
-              <span aria-hidden="true" className={styles.check}>✓</span>
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-
-        <p className={styles.storyFoot}>Encuentra tu lugar · Convive mejor</p>
-      </aside>
-
-      <section aria-labelledby="login-title" className={styles.panel}>
-        <div className={styles.card}>
-          <p className={styles.eyebrow}>BIENVENIDO DE NUEVO</p>
-          <h2 className={styles.title} id="login-title">Inicia sesión</h2>
-          <p className={styles.lead}>
-            Ingresa para descubrir perfiles compatibles y continuar tu test de convivencia.
-          </p>
-
-          <form className={styles.form} onSubmit={handleSubmit}>
-            <Field htmlFor="login-email" label="Correo electrónico">
-              <input
-                autoComplete="email"
-                name="email"
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                spellCheck={false}
-                type="email"
-                value={email}
-              />
-            </Field>
-
-            <Field htmlFor="login-password" label="Contraseña">
-              <input
-                autoComplete="current-password"
-                name="password"
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                spellCheck={false}
-                type="password"
-                value={password}
-              />
-            </Field>
-
-            {error ? <Notice tone="error">{error}</Notice> : null}
-
-            <Button
-              aria-busy={submitting}
-              className={styles.submit}
-              disabled={submitting}
-              type="submit"
-            >
-              {submitting ? 'Conectando…' : 'Iniciar sesión'}
-            </Button>
-            <span aria-live="polite" className="sr-only" role="status">
-              {submitting ? 'Conectando…' : ''}
-            </span>
-          </form>
-
-          <p className={styles.help}>
-            ¿Es tu primera vez? Al entrar podrás completar el test de convivencia.
-          </p>
-        </div>
+    <main className="access-page">
+      <section className="access-panel" aria-labelledby="access-title">
+        <Brand to="/login" />
+        <form className="access-form" onSubmit={handleSubmit}>
+          <div className="access-intro">
+            <h1 id="access-title">{title}</h1>
+            <p>{description}</p>
+          </div>
+          {!reset && <label className="field">
+            Correo electrónico
+            <input autoComplete="email" type="email" placeholder="nombre@correo.com" required value={email} onChange={(event) => setEmail(event.target.value)} />
+          </label>}
+          {reset && !linkToken && <label className="field">
+            Código de recuperación
+            <input autoComplete="one-time-code" required value={token} onChange={(event) => setToken(event.target.value)} />
+          </label>}
+          {!forgot && <div className="access-password">
+            <label className="field">
+              {reset ? 'Nueva contraseña' : 'Contraseña'}
+              <input autoComplete={login ? 'current-password' : 'new-password'} required minLength={login ? undefined : 8} type={visible ? 'text' : 'password'} placeholder={login ? 'Tu contraseña' : 'Mínimo 8 caracteres'} value={password} onChange={(event) => setPassword(event.target.value)} />
+            </label>
+            <button className="password-toggle" type="button" onClick={() => setVisible((value) => !value)}>{visible ? 'Ocultar' : 'Mostrar'}</button>
+          </div>}
+          {reset && <label className="field">
+            Confirma la contraseña
+            <input autoComplete="new-password" required minLength={8} type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />
+          </label>}
+          {login && <Link className="access-link forgot-link" to="/recuperar" state={location.state}>¿Olvidaste tu contraseña?</Link>}
+          {register && <label className="access-check">
+            <input type="checkbox" required checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />
+            Acepto los términos de servicio y el aviso de privacidad.
+          </label>}
+          {error && <p className="feature-feedback feature-error" role="alert">{error}</p>}
+          {message && <p className="feature-feedback feature-success" role="status">{message}</p>}
+          <button className="button button-mint button-wide" disabled={submitting}>
+            {submitting ? 'Un momento…' : action}
+          </button>
+          {(login || register) && <GoogleButton registration={register} enabled={!submitting && (login || accepted)} onCredential={(idToken) => submit(() => authenticate('oauth/google', { idToken, termsAccepted: accepted }))} />}
+          {login ? (
+            <p className="access-switch">¿Primera vez aquí? <Link className="access-link" to="/registro" state={location.state}>Crea una cuenta</Link></p>
+          ) : (
+            <p className="access-switch">
+              {forgot && <Link className="access-link" to="/restablecer">Ya tengo un código</Link>}
+              <Link className="access-link" to="/login" state={{ from: location.state?.from }}>Volver a iniciar sesión</Link>
+            </p>
+          )}
+        </form>
+        <p className="access-footer">RoomLink · Hogares compartidos</p>
       </section>
+      <aside className="access-visual" style={{ backgroundImage: `linear-gradient(180deg, transparent 45%, rgb(18 38 33 / 75%)), url(${interior})` }}>
+        <p>Encuentra tu próximo hogar.</p>
+      </aside>
     </main>
   )
 }
-
-Login.propTypes = {
-  onLogin: PropTypes.func.isRequired,
-}
-
-export default Login

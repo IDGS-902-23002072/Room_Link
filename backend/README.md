@@ -9,7 +9,7 @@ API construida con **Hono**, **TypeScript**, **Drizzle ORM** y **MySQL 8**. Impl
 Para mantener alta cohesión y bajo acoplamiento:
 1. **Un solo Dominio (`src/domain/`)**: Las entidades del negocio (`User`, `Profile`, `RoomListing`, `Application`, `CompatibilityProfile`) y las interfaces de los repositorios (`IUserRepository`, etc.) viven aquí. Son clases puras de TypeScript: **no tocan la base de datos, no usan Drizzle y no conocen HTTP**.
 2. **Módulos con MVC independiente (`src/modules/`)**:
-   - Cada módulo (`auth`, `profile`, `rooms`, `applications`, `compatibility`) tiene:
+   - Cada módulo (`auth`, `profile`, `rooms`, `applications`, `compatibility`, `messaging`, `moderation`) tiene:
      - `*.controller.ts` (Controlador HTTP): Lee la petición, valida la entrada y delega al servicio.
      - `*.service.ts` (Servicio de Aplicación): Coordina los casos de uso y lógica del negocio llamando a los repositorios. **Nunca hace consultas SQL ni importa `db` directamente**.
      - `*.view.ts` (Vista / Serializador DTO): Decide qué datos salen al cliente, protegiendo campos privados (como hashes de contraseña).
@@ -62,7 +62,9 @@ backend/
 │   │   ├── profile/                   # Controller, Service, View, Routes
 │   │   ├── rooms/                     # Controller, Service, View, Routes
 │   │   ├── applications/              # Controller, Service, View, Routes
-│   │   └── compatibility/             # Test y motor de afinidades
+│   │   ├── compatibility/             # Test y motor de afinidades
+│   │   ├── messaging/                 # Bandeja, historial, envío, lectura y SSE
+│   │   └── moderation/                # Denuncias y revisión de anuncios
 │   ├── infrastructure/
 │   │   └── repositories/              # Implementaciones con Drizzle ORM
 │   └── db/
@@ -121,6 +123,16 @@ npm run dev
 ```
 
 La API estará disponible en `http://localhost:3000`.
+
+### Rutas de los módulos de César
+
+| Prefijo | Capacidades |
+|---|---|
+| `/api/v1/auth` | Registro, login, Google OAuth, recuperación, sesión y logout. |
+| `/api/v1/messages` | Bandeja, sala, historial paginado, entrega, lectura, contexto y eventos SSE. |
+| `/api/v1/moderation` | Denuncia de anuncios y, con rol `admin`, cola, decisión e historial. |
+
+Las rutas privadas aceptan la cookie HTTP-only `roomlink_session` o `Authorization: Bearer <token>`.
 
 ---
 
@@ -187,6 +199,33 @@ El comando mide 50 consultas después de calentar la caché y falla si el P95 su
 | `npm run db:migrate` | Aplica las migraciones SQL a MySQL. |
 | `npm run db:check` | Comprueba consistencia en migraciones Drizzle. |
 | `npm run db:studio` | **Drizzle Studio**: Abre el gestor visual de base de datos en `https://local.drizzle.studio`. |
+| `npm run test:smoke` | Suite de regresión end-to-end sobre fakes in-memory (11 pasos encadenados). |
+| `npm run test:regression` | Gate local completo: typecheck + db:check + unit + integration + smoke (equivalente al workflow `regression.yml`). |
+
+---
+
+## 7. Gate de regresión en CI
+
+El workflow [`.github/workflows/regression.yml`](../.github/workflows/regression.yml) corre automáticamente en:
+
+- `pull_request` contra `main`.
+- `push` a `main`.
+- `workflow_dispatch` (manual).
+
+Encadena en orden: `typecheck` → `db:check` → `db:migrate` → `test:unit` → `test:integration` → `test:smoke`. Un fallo en cualquier paso rompe el merge. Corre contra un servicio MySQL 8.4 levantado en el job (no usa una DB externa).
+
+El paso de `npm audit` queda informativo (no falla el gate); las vulnerabilidades moderadas en tooling de dev están aceptadas en `.docs/session_state.md`.
+
+### Branch protection sugerida
+
+En GitHub → **Settings → Branches → Branch protection rules** para `main`, habilitar:
+
+- **Require a pull request before merging**.
+- **Require status checks to pass before merging**, seleccionando `Backend · regression gate`.
+- **Require branches to be up to date before merging**.
+- **Do not allow bypassing the above settings**.
+
+Esto requiere permisos administrativos en el repositorio; se documenta acá para activarlo una sola vez.
 
 ---
 
