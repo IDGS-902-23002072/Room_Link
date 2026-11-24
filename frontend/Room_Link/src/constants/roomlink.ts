@@ -1,0 +1,16 @@
+export const color = {
+  blanco: '#FFFFFF',
+  fondo: '#F7FAF8',
+  tinta: '#182B25',
+  secundario: '#53655E',
+  borde: '#DDE8E2',
+  accion: '#185747',
+  menta: '#DBF2E8',
+  mentaSuave: '#EDF8F2',
+  lavanda: '#EEEAF8',
+  lavandaTexto: '#554473',
+  rosa: '#FBEAF0',
+  rosaTexto: '#8B3654',
+  crema: '#FFF2D9',
+  cremaTexto: '#735319',
+} as const;
