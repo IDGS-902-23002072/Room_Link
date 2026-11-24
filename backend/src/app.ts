@@ -1,3 +1,4 @@
+import { configureSmtp } from "./modules/auth/smtp-mailer.js";
 import { Hono } from "hono";
 import { db, checkDatabase as defaultCheckDatabase } from "./db/client.js";
 import { config } from "./config.js";
@@ -201,6 +202,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   );
 
   // 1. Auth Module
+  const smtp = dependencies.authDependencies ? undefined : configureSmtp();
   const authDependencies =
     dependencies.authDependencies ??
     ({
@@ -210,7 +212,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
       resetRepository: new DrizzlePasswordResetRepository(db),
       oauthIdentityRepository: new DrizzleOAuthIdentityRepository(db),
       oauthProvider: new GoogleOAuthProfileProvider(config.auth.googleClientId),
-      emailNotifier: new ConsoleEmailNotifier(),
+      emailNotifier: smtp ?? new ConsoleEmailNotifier(),
       eventPublisher: resolvedBus,
       sessionGuard: {
         isBlocked: async (userId: string) =>
@@ -254,7 +256,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   app.route("/api/v1/rooms", createRoomsRoutes(roomsController, authService));
 
   // 4. Applications Module (resuelve el host del listing para autorizar decide/getByListing)
-  const applicationsService = new ApplicationsService(appRepo);
+  const applicationsService = new ApplicationsService(appRepo, authDependencies.eventPublisher);
   const applicationsController = new ApplicationsController(applicationsService, {
     resolveListingHostId: async (listingId: string) => {
       const room = await roomRepo.findById(listingId);
@@ -276,7 +278,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   );
 
   // 5. Compatibility and affinity modules
-  const compatibilityService = new CompatibilityService(compatibilityRepo);
+  const compatibilityService = new CompatibilityService(compatibilityRepo, authDependencies.eventPublisher);
   const compatibilityController = new CompatibilityController(compatibilityService);
   app.route(
     "/api/v1/compatibility",
@@ -327,6 +329,10 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
       const room = await roomRepo.findById(listingId);
       return room ? room.hostId : null;
     },
+    smtp ? async (userId, title) => {
+      const user = await userRepo.findById(userId);
+      if (user?.emailVerifiedAt && user.isActive()) await smtp.sendNotification(user.email, title);
+    } : undefined,
   );
   // Suscribe el consumer al bus compartido (solo si el publisher soporta subscribe).
   const subscribable = resolvedBus as unknown as InProcessEventBus;

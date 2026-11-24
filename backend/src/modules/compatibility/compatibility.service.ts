@@ -9,6 +9,8 @@ import type {
   ICompatibilityRepository,
 } from "../../domain/repositories/ICompatibilityRepository.js";
 
+import type { DomainEventPublisher } from "../auth/auth.ports.js";
+
 export class CompatibilityError extends Error {
   constructor(
     message: string,
@@ -39,7 +41,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export class CompatibilityService {
-  constructor(private readonly repository: ICompatibilityRepository) {}
+  constructor(private readonly repository: ICompatibilityRepository, private readonly events?: DomainEventPublisher) {}
 
   async getTest(userId: string): Promise<CompatibilityTestResult> {
     await this.requireActiveUser(userId);
@@ -118,11 +120,17 @@ export class CompatibilityService {
     if (message.length > 500) {
       throw new CompatibilityError("El mensaje no puede superar 500 caracteres.", 400);
     }
-    return this.repository.createConnection(
+    const connection = await this.repository.createConnection(
       requesterId,
       addresseeId,
       message.length > 0 ? message : null,
     );
+    await this.events?.publish({
+      type: "ConnectionRequestedEvent",
+      aggregateId: connection.id,
+      payload: { requesterId, addresseeId },
+    });
+    return connection;
   }
 
   static isValidAnswers(input: unknown): input is CompatibilityAnswers {

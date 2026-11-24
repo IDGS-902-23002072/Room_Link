@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { iniciarSesion, registrar } from '@/auth/api-auth';
+import { entrarConGoogle, googleDisponible } from '@/auth/google-sign-in';
 import { Aviso, BotonPrimario, Campo, Enlace, PantallaAuth, paleta } from '@/auth/ui';
 
 export default function Registro() {
@@ -26,6 +27,20 @@ export default function Registro() {
       await iniciarSesion(email.trim(), password);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo crear la cuenta.');
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  async function google() {
+    if (cargando) return;
+    if (!acepta) { setError('Acepta los términos de servicio para registrarte.'); return; }
+    setError('');
+    setCargando(true);
+    try {
+      await entrarConGoogle(acepta);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo continuar con Google.');
     } finally {
       setCargando(false);
     }
@@ -77,6 +92,7 @@ export default function Registro() {
       </Pressable>
       <Aviso texto={error} tono="error" />
       <BotonPrimario etiqueta="Crear mi cuenta" onPress={crear} cargando={cargando} />
+      {googleDisponible && <BotonPrimario etiqueta="Registrarme con Google" onPress={google} cargando={cargando} variante="contorno" />}
       <Enlace
         etiqueta="¿Ya tienes cuenta? Inicia sesión"
         onPress={() => router.replace('/(auth)/login')}

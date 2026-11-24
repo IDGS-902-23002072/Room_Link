@@ -114,6 +114,12 @@ export class DrizzleUserRepository implements IUserRepository {
       .where(eq(authUsers.id, user.id));
   }
 
+  async grantHostRole(id: string): Promise<void> {
+    await this.db.insert(authUserRoles)
+      .values({ userId: id, role: "host" })
+      .onDuplicateKeyUpdate({ set: { role: "host" } });
+  }
+
   async delete(id: string): Promise<void> {
     await this.db.delete(authUsers).where(eq(authUsers.id, id));
   }

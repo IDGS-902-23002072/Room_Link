@@ -40,14 +40,17 @@ export class NotificationsService {
     return this.repo.markAllRead(userId, this.now());
   }
 
-  async getPreferences(userId: string): Promise<NotificationPreference[]> {
+  async getPreferences(userId: string): Promise<Array<NotificationPreference & { emailOptIn: boolean }>> {
     const stored = await this.repo.getPreferences(userId);
-    const map = new Map(stored.map((p) => [p.type, p]));
-    // Completa con defaults (in-app y email activos) para tipos sin entrada.
-    return notificationTypes.map(
-      (type) =>
-        map.get(type) ?? { userId, type, inApp: true, email: true },
-    );
+    const map = new Map(stored.map((preference) => [preference.type, preference]));
+    return notificationTypes.map((type) => {
+      const preference = map.get(type);
+      return { ...(preference ?? { userId, type, inApp: true, email: true }), emailOptIn: preference?.email === true };
+    });
+  }
+
+  async isEmailEnabled(userId: string, type: NotificationType): Promise<boolean> {
+    return (await this.repo.getPreferenceFor(userId, type))?.email === true;
   }
 
   async updatePreference(input: NotificationPreference): Promise<NotificationPreference> {

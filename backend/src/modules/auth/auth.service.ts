@@ -210,7 +210,12 @@ export class AuthService {
       expiresAt,
       createdAt: now,
     });
-    await this.dependencies.emailNotifier.sendPasswordReset({ email: user.email, token, expiresAt });
+    try {
+      await this.dependencies.emailNotifier.sendPasswordReset({ email: user.email, token, expiresAt });
+    } catch {
+      // Mantiene la respuesta pública idéntica para cuentas existentes y desconocidas.
+      console.error("No se pudo entregar el correo de recuperación.");
+    }
   }
 
   async resetPassword(token: string, password: string): Promise<void> {
@@ -291,8 +296,8 @@ export class AuthService {
     }
     const user = await this.userRepo.findById(userId);
     if (!user) throw new AppError("Usuario no encontrado.", 404, "USER_NOT_FOUND");
+    await this.userRepo.grantHostRole(user.id);
     user.grantHostRole(this.clock.now());
-    await this.userRepo.update(user);
     return user.roles;
   }
 

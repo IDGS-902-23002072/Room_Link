@@ -111,3 +111,19 @@ Dos trampas ya resueltas, que no hay que reintroducir:
 - **Minificación R8 desactivada** (`expo-build-properties` en `app.json`, `enableMinifyInReleaseBuilds: false`). Expo SDK 58 la activa por defecto y R8 eliminaba la clase que WorkManager carga por reflexión: la app crasheaba al abrir (`Failed to create an instance of class androidx.work.impl.WorkDatabase`).
 - **Mapa con OpenStreetMap** (Leaflet en `react-native-webview`, componente `MapaOSM`). `react-native-maps` en Android usa el SDK de Google Maps y exige API key; sin ella, la pantalla de ubicación crashea. OSM no requiere key, pero sí mostrar la atribución.
 
+
+## Correo y Google en producción
+
+Configura las variables en el mecanismo de configuración de la VM. Mantén las credenciales SMTP fuera de Git y de los logs del workflow.
+
+| Variable | Uso |
+|---|---|
+| `SMTP_URL` | Servidor SMTP con autenticación y TLS. Usa `smtp://` con STARTTLS o `smtps://` con TLS directo. |
+| `SMTP_FROM` | Remitente autorizado por el proveedor. |
+| `PUBLIC_WEB_ORIGIN` | Origen HTTPS de RoomLink para generar enlaces de recuperación y avisos. |
+| `GOOGLE_CLIENT_ID` | ID de cliente web autorizado para la API. Acepta una lista separada por comas si el backend admite varias audiencias. |
+| Variable de repositorio `GOOGLE_CLIENT_ID` | ID web que el workflow expone como `VITE_GOOGLE_CLIENT_ID` al compilar. |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Cliente web que usa el SDK nativo para solicitar el ID token que verifica la API. |
+| `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` y `GOOGLE_IOS_URL_SCHEME` | Cliente iOS y esquema invertido para el callback de Google en iOS. |
+
+Registra el origen HTTPS del portal en el cliente web de Google. En Android registra el nombre de paquete y la huella de la clave que firma el APK. Usa una compilación nativa de Expo con el módulo de Google instalado. Después de configurar, comprueba inicio de sesión y entrega de correo con cuentas de QA. En notificaciones, el correo de postulaciones y solicitudes de conexión requiere dirección verificada y preferencia de correo activada.
