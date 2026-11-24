@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Badge from '../../components/Badge/Badge.jsx'
 import Button from '../../components/Button/Button.jsx'
 import Card from '../../components/Card/Card.jsx'
@@ -35,6 +35,8 @@ export default function Questionnaire() {
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const savingRef = useRef(false)
   const [showResults, setShowResults] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -56,6 +58,7 @@ export default function Questionnaire() {
         if (!active) return
         if (result.completed && result.answers && isCompleteAnswers(result.answers)) {
           setAnswers(result.answers)
+          setSaved(true)
           setShowResults(true)
           return
         }
@@ -93,6 +96,7 @@ export default function Questionnaire() {
   function answerQuestion(value) {
     const nextAnswers = { ...answers, [question.id]: value }
     setAnswers(nextAnswers)
+    if (answers[question.id] !== value) setSaved(false)
     setError('')
     setNotice('')
     try {
@@ -124,6 +128,7 @@ export default function Questionnaire() {
 
   function repeatTest() {
     setAnswers({})
+    setSaved(false)
     setStep(0)
     setShowResults(false)
     setError('')
@@ -136,12 +141,14 @@ export default function Questionnaire() {
   }
 
   async function finishTest() {
-    if (!complete || saving) return
+    if (!complete || saving || saved || savingRef.current) return
     setError('')
     setNotice('')
+    savingRef.current = true
     setSaving(true)
     try {
       await saveCompatibilityTest(userId, answers, token)
+      setSaved(true)
       setNotice('Tus respuestas se guardaron correctamente.')
       setShowResults(true)
       try {
@@ -152,6 +159,7 @@ export default function Questionnaire() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo guardar el test.')
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -204,10 +212,10 @@ export default function Questionnaire() {
 
         <div className={styles.resultActions}>
           <Button onClick={editTest} variant="secondary">Editar respuestas</Button>
-          <Button disabled={!complete || saving} onClick={finishTest}>
-            {saving ? 'Guardando…' : 'Guardar respuestas'}
+          <Button disabled={!complete || saving || saved} onClick={finishTest}>
+            {saving ? 'Guardando…' : saved ? 'Respuestas guardadas' : 'Guardar mis respuestas'}
           </Button>
-          <Button href="/recomendados">Ver roomies compatibles</Button>
+          <Button href="/explorar">Explorar habitaciones</Button>
           <Button onClick={repeatTest} variant="secondary">Repetir test</Button>
         </div>
       </section>
@@ -249,7 +257,7 @@ export default function Questionnaire() {
               PREGUNTA {step + 1} DE {QUESTIONS.length} · {question.category}
             </p>
             <h1>{question.prompt}</h1>
-            <p className={styles.lead}>Elige la opción que mejor te describa.</p>
+            <p className={styles.lead}>Elige la opción que más se acerque a tus hábitos o preferencias.</p>
           </header>
 
           <Card
@@ -290,7 +298,7 @@ export default function Questionnaire() {
             </fieldset>
 
             <p className={styles.hint}>
-              Escala de 1 a 5 · Tus respuestas se guardan automáticamente
+              Las respuestas se guardan como borrador en este navegador; en resultados puedes guardarlas en tu perfil.
             </p>
             {error ? <Notice tone="error">{error}</Notice> : null}
             {notice ? <Notice tone="info">{notice}</Notice> : null}
@@ -314,11 +322,11 @@ export default function Questionnaire() {
 
           <Button
             className={styles.finish}
-            disabled={!complete || saving}
+            disabled={!complete || saving || saved}
             onClick={finishTest}
             variant="quiet"
           >
-            {saving ? 'Guardando respuestas…' : 'Finalizar y guardar test'}
+            {saving ? 'Guardando respuestas…' : saved ? 'Respuestas guardadas' : 'Finalizar y guardar test'}
           </Button>
         </div>
       </div>
