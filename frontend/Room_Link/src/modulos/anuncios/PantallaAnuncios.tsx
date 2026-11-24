@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 
 import React, { useState } from "react";
 
@@ -467,7 +469,7 @@ export function PantallaAnuncios() {
 
         <ActivityIndicator
           size="large"
-          color="#806487"
+          color={color.accion}
         />
 
         <Text style={styles.textoCarga}>
@@ -555,13 +557,13 @@ export function PantallaAnuncios() {
 const styles = StyleSheet.create({
   pantallaCarga: {
     flex: 1,
-    backgroundColor: "#F8F5F9",
+    backgroundColor: color.blanco,
     alignItems: "center",
     justifyContent: "center",
   },
 
   textoCarga: {
-    color: "#806487",
+    color: color.accion,
     fontSize: 12,
     marginTop: 15,
   },
