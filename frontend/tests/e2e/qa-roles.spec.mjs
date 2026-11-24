@@ -479,6 +479,85 @@ test('M14 guarda preferencias web y respeta el aviso de conexión', async ({ pag
   await expect(page.getByText('Recibiste una solicitud de conexión.', { exact: true })).toBeVisible()
 })
 
+test('HU-02 revela el contacto solo a conexiones según la privacidad y M02 aprueba la identidad', async ({ page, browser, baseURL }) => {
+  const ownerTag = 'privacidad-dueno-' + randomUUID().slice(0, 8)
+  const ownerName = 'RoomLink QA ' + ownerTag
+  const owner = await account(ownerTag)
+  const connected = await account('privacidad-conexion')
+  const stranger = await account('privacidad-ajeno')
+  const admin = await account('admin', false)
+  await grantQaAdmin(admin.id)
+
+  // El dueño registra teléfono e Instagram.
+  await call(`/profiles/${owner.id}`, { method: 'PUT', token: owner.token, body: { fullName: ownerName, phone: '4770001122' } })
+  await call(`/profiles/${owner.id}/socials`, { method: 'PUT', token: owner.token, body: { instagram: '@roomlink_qa' } })
+
+  // Conexión aceptada entre el dueño y la cuenta "conectada".
+  const connection = await call(`/compatibility/${connected.id}/connections`, {
+    method: 'POST', token: connected.token, body: { candidateId: owner.id, introMessage: 'Hola' }, want: 201,
+  })
+  await call(`/connections/${connection.id}`, { method: 'PATCH', token: owner.token, body: { decision: 'accept' } })
+
+  // Una cuenta ajena (sin conexión) no ve ningún dato de contacto.
+  const strangerView = await call(`/profiles/${owner.id}`, { token: stranger.token })
+  expect(strangerView.phone, 'ajeno sin teléfono').toBeNull()
+  expect(strangerView.instagram, 'ajeno sin redes').toBeNull()
+  expect(strangerView.email ?? null, 'ajeno sin correo').toBeNull()
+
+  // La conexión ve teléfono y redes por defecto, pero NO el correo.
+  const connectedBefore = await call(`/profiles/${owner.id}`, { token: connected.token })
+  expect(connectedBefore.phone, 'conexión ve teléfono por defecto').toBe('4770001122')
+  expect(connectedBefore.instagram, 'conexión ve redes por defecto').toContain('roomlink_qa')
+  expect(connectedBefore.email ?? null, 'correo oculto por defecto').toBeNull()
+
+  // El dueño habilita "Compartir correo" desde el panel de privacidad fusionado.
+  await login(page, owner)
+  await page.goto('/perfil/cuenta')
+  const privacy = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Privacidad de contacto' }) })
+  await privacy.getByRole('switch', { name: 'Compartir correo' }).check()
+  await privacy.getByRole('button', { name: 'Guardar privacidad' }).click()
+  await expect(page.getByText('Privacidad guardada.')).toBeVisible()
+
+  // Ahora la conexión ve el correo; el ajeno sigue sin verlo.
+  const connectedAfter = await call(`/profiles/${owner.id}`, { token: connected.token })
+  expect(connectedAfter.email, 'conexión ve el correo tras habilitarlo').toBe(owner.email)
+  const strangerAfter = await call(`/profiles/${owner.id}`, { token: stranger.token })
+  expect(strangerAfter.email ?? null, 'el ajeno sigue sin ver el correo').toBeNull()
+
+  // El dueño revoca el correo y vuelve a ocultarse.
+  await privacy.getByRole('switch', { name: 'Compartir correo' }).uncheck()
+  await privacy.getByRole('button', { name: 'Guardar privacidad' }).click()
+  await expect(page.getByText('Privacidad guardada.')).toBeVisible()
+  const revoked = await call(`/profiles/${owner.id}`, { token: connected.token })
+  expect(revoked.email ?? null, 'tras revocar, sin correo').toBeNull()
+  expect(revoked.phone, 'el teléfono sigue visible').toBe('4770001122')
+
+  // M02 — el dueño pide verificación y el admin la aprueba desde /admin/identidad.
+  await call(`/profiles/${owner.id}/verification/request`, { method: 'POST', token: owner.token })
+  const adminContext = await browser.newContext({ baseURL })
+  try {
+    const adminPage = await adminContext.newPage()
+    await login(adminPage, admin)
+    await adminPage.goto('/admin/identidad')
+    await expect(adminPage.getByRole('heading', { name: 'Solicitudes de identidad' })).toBeVisible()
+    const card = adminPage.locator('section').filter({ hasText: ownerName })
+    for (let i = 0; i < 12 && (await card.count()) === 0; i++) {
+      const next = adminPage.getByRole('button', { name: 'Siguiente' })
+      if ((await next.count()) === 0 || !(await next.isEnabled())) break
+      await next.click()
+      await adminPage.waitForLoadState('networkidle')
+    }
+    await expect(card).toBeVisible()
+    adminPage.once('dialog', (dialog) => dialog.accept())
+    await card.getByRole('button', { name: 'Aprobar' }).click()
+    await expect(adminPage.getByText('Identidad verificada.')).toBeVisible()
+  } finally {
+    await adminContext.close()
+  }
+  const verified = await call(`/profiles/${owner.id}`, { token: owner.token })
+  expect(verified.identityStatus, 'identidad verificada').toBe('verified')
+})
+
 test('SMTP entrega el enlace y el reemplazo de contraseña revoca la sesión', async ({ page }) => {
   const user = await account('reset', false)
   await page.goto('/login')
