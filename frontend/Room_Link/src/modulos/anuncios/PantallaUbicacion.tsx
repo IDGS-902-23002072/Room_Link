@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 
 import React, { useState } from "react";
 
@@ -414,7 +416,7 @@ export default function PantallaUbicacion({
 
         {cargando ? (
           <View style={styles.estado}>
-            <ActivityIndicator color="#806487" />
+            <ActivityIndicator color={color.accion} />
 
             <Text style={styles.textoEstado}>
               Buscando ubicación...
@@ -472,7 +474,7 @@ export default function PantallaUbicacion({
 const styles = StyleSheet.create({
   pantalla: {
     flex: 1,
-    backgroundColor: "#F8F5F9",
+    backgroundColor: color.blanco,
   },
 
   encabezado: {
@@ -481,7 +483,7 @@ const styles = StyleSheet.create({
   },
 
   marca: {
-    color: "#8A6C91",
+    color: color.accion,
     fontSize: 9,
     letterSpacing: 0.7,
     marginBottom: 7,
@@ -498,19 +500,19 @@ const styles = StyleSheet.create({
   },
 
   volver: {
-    color: "#806487",
+    color: color.accion,
     fontSize: 30,
     lineHeight: 34,
   },
 
   titulo: {
-    color: "#332A37",
+    color: color.tinta,
     fontSize: 21,
     fontWeight: "700",
   },
 
   instruccion: {
-    color: "#88768D",
+    color: color.secundario,
     fontSize: 11,
     marginBottom: 12,
     lineHeight: 16,
@@ -532,7 +534,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 12,
     alignSelf: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: color.blanco,
     borderRadius: 20,
     paddingVertical: 10,
     paddingHorizontal: 15,
@@ -546,16 +548,16 @@ const styles = StyleSheet.create({
   },
 
   pie: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: color.blanco,
     margin: 15,
     padding: 15,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#EDE5EE",
+    borderColor: color.borde,
   },
 
   etiqueta: {
-    color: "#88768D",
+    color: color.secundario,
     fontSize: 11,
     fontWeight: "600",
     marginBottom: 7,
@@ -564,19 +566,19 @@ const styles = StyleSheet.create({
   inputDireccion: {
     minHeight: 65,
     maxHeight: 100,
-    backgroundColor: "#F8F5F9",
+    backgroundColor: color.blanco,
     borderWidth: 1,
     borderColor: "#E8DDEB",
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: "#332A37",
+    color: color.tinta,
     fontSize: 12,
     textAlignVertical: "top",
   },
 
   botonBuscar: {
-    backgroundColor: "#E9DDEA",
+    backgroundColor: color.menta,
     borderRadius: 10,
     height: 39,
     alignItems: "center",
@@ -585,7 +587,7 @@ const styles = StyleSheet.create({
   },
 
   textoBotonBuscar: {
-    color: "#654C6D",
+    color: color.accion,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -599,7 +601,7 @@ const styles = StyleSheet.create({
   },
 
   textoEstado: {
-    color: "#88768D",
+    color: color.secundario,
     fontSize: 10,
   },
 
@@ -611,7 +613,7 @@ const styles = StyleSheet.create({
   },
 
   botonContinuar: {
-    backgroundColor: "#806487",
+    backgroundColor: color.accion,
     borderRadius: 11,
     height: 44,
     alignItems: "center",
@@ -624,7 +626,7 @@ const styles = StyleSheet.create({
   },
 
   textoBoton: {
-    color: "#FFFFFF",
+    color: color.blanco,
     fontSize: 13,
     fontWeight: "700",
   },
