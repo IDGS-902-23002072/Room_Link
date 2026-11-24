@@ -1,0 +1,183 @@
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import Button from '../../components/Button/Button.jsx'
+import EmptyState from '../../components/EmptyState/EmptyState.jsx'
+import Field from '../../components/Field/Field.jsx'
+import Notice from '../../components/Notice/Notice.jsx'
+import PageHeader from '../../components/PageHeader/PageHeader.jsx'
+import { asyncEffect } from '../../hooks/asyncEffect.js'
+import { useAuth } from '../../hooks/useAuth.js'
+import { push } from '../../routes/navigation.js'
+import RoomCard from './RoomCard.jsx'
+import { RENT_FILTERS, getHostCompatibility, getRoomFeed } from './rooms.js'
+import styles from './RoomFeed.module.css'
+
+const SEARCH_DEBOUNCE_MS = 350
+
+export default function RoomFeed() {
+  const { session } = useAuth()
+  const navigate = useNavigate()
+  const [page, setPage] = useState(1)
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [rentId, setRentId] = useState('any')
+  const [feedState, setFeedState] = useState({ key: '', result: null, error: '' })
+  const [scores, setScores] = useState({})
+
+  const maxRent = RENT_FILTERS.find((filter) => filter.id === rentId)?.maxRent
+  const key = `${page}|${search}|${rentId}`
+  const userId = session.user.id
+  const token = session.token
+
+  // Búsqueda con espera para no consultar en cada tecla.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim())
+      setPage(1)
+    }, SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  useEffect(
+    () => asyncEffect(async (isActive) => {
+      try {
+        const result = await getRoomFeed({ page, search, maxRent, excludeHostId: userId })
+        if (isActive()) setFeedState({ key, result, error: '' })
+      } catch (cause) {
+        if (isActive()) {
+          setFeedState({
+            key,
+            result: null,
+            error: cause instanceof Error ? cause.message : 'No se pudo cargar el feed.',
+          })
+        }
+      }
+    }),
+    [key, maxRent, page, search, userId],
+  )
+
+  const loading = feedState.key !== key
+  const items = loading ? [] : (feedState.result?.items ?? [])
+  const error = loading ? '' : feedState.error
+
+  // Afinidad con cada anfitrión (usuario ↔ usuario); es opcional y falla en silencio.
+  useEffect(
+    () => asyncEffect(async (isActive) => {
+      const hostIds = [...new Set(items.map((room) => room.hostId))].filter(
+        (hostId) => !(hostId in scores),
+      )
+      if (hostIds.length === 0) return
+      const entries = await Promise.all(
+        hostIds.map(async (hostId) => [hostId, await getHostCompatibility(userId, hostId, token)]),
+      )
+      if (isActive()) setScores((current) => ({ ...current, ...Object.fromEntries(entries) }))
+    }),
+    // `scores` se omite a propósito: solo se piden anfitriones que aún no están.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, token, userId],
+  )
+
+  const filtered = search !== '' || rentId !== 'any'
+
+  function clearFilters() {
+    setSearchInput('')
+    setSearch('')
+    setRentId('any')
+    setPage(1)
+  }
+
+  return (
+    <section className={styles.page}>
+      <PageHeader
+        actions={<Button href="/cuestionario" variant="secondary">Revisar mi test</Button>}
+        description="Habitaciones publicadas en renta. Revisa los detalles y postúlate a la que más te guste."
+        eyebrow="EXPLORAR · HABITACIONES"
+        title="Encuentra tu habitación"
+      />
+
+      <div className={styles.toolbar}>
+        <div className={styles.search}>
+          <label className="sr-only" htmlFor="room-search">Buscar habitaciones</label>
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="6" />
+            <path d="m16 16 4 4" />
+          </svg>
+          <input
+            autoComplete="off"
+            id="room-search"
+            name="search"
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Buscar por título, zona o ciudad…"
+            spellCheck={false}
+            type="search"
+            value={searchInput}
+          />
+        </div>
+
+        <Field htmlFor="room-rent" label="Renta" variant="inline">
+          <select
+            autoComplete="off"
+            id="room-rent"
+            name="rent"
+            onChange={(event) => {
+              setRentId(event.target.value)
+              setPage(1)
+            }}
+            value={rentId}
+          >
+            {RENT_FILTERS.map((filter) => (
+              <option key={filter.id} value={filter.id}>{filter.label}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      {error ? <Notice tone="error">{error}</Notice> : null}
+
+      {loading ? (
+        <div className={styles.loading} role="status">Buscando habitaciones…</div>
+      ) : items.length ? (
+        <div className={styles.grid}>
+          {items.map((room) => (
+            <RoomCard
+              compatibility={scores[room.hostId] ?? undefined}
+              key={room.id}
+              onOpen={() => push(navigate, `/habitacion/${encodeURIComponent(room.id)}`)}
+              room={room}
+            />
+          ))}
+        </div>
+      ) : error ? null : (
+        <EmptyState
+          action={
+            filtered ? (
+              <Button onClick={clearFilters} variant="secondary">Limpiar filtros</Button>
+            ) : null
+          }
+          description={
+            filtered
+              ? 'Prueba con otra búsqueda o ajusta el precio para ver más resultados.'
+              : 'Vuelve más tarde para descubrir nuevas habitaciones.'
+          }
+          title={filtered ? 'No encontramos habitaciones' : 'Aún no hay habitaciones publicadas'}
+        />
+      )}
+
+      {!loading && (page > 1 || feedState.result?.hasMore) ? (
+        <nav aria-label="Paginación de habitaciones" className={styles.pagination}>
+          <Button disabled={page <= 1} onClick={() => setPage(page - 1)} variant="secondary">
+            Anterior
+          </Button>
+          <span>Página {page}</span>
+          <Button
+            disabled={!feedState.result?.hasMore}
+            onClick={() => setPage(page + 1)}
+            variant="secondary"
+          >
+            Siguiente
+          </Button>
+        </nav>
+      ) : null}
+    </section>
+  )
+}
