@@ -177,16 +177,16 @@ test.describe("Flujo 1 · Auth cross-origin, Onboarding y Navegación móvil", (
 
     // Pantallas apiladas: Notificaciones (HU-14), Conexiones (HU-08), Acuerdos (HU-12), M06
     await page.goto(`${WEB_URL}/notificaciones`, { waitUntil: "networkidle" });
-    await expect(page.getByText("ROOMLINK / 14")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Marcar todas leídas" })).toBeVisible();
 
     await page.goto(`${WEB_URL}/conexiones`, { waitUntil: "networkidle" });
-    await expect(page.getByText("ROOMLINK / CONEXIONES")).toBeVisible();
+    await expect(page.getByRole("button", { name: "+ Conectar con ID" })).toBeVisible();
 
     await page.goto(`${WEB_URL}/acuerdos`, { waitUntil: "networkidle" });
     await expect(page.getByText("Acuerdos de convivencia")).toBeVisible();
 
     await page.goto(`${WEB_URL}/compatibilidad-detalle`, { waitUntil: "networkidle" });
-    await expect(page.getByText("ROOMLINK / 06")).toBeVisible();
+    await expect(page.getByText("Comparación", { exact: true })).toBeVisible();
   });
 });
 
