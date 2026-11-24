@@ -280,10 +280,15 @@ test('SMTP entrega el enlace y el reemplazo de contraseña revoca la sesión', a
   const user = await account('reset', false)
   await page.goto('/login')
   await page.getByRole('link', { name: /Olvidaste/ }).click()
-  await page.getByLabel('Correo electrónico').fill(user.email)
-  const queued = page.waitForResponse((res) => res.url().endsWith('/auth/password/forgot'))
-  await page.getByRole('button', { name: /Solicitar instrucciones/ }).click()
-  expect((await queued).ok()).toBeTruthy()
+  const recovery = page.getByRole('region', { name: 'Recupera tu acceso' })
+  const email = recovery.getByLabel('Correo electrónico')
+  await email.fill(user.email)
+  await expect(email).toHaveValue(user.email)
+  const [queued] = await Promise.all([
+    page.waitForResponse((res) => res.url().endsWith('/auth/password/forgot') && res.request().method() === 'POST'),
+    recovery.getByRole('button', { name: 'Solicitar instrucciones' }).click(),
+  ])
+  expect(queued.ok()).toBeTruthy()
 
   let messageId
   await expect.poll(async () => {
