@@ -609,6 +609,117 @@ test('HU-02 revela el contacto solo a conexiones según la privacidad y M02 apru
   expect(verified.identityStatus, 'identidad verificada').toBe('verified')
 })
 
+test('M12 registra las dos firmas, crea una nueva versión y niega el acceso a terceros', async ({ page, browser, baseURL }) => {
+  const host = await account('acuerdo-host')
+  const roomie = await account('acuerdo-roomie')
+  const stranger = await account('acuerdo-ajeno')
+
+  // El host se vuelve arrendador y publica una habitación.
+  await call(`/profiles/${host.id}/verification/request`, { method: 'POST', token: host.token })
+  await call('/auth/become-host', { method: 'POST', token: host.token, body: { acceptedTerms: true } })
+  const room = await listing(host.token)
+
+  // El roomie se postula y el host lo acepta (requisito para generar el acuerdo).
+  const application = await call('/applications', { method: 'POST', token: roomie.token, body: { listingId: room.id }, want: 201 })
+  await call(`/applications/${application.id}/decide`, { method: 'PATCH', token: host.token, body: { decision: 'accept' } })
+
+  // El host genera el acuerdo v1 (snapshot de las reglas del anuncio, sin firmas).
+  const agreement = await call('/agreements', {
+    method: 'POST', token: host.token,
+    body: { listingId: room.id, hostId: host.id, roomieId: roomie.id }, want: 201,
+  })
+  expect(agreement.version).toBe(1)
+  expect(agreement.fullyAccepted).toBe(false)
+  const reviewPath = `/acuerdos/revisar/${agreement.id}`
+
+  // Firma 1 — el host acepta desde la UI.
+  await login(page, host)
+  await page.goto(reviewPath)
+  await page.getByRole('checkbox', { name: /He leído y acepto/ }).check()
+  await page.getByRole('button', { name: 'Aceptar versión 1' }).click()
+  await expect(page.getByText(/Tu aceptación se registró/)).toBeVisible()
+  await expect(page.getByText('1 de 2 aceptaron')).toBeVisible()
+
+  // Firma 2 — el roomie acepta desde otra sesión; el acuerdo queda completo.
+  const roomieContext = await browser.newContext({ baseURL })
+  try {
+    const roomiePage = await roomieContext.newPage()
+    await login(roomiePage, roomie)
+    await roomiePage.goto(reviewPath)
+    await roomiePage.getByRole('checkbox', { name: /He leído y acepto/ }).check()
+    await roomiePage.getByRole('button', { name: 'Aceptar versión 1' }).click()
+    await expect(roomiePage.getByText(/Tu aceptación se registró/)).toBeVisible()
+    await expect(roomiePage.getByText('Todos los integrantes aceptaron esta versión.')).toBeVisible()
+  } finally {
+    await roomieContext.close()
+  }
+
+  // Persistencia: la API refleja dos firmas y el host lo ve al volver a entrar.
+  const signed = await call(`/agreements/${agreement.id}`, { token: host.token })
+  expect(signed.acceptances.filter((a) => a.acceptedAt).length).toBe(2)
+  expect(signed.fullyAccepted).toBe(true)
+  await page.reload()
+  await expect(page.getByText('2 de 2 aceptaron')).toBeVisible()
+
+  // Nueva versión (host-only): reinicia las firmas y supera a la anterior.
+  const v2 = await call(`/agreements/${agreement.id}/versions`, { method: 'POST', token: host.token, want: 201 })
+  expect(v2.version).toBe(2)
+  expect(v2.supersedesAgreementId).toBe(agreement.id)
+  expect(v2.fullyAccepted).toBe(false)
+  expect(v2.acceptances.filter((a) => a.acceptedAt).length).toBe(0)
+
+  // Acceso de terceros: un no participante no puede leer el acuerdo ni versionarlo.
+  await call(`/agreements/${agreement.id}`, { token: stranger.token, want: 403 })
+  await call(`/agreements/${v2.id}/versions`, { method: 'POST', token: stranger.token, want: 403 })
+})
+
+test('M15 valida métricas del dashboard por rango, rol y estado vacío', async ({ page }) => {
+  const admin = await account('admin', false)
+  await grantQaAdmin(admin.id)
+  const today = new Date().toISOString().slice(0, 10)
+
+  // Privacidad por rol: un no-admin no puede leer la analítica.
+  const intruder = await account('analitica-intruso', false)
+  await call(`/admin/analytics?start=${today}&end=${today}`, { token: intruder.token, want: 403 })
+
+  // Estado vacío: un rango histórico sin datos devuelve ceros y tasa nula.
+  const empty = await call('/admin/analytics?start=2000-01-01&end=2000-01-31', { token: admin.token })
+  expect(empty.kpis.usersRegistered).toBe(0)
+  expect(empty.kpis.connectionsSent).toBe(0)
+  expect(empty.kpis.connectionAcceptanceRate).toBeNull()
+  expect(empty.monthlyUsers.every((m) => m.total === 0)).toBe(true)
+
+  // Validación de rango: fechas invertidas y rango mayor a 12 meses → 400.
+  await call('/admin/analytics?start=2024-06-01&end=2024-05-01', { token: admin.token, want: 400 })
+  await call('/admin/analytics?start=2024-01-01&end=2025-06-01', { token: admin.token, want: 400 })
+
+  // Métricas con datos conocidos: delta sobre el día de hoy (robusto en la DB QA compartida).
+  const before = await call(`/admin/analytics?start=${today}&end=${today}`, { token: admin.token })
+  const u1 = await account('m15-u1')
+  const u2 = await account('m15-u2')
+  const u3 = await account('m15-u3')
+  const c1 = await call(`/compatibility/${u1.id}/connections`, { method: 'POST', token: u1.token, body: { candidateId: u2.id, introMessage: null }, want: 201 })
+  await call(`/compatibility/${u1.id}/connections`, { method: 'POST', token: u1.token, body: { candidateId: u3.id, introMessage: null }, want: 201 })
+  await call(`/connections/${c1.id}`, { method: 'PATCH', token: u2.token, body: { decision: 'accept' } })
+  const after = await call(`/admin/analytics?start=${today}&end=${today}`, { token: admin.token })
+
+  expect(after.kpis.usersRegistered - before.kpis.usersRegistered, 'tres usuarios nuevos').toBe(3)
+  expect(after.kpis.connectionsSent - before.kpis.connectionsSent, 'dos conexiones enviadas').toBe(2)
+  expect(after.kpis.connectionsAccepted - before.kpis.connectionsAccepted, 'una conexión aceptada').toBe(1)
+  expect(after.period).toEqual({ start: today, end: today })
+  // La serie mensual del mes en curso sube exactamente en los tres usuarios.
+  const month = today.slice(0, 7)
+  const usersBeforeMonth = before.monthlyUsers.find((m) => m.month === month)?.total ?? 0
+  const usersAfterMonth = after.monthlyUsers.find((m) => m.month === month)?.total ?? 0
+  expect(usersAfterMonth - usersBeforeMonth).toBe(3)
+
+  // Vite consume la MISMA API que Expo: el dashboard admin renderiza los KPIs.
+  await login(page, admin)
+  await page.goto('/admin/dashboard')
+  await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible()
+  await expect(page.getByLabel('Indicadores clave')).toBeVisible()
+})
+
 test('SMTP entrega el enlace y el reemplazo de contraseña revoca la sesión', async ({ page }) => {
   const user = await account('reset', false)
   await page.goto('/login')
