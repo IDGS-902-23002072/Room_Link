@@ -1,10 +1,11 @@
-import type {
+import {
   Connection,
-  ConnectionDirection,
-  IConnectionRepository,
+  type ConnectionDirection,
+  type IConnectionRepository,
 } from "../../domain/index.js";
 import { AppError } from "../../shared/AppError.js";
 import type { DomainEventPublisher } from "../auth/index.js";
+import { randomUUID } from "node:crypto";
 
 export type ConnectionDecision = "accept" | "reject";
 
@@ -15,12 +16,18 @@ export interface RespondInput {
   responseMessage?: string | null;
 }
 
+export interface SendConnectionInput {
+  requesterId: string;
+  addresseeId: string;
+  introMessage?: string | null;
+}
+
 export class ConnectionsService {
   constructor(
     private readonly repo: IConnectionRepository,
     private readonly events: DomainEventPublisher,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+  ) { }
 
   listForUser(userId: string, direction: ConnectionDirection): Promise<Connection[]> {
     return this.repo.listForUser(userId, direction);
@@ -74,6 +81,74 @@ export class ConnectionsService {
         },
       });
     }
+    return connection;
+  }
+
+  async send(input: SendConnectionInput): Promise<Connection> {
+    // 1. Validar que no se envíe una solicitud a sí mismo.
+    if (input.requesterId === input.addresseeId) {
+      throw new AppError(
+        "No puedes enviarte una solicitud a ti mismo.",
+        400,
+        "CONNECTION_SELF_REQUEST",
+      );
+    }
+
+    // 2. Validar el mensaje opcional.
+    const message = input.introMessage?.trim() || null;
+
+    if (message && message.length > 500) {
+      throw new AppError(
+        "El mensaje no puede superar los 500 caracteres.",
+        400,
+        "CONNECTION_MESSAGE_TOO_LONG",
+      );
+    }
+
+    // 3. Comprobar si ya existe una solicitud o conexión activa.
+    const exists = await this.repo.existsActiveBetween(
+      input.requesterId,
+      input.addresseeId,
+    );
+
+    if (exists) {
+      throw new AppError(
+        "Ya existe una solicitud pendiente o una conexión aceptada entre estos usuarios.",
+        409,
+        "CONNECTION_ALREADY_EXISTS",
+      );
+    }
+
+    // 4. Crear la nueva conexión.
+    const connection = new Connection({
+      id: randomUUID(),
+      requesterId: input.requesterId,
+      addresseeId: input.addresseeId,
+      status: "pending",
+      introMessage: message,
+      responseMessage: null,
+      createdAt: this.now(),
+      respondedAt: null,
+    });
+
+    // 5. Guardar en la base de datos.
+    try {
+      await this.repo.create(connection);
+    } catch (error) {
+      // El índice único también protege contra solicitudes simultáneas.
+      const dbError = error as { code?: string; errno?: number };
+
+      if (dbError.code === "ER_DUP_ENTRY" || dbError.errno === 1062) {
+        throw new AppError(
+          "Ya existe una solicitud pendiente o una conexión aceptada entre estos usuarios.",
+          409,
+          "CONNECTION_ALREADY_EXISTS",
+        );
+      }
+
+      throw error;
+    }
+
     return connection;
   }
 
