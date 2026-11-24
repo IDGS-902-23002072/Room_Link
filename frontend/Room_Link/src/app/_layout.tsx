@@ -1,5 +1,4 @@
 import {
-  DarkTheme,
   DefaultTheme,
   Stack,
   ThemeProvider,
@@ -8,7 +7,7 @@ import {
 } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 
 import { SesionProvider, useSesion } from '@/auth/SesionContext';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
@@ -21,7 +20,6 @@ import {
 SplashScreen.preventAutoHideAsync();
 
 function Navegacion() {
-  const colorScheme = useColorScheme();
   const { sesion, cargando } = useSesion();
   const segmentos = useSegments();
   const router = useRouter();
@@ -32,7 +30,7 @@ function Navegacion() {
     if (!sesion && !enAuth) {
       router.replace('/(auth)/login');
     } else if (sesion && enAuth) {
-      router.replace('/anuncios');
+      router.replace('/explorar');
     }
   }, [sesion, cargando, segmentos, router]);
 
@@ -53,7 +51,8 @@ function Navegacion() {
   }, [sesion]);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={DefaultTheme}>
+      <StatusBar style="dark" />
       <AnimatedSplashOverlay />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
