@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 // Onboarding obligatorio (bugs #0 y #12): fuerza completar perfil + encuesta de
 // compatibilidad antes de dejar usar la app. Se muestra cuando el gate de
 // (pestanas)/_layout detecta que falta alguno de los dos.
@@ -19,15 +21,15 @@ import { useOnboarding } from '@/auth/useOnboarding';
 import { crearPerfil } from '@/modulos/perfil/api';
 
 const COL = {
-  morado: '#84658D',
-  moradoClaro: '#E9DAEC',
-  ink: '#2B2430',
-  gris: '#817987',
-  fondo: '#F5F1F6',
-  blanco: '#FFFFFF',
-  borde: '#ECE5EF',
-  ok: '#2F9E82',
-  peligro: '#C0564F',
+  morado: color.accion,
+  moradoClaro: color.menta,
+  ink: color.tinta,
+  gris: color.secundario,
+  fondo: color.blanco,
+  blanco: color.blanco,
+  borde: color.borde,
+  ok: color.accion,
+  peligro: color.rosaTexto,
 };
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
