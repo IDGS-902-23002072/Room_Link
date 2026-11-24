@@ -1,10 +1,12 @@
+import { color } from '@/constants/roomlink';
+
 // Registro exhaustivo de arrendador (RNF-03.4). Gatea el acceso a las pantallas
 // de arrendador (Mis publicaciones, publicar, postulaciones): un seeker debe
 // completar perfil + verificación de identidad + aceptar términos para que el
 // backend le otorgue el rol `host`.
 
-import { useEffect, useState } from 'react';
-import { Link, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Link, useFocusEffect } from 'expo-router';
 import {
   ActivityIndicator,
   Pressable,
@@ -15,21 +17,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MarcaRoomLink } from '@/components/MarcaRoomLink';
 import { convertirseEnArrendador } from '@/auth/api-auth';
 import { obtenerPerfil, type PerfilPublico } from '@/modulos/perfil/api';
 
 const COL = {
-  morado: '#84658D',
-  moradoClaro: '#E9DAEC',
+  morado: color.accion,
+  moradoClaro: color.menta,
   teal: '#5BC4B4',
-  tealBg: '#CFEFE8',
-  ink: '#2B2430',
-  gris: '#817987',
-  fondo: '#F5F1F6',
-  blanco: '#FFFFFF',
-  borde: '#ECE5EF',
-  ok: '#2F9E82',
-  peligro: '#C0564F',
+  tealBg: color.menta,
+  ink: color.tinta,
+  gris: color.secundario,
+  fondo: color.blanco,
+  blanco: color.blanco,
+  borde: color.borde,
+  ok: color.accion,
+  peligro: color.rosaTexto,
 };
 
 function Requisito({
@@ -55,27 +58,21 @@ function Requisito({
 }
 
 export default function PantallaConvertirseArrendador() {
-  const router = useRouter();
   const [perfil, setPerfil] = useState<PerfilPublico | null>(null);
   const [cargando, setCargando] = useState(true);
   const [acepta, setAcepta] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function cargar() {
+  useFocusEffect(useCallback(() => {
+    let activo = true;
     setCargando(true);
-    try {
-      setPerfil(await obtenerPerfil());
-    } catch {
-      setPerfil(null);
-    } finally {
-      setCargando(false);
-    }
-  }
-
-  useEffect(() => {
-    cargar();
-  }, []);
+    obtenerPerfil()
+      .then((datos) => { if (activo) setPerfil(datos); })
+      .catch(() => { if (activo) setPerfil(null); })
+      .finally(() => { if (activo) setCargando(false); });
+    return () => { activo = false; };
+  }, []));
 
   const perfilCompleto = Boolean(perfil?.fullName);
   const identidadOk =
@@ -100,8 +97,8 @@ export default function PantallaConvertirseArrendador() {
   return (
     <SafeAreaView style={styles.pantalla} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.eyebrow}>ROOMLINK / ARRENDADOR</Text>
-        <Text style={styles.titulo}>Conviértete en arrendador</Text>
+        <MarcaRoomLink />
+        <Text accessibilityRole="header" style={styles.titulo}>Conviértete en arrendador</Text>
         <Text style={styles.subtitulo}>
           Para publicar habitaciones necesitamos verificar quién eres. Es un paso
           único y protege a toda la comunidad.
@@ -145,6 +142,8 @@ export default function PantallaConvertirseArrendador() {
             ) : null}
 
             <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: acepta }}
               style={styles.terminos}
               onPress={() => setAcepta((v) => !v)}
             >
@@ -183,9 +182,8 @@ export default function PantallaConvertirseArrendador() {
 
 const styles = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: COL.fondo },
-  scroll: { padding: 22, paddingBottom: 48 },
-  eyebrow: { color: COL.gris, fontSize: 12, letterSpacing: 1, fontWeight: '600' },
-  titulo: { color: COL.ink, fontSize: 26, fontWeight: '700', marginTop: 2 },
+  scroll: { width: '100%', maxWidth: 520, alignSelf: 'center', padding: 22, paddingBottom: 72 },
+  titulo: { color: COL.ink, fontSize: 32, fontWeight: '800', letterSpacing: -0.9, marginTop: 22 },
   subtitulo: { color: COL.gris, fontSize: 14, marginTop: 6, marginBottom: 18, lineHeight: 20 },
   card: {
     backgroundColor: COL.blanco,
