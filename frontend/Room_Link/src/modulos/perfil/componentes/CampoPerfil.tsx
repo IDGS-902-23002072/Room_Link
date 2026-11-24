@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
@@ -49,7 +51,7 @@ export function CampoPerfil({
           onChangeText={alCambiar}
           onFocus={() => setEnfocado(true)}
           placeholder={placeholder}
-          placeholderTextColor="#9A909E"
+          placeholderTextColor={color.secundario}
           style={[styles.entrada, multiline && styles.entradaMultilinea]}
           textAlignVertical={multiline ? 'top' : 'center'}
           value={valor}
@@ -71,7 +73,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   etiqueta: {
-    color: '#6F5B76',
+    color: color.accion,
     fontSize: 10,
     fontWeight: '600',
     marginBottom: 5,
@@ -82,9 +84,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#EEE8F0',
+    borderColor: color.borde,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
   },
   contenedorMultilinea: {
     minHeight: 112,
@@ -100,7 +102,7 @@ const styles = StyleSheet.create({
   },
   entrada: {
     flex: 1,
-    color: '#28232D',
+    color: color.tinta,
     fontSize: 12,
     paddingVertical: 0,
   },
@@ -109,18 +111,18 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   prefijo: {
-    color: '#9C80A4',
+    color: color.accion,
     fontSize: 12,
     fontWeight: '600',
     marginRight: 6,
   },
   sufijo: {
-    color: '#817987',
+    color: color.secundario,
     fontSize: 9,
     marginLeft: 6,
   },
   ayuda: {
-    color: '#817987',
+    color: color.secundario,
     fontSize: 9,
     lineHeight: 13,
     marginTop: 4,
