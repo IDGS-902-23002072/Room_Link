@@ -32,7 +32,10 @@ import { AgreementsPage } from "../features/roomlink/Agreements.jsx";
 import PantallaAnunciosPrincipal from "../features/anuncios/pages/PantallaAnunciosPrincipal.jsx";
 import PantallaDetallePublicacion from "../features/anuncios/pages/PantallaDetallePublicacion.jsx";
 import PantallaPublicarHabitacion from "../features/anuncios/pages/PantallaPublicarHabitacion.jsx";
-import PantallaUbicacion from '../features/anuncios/pages/PantallaUbicacion.jsx';
+import PantallaUbicacion from "../features/anuncios/pages/PantallaUbicacion.jsx";
+import PantallaFotos from "../features/anuncios/pages/PantallaFotos.jsx";
+import PantallaEditarPublicacion from "../features/anuncios/pages/PantallaEditarPublicacion.jsx";
+
 
 function Shell() {
   const { session, logout } = useAuth();
@@ -207,8 +210,16 @@ export default function AppRoutes() {
             element={<PantallaDetallePublicacion />}
           />
           <Route
+            path="/anuncios/:listingId/editar"
+            element={<PantallaEditarPublicacion />}
+          />
+          <Route
             path="/anuncios/:listingId/ubicacion"
             element={<PantallaUbicacion />}
+          />
+          <Route
+            path="/anuncios/:listingId/fotos"
+            element={<PantallaFotos />}
           />
           <Route
             element={<Recommendations />}

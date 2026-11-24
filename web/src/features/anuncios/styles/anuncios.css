@@ -1528,3 +1528,503 @@
     width: 100%;
   }
 }
+/* Mapa de OpenStreetMap */
+.ubicacion-mapa {
+  width: 100%;
+  height: 420px;
+  overflow: hidden;
+  border-radius: 14px;
+  position: relative;
+}
+
+.ubicacion-mapa-leaflet {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Evita que el mapa se desborde en pantallas pequeñas */
+@media (max-width: 600px) {
+  .ubicacion-mapa {
+    height: 320px;
+  }
+}
+
+
+/* ======================================================
+   PANTALLA PRINCIPAL
+====================================================== */
+
+.fotos-pantalla {
+  min-height: 100vh;
+  padding: 35px 20px;
+  background: var(--anuncio-fondo, #F3F0EA);
+}
+
+.fotos-contenido {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.fotos-encabezado {
+  margin-bottom: 25px;
+}
+
+.fotos-etiqueta {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: #6D3FA9;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.fotos-encabezado h1 {
+  margin: 0 0 9px;
+  color: #292431;
+  font-size: clamp(25px, 4vw, 34px);
+  font-weight: 800;
+}
+
+.fotos-encabezado p {
+  max-width: 650px;
+  margin: 0;
+  color: #77717D;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ======================================================
+   INDICADOR DE PASOS
+====================================================== */
+
+.fotos-progreso {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 30px 0;
+}
+
+.fotos-paso {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 75px;
+  color: #99929F;
+}
+
+.fotos-paso span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 2px solid #DED7E5;
+  border-radius: 50%;
+  background: white;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fotos-paso small {
+  font-size: 11px;
+}
+
+.fotos-paso.completado span,
+.fotos-paso.activo span {
+  border-color: #6D3FA9;
+  background: #6D3FA9;
+  color: white;
+}
+
+.fotos-paso.activo small,
+.fotos-paso.completado small {
+  color: #6D3FA9;
+  font-weight: 700;
+}
+
+.fotos-progreso-linea {
+  width: 75px;
+  height: 2px;
+  margin-bottom: 20px;
+  background: #DED7E5;
+}
+
+.fotos-progreso-linea.completada,
+.fotos-progreso-linea.activa {
+  background: #A37AD9;
+}
+
+/* ======================================================
+   TARJETA
+====================================================== */
+
+.fotos-tarjeta {
+  padding: 28px;
+  border: 1px solid #E8E2ED;
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 4px 20px rgba(55, 36, 75, 0.07);
+}
+
+/* ======================================================
+   CONTADOR
+====================================================== */
+
+.fotos-contador {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 22px;
+}
+
+.fotos-contador h2 {
+  margin: 0 0 5px;
+  color: #292431;
+  font-size: 17px;
+}
+
+.fotos-contador p {
+  margin: 0;
+  color: #77717D;
+  font-size: 13px;
+}
+
+.fotos-contador-numero {
+  display: grid;
+  min-width: 65px;
+  height: 40px;
+  padding: 0 12px;
+  place-items: center;
+  border-radius: 12px;
+  background: #F0E9F8;
+  color: #6D3FA9;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+/* ======================================================
+   INPUT
+====================================================== */
+
+.fotos-input-oculto {
+  display: none;
+}
+
+/* ======================================================
+   GALERÍA
+====================================================== */
+
+.fotos-galeria {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px;
+  margin-bottom: 20px;
+}
+
+.fotos-elemento {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #E8E2ED;
+  border-radius: 15px;
+  background: white;
+}
+
+.fotos-imagen-contenedor {
+  position: relative;
+  height: 210px;
+  overflow: hidden;
+  background: #F3F0EA;
+}
+
+.fotos-imagen {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fotos-etiqueta-principal {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 7px 12px;
+  border-radius: 20px;
+  background: #2E7D5B;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.fotos-informacion {
+  padding: 13px;
+}
+
+.fotos-nombre {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 13px;
+}
+
+.fotos-nombre strong {
+  color: #292431;
+  font-size: 13px;
+}
+
+.fotos-nombre span {
+  overflow: hidden;
+  color: #77717D;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fotos-acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fotos-acciones button {
+  min-width: 34px;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid #E8E2ED;
+  border-radius: 8px;
+  background: white;
+  color: #6D3FA9;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fotos-acciones button:hover:not(:disabled) {
+  background: #F0E9F8;
+}
+
+.fotos-acciones button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.fotos-acciones .fotos-eliminar {
+  margin-left: auto;
+  border-color: #F1D9DC;
+  color: #B34D5A;
+}
+
+.fotos-acciones .fotos-eliminar:hover:not(:disabled) {
+  background: #FFF0F1;
+}
+
+/* ======================================================
+   ESTADO VACÍO
+====================================================== */
+
+.fotos-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 230px;
+  padding: 25px;
+  border: 2px dashed #D9CBE8;
+  border-radius: 16px;
+  background: #FBF9FD;
+  text-align: center;
+}
+
+.fotos-icono-vacio {
+  display: grid;
+  width: 55px;
+  height: 55px;
+  margin-bottom: 13px;
+  place-items: center;
+  border-radius: 50%;
+  background: #F0E9F8;
+  color: #6D3FA9;
+  font-size: 30px;
+}
+
+.fotos-vacio strong {
+  color: #292431;
+  font-size: 15px;
+}
+
+.fotos-vacio p {
+  margin: 8px 0 0;
+  color: #77717D;
+  font-size: 13px;
+}
+
+/* ======================================================
+   BOTÓN AGREGAR
+====================================================== */
+
+.fotos-boton-agregar {
+  width: 100%;
+  min-height: 48px;
+  border: 1px dashed #A37AD9;
+  border-radius: 12px;
+  background: #FBF9FD;
+  color: #6D3FA9;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  transition: 0.2s ease;
+}
+
+.fotos-boton-agregar:hover:not(:disabled) {
+  background: #F0E9F8;
+  border-color: #6D3FA9;
+}
+
+.fotos-boton-agregar:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fotos-ayuda {
+  margin: 10px 0 0;
+  color: #77717D;
+  font-size: 11px;
+  text-align: center;
+}
+
+/* ======================================================
+   MENSAJES
+====================================================== */
+
+.fotos-mensaje-error,
+.fotos-mensaje-exito {
+  margin-top: 18px;
+  padding: 13px 15px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.fotos-mensaje-error {
+  border: 1px solid #F1D9DC;
+  background: #FFF0F1;
+  color: #A73545;
+}
+
+.fotos-mensaje-exito {
+  border: 1px solid #CDE8D8;
+  background: #F0FAF3;
+  color: #2E7D5B;
+}
+
+/* ======================================================
+   BOTONES FINALES
+====================================================== */
+
+.fotos-acciones-finales {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+.fotos-nota {
+  margin: 18px 0 0;
+  color: #77717D;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.fotos-cargando {
+  padding: 60px 20px;
+  color: #6D3FA9;
+  text-align: center;
+}
+
+/* ======================================================
+   RESPONSIVE
+====================================================== */
+
+@media (max-width: 650px) {
+  .fotos-pantalla {
+    padding: 22px 13px;
+  }
+
+  .fotos-tarjeta {
+    padding: 17px;
+  }
+
+  .fotos-galeria {
+    grid-template-columns: 1fr;
+  }
+
+  .fotos-imagen-contenedor {
+    height: 230px;
+  }
+
+  .fotos-progreso {
+    gap: 5px;
+  }
+
+  .fotos-progreso-linea {
+    width: 35px;
+  }
+
+  .fotos-paso {
+    min-width: 60px;
+  }
+
+  .fotos-paso small {
+    font-size: 10px;
+  }
+
+  .fotos-acciones-finales {
+    flex-direction: column;
+  }
+
+  .fotos-acciones-finales > * {
+    width: 100%;
+  }
+}
+
+
+.ubicacion-mensaje-cargando {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #f3f0ea;
+  color: #6d3fa9;
+  font-size: 14px;
+}
+
+.ubicacion-error {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #fff4e5;
+  border: 1px solid #f0d4a8;
+  color: #80551b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ubicacion-mensaje-error {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #fdecec;
+  border: 1px solid #efc5c5;
+  color: #a83232;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ubicacion-instruccion p {
+  margin: 6px 0;
+  line-height: 1.5;
+}

@@ -202,21 +202,7 @@ function PantallaDetallePublicacion() {
             </div>
           </section>
 
-          <div className="detalle-anuncio__acciones">
-            <BotonAnuncio
-              tipo="principal"
-              onClick={() => navigate(`/anuncios/${listingId}/editar`)}
-            >
-              Editar publicación
-            </BotonAnuncio>
 
-            <BotonAnuncio
-              tipo="secundario"
-              onClick={() => navigate(`/anuncios/${listingId}/fotos`)}
-            >
-              Administrar fotografías
-            </BotonAnuncio>
-          </div>
         </div>
       </section>
     </main>

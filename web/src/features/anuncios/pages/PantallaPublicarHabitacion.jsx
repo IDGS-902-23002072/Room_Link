@@ -1,22 +1,28 @@
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-import { useAuth } from '../../../hooks/useAuth.js';
-import CampoFormulario from '../components/CampoFormulario.jsx';
-import BotonAnuncio from '../components/BotonAnuncio.jsx';
-import IndicadorPasos from '../components/IndicadorPasos.jsx';
+import { useAuth } from "../../../hooks/useAuth.js";
+import CampoFormulario from "../components/CampoFormulario.jsx";
+import BotonAnuncio from "../components/BotonAnuncio.jsx";
+import IndicadorPasos from "../components/IndicadorPasos.jsx";
 
-import { crearAnuncio } from '../services/anunciosService.js';
+import {
+  crearAnuncio,
+} from "../services/anunciosService.js";
 
-import '../styles/anuncios.css';
+import "../styles/anuncios.css";
+
+// ======================================================
+// FECHA ACTUAL DE MÉXICO
+// ======================================================
 
 function obtenerFechaMexico() {
-  const partes = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Mexico_City',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).formatToParts(new Date());
 
   const valores = Object.fromEntries(
@@ -25,6 +31,10 @@ function obtenerFechaMexico() {
 
   return `${valores.year}-${valores.month}-${valores.day}`;
 }
+
+// ======================================================
+// VALIDAR FECHA
+// ======================================================
 
 function validarFecha(fecha) {
   if (!fecha) return false;
@@ -46,73 +56,91 @@ function validarFecha(fecha) {
   );
 }
 
+// ======================================================
+// VALIDAR FORMULARIO
+// ======================================================
+
 function validarDatos(datos, intencion) {
   const errores = {};
 
   const titulo = datos.titulo.trim();
-  const renta = datos.renta.replace(/[$,\s]/g, '').trim();
+  const renta = datos.renta.replace(/[$,\s]/g, "").trim();
   const numeroRenta = Number(renta);
 
   if (!titulo) {
-    errores.titulo = 'El título es obligatorio.';
+    errores.titulo = "El título es obligatorio.";
   } else if (titulo.length < 5 || titulo.length > 200) {
-    errores.titulo = 'El título debe tener entre 5 y 200 caracteres.';
+    errores.titulo = "El título debe tener entre 5 y 200 caracteres.";
   }
 
   if (!renta) {
-    errores.renta = 'La renta mensual es obligatoria.';
+    errores.renta = "La renta mensual es obligatoria.";
   } else if (
     !/^\d+(\.\d{1,2})?$/.test(renta) ||
     !Number.isFinite(numeroRenta) ||
     numeroRenta <= 0 ||
     numeroRenta > 99999999.99
   ) {
-    errores.renta = 'Ingresa una renta válida con máximo dos decimales.';
-  }
-
-  // Para guardar un borrador solamente exigimos título y renta.
-  if (intencion === 'draft') {
-    return errores;
+    errores.renta = "Ingresa una renta válida con máximo dos decimales.";
   }
 
   if (datos.descripcion.trim().length > 5000) {
-    errores.descripcion = 'La descripción no puede superar los 5000 caracteres.';
+    errores.descripcion =
+      "La descripción no puede superar los 5000 caracteres.";
   }
 
-  if (!datos.availableFrom) {
-    errores.availableFrom = 'Selecciona cuándo estará disponible la habitación.';
-  } else if (!validarFecha(datos.availableFrom)) {
-    errores.availableFrom = 'La fecha seleccionada no es válida.';
-  } else if (datos.availableFrom < obtenerFechaMexico()) {
-    errores.availableFrom = 'La fecha debe ser hoy o posterior.';
+  // Para publicar se necesita una fecha válida.
+  // Para guardar un borrador es opcional.
+  if (intencion === "publicar") {
+    if (!datos.availableFrom) {
+      errores.availableFrom =
+        "Selecciona cuándo estará disponible la habitación.";
+    } else if (!validarFecha(datos.availableFrom)) {
+      errores.availableFrom = "La fecha seleccionada no es válida.";
+    } else if (datos.availableFrom < obtenerFechaMexico()) {
+      errores.availableFrom = "La fecha debe ser hoy o posterior.";
+    }
+  }
+
+  if (datos.availableFrom && !validarFecha(datos.availableFrom)) {
+    errores.availableFrom = "La fecha seleccionada no es válida.";
   }
 
   if (datos.maxRoommates.trim()) {
     const cantidad = Number(datos.maxRoommates);
 
     if (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > 100) {
-      errores.maxRoommates = 'Ingresa un número entero entre 1 y 100.';
+      errores.maxRoommates =
+        "Ingresa un número entero entre 1 y 100.";
     }
   }
 
   return errores;
 }
 
+// ======================================================
+// PANTALLA PUBLICAR HABITACIÓN
+// ======================================================
+
 export default function PantallaPublicarHabitacion() {
   const navigate = useNavigate();
   const { session } = useAuth();
 
   const [datos, setDatos] = useState({
-    titulo: '',
-    renta: '',
-    descripcion: '',
-    availableFrom: '',
-    maxRoommates: '',
+    titulo: "",
+    renta: "",
+    descripcion: "",
+    availableFrom: "",
+    maxRoommates: "",
   });
 
   const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false);
-  const [errorServidor, setErrorServidor] = useState('');
+  const [errorServidor, setErrorServidor] = useState("");
+
+  // ====================================================
+  // ACTUALIZAR CAMPOS
+  // ====================================================
 
   function actualizarCampo(nombre, valor) {
     setDatos((anterior) => ({
@@ -122,11 +150,15 @@ export default function PantallaPublicarHabitacion() {
 
     setErrores((anteriores) => ({
       ...anteriores,
-      [nombre]: '',
+      [nombre]: "",
     }));
 
-    setErrorServidor('');
+    setErrorServidor("");
   }
+
+  // ====================================================
+  // CREAR PUBLICACIÓN
+  // ====================================================
 
   async function guardar(intencion) {
     const nuevosErrores = validarDatos(datos, intencion);
@@ -138,52 +170,71 @@ export default function PantallaPublicarHabitacion() {
     }
 
     if (!session?.token || !session?.user?.id) {
-      setErrorServidor('Tu sesión no está disponible. Inicia sesión nuevamente.');
+      setErrorServidor(
+        "Tu sesión no está disponible. Inicia sesión nuevamente."
+      );
       return;
     }
 
     setGuardando(true);
-    setErrorServidor('');
+    setErrorServidor("");
 
     try {
+      const datosAnuncio = {
+        titulo: datos.titulo.trim(),
+        renta: datos.renta.replace(/[$,\s]/g, ""),
+        descripcion: datos.descripcion.trim(),
+        availableFrom: datos.availableFrom || null,
+        maxRoommates: datos.maxRoommates.trim()
+          ? Number(datos.maxRoommates)
+          : null,
+        fotos: [],
+      };
+
+      // Crear una publicación nueva.
+      // El servicio debe crearla inicialmente como draft.
       const resultado = await crearAnuncio(
-        {
-          titulo: datos.titulo.trim(),
-          renta: datos.renta,
-          descripcion: datos.descripcion.trim(),
-          ubicacion: '',
-          latitude: null,
-          longitude: null,
-          availableFrom: datos.availableFrom || null,
-          maxRoommates: datos.maxRoommates.trim()
-            ? Number(datos.maxRoommates)
-            : null,
-          fotos: [],
-        },
+        datosAnuncio,
         session.token,
         session.user.id
       );
 
-      if (intencion === 'draft') {
-        navigate('/anuncios', {
-          state: { mensaje: 'Tu borrador se guardó correctamente.' },
-        });
-      } else {
-        navigate(`/anuncios/${resultado.id}/ubicacion`);
+      if (!resultado?.id) {
+        throw new Error(
+          "La publicación se creó, pero no se recibió su identificador."
+        );
       }
+
+      if (intencion === "borrador") {
+        navigate("/anuncios", {
+          state: {
+            mensaje: "Tu borrador se guardó correctamente.",
+          },
+        });
+
+        return;
+      }
+
+      // Continuar con la ubicación y las fotografías.
+      // Todavía no se publica automáticamente.
+      navigate(`/anuncios/${resultado.id}/ubicacion`, {
+        state: {
+          continuarPublicacion: true,
+          nuevaPublicacion: true,
+        },
+      });
     } catch (error) {
       setErrorServidor(
-        error.message || 'No se pudo guardar la habitación.'
+        error.message || "No se pudo crear la publicación."
       );
     } finally {
       setGuardando(false);
     }
   }
 
-  function manejarContinuar(event) {
-    event.preventDefault();
-    guardar('publish');
-  }
+  // ====================================================
+  // INTERFAZ
+  // ====================================================
 
   return (
     <section className="publicar-habitacion">
@@ -191,7 +242,7 @@ export default function PantallaPublicarHabitacion() {
         <button
           type="button"
           className="publicar-habitacion__volver"
-          onClick={() => navigate('/anuncios')}
+          onClick={() => navigate("/anuncios")}
         >
           ← Volver a mis anuncios
         </button>
@@ -213,10 +264,14 @@ export default function PantallaPublicarHabitacion() {
 
         <form
           className="publicar-habitacion__formulario"
-          onSubmit={manejarContinuar}
+          onSubmit={(event) => {
+            event.preventDefault();
+            guardar("publicar");
+          }}
         >
           <div className="publicar-habitacion__titulo-seccion">
             <span>01</span>
+
             <div>
               <h2>Información de la habitación</h2>
               <p>Comencemos con los datos principales.</p>
@@ -227,7 +282,7 @@ export default function PantallaPublicarHabitacion() {
             etiqueta="Título de tu publicación"
             nombre="titulo"
             valor={datos.titulo}
-            onChange={(valor) => actualizarCampo('titulo', valor)}
+            onChange={(valor) => actualizarCampo("titulo", valor)}
             placeholder="Ej. Habitación amueblada cerca del centro"
             requerido
             maximo={200}
@@ -240,7 +295,7 @@ export default function PantallaPublicarHabitacion() {
               etiqueta="Renta mensual (MXN)"
               nombre="renta"
               valor={datos.renta}
-              onChange={(valor) => actualizarCampo('renta', valor)}
+              onChange={(valor) => actualizarCampo("renta", valor)}
               placeholder="Ej. 3500.00"
               requerido
               tipo="number"
@@ -254,7 +309,9 @@ export default function PantallaPublicarHabitacion() {
               etiqueta="Máximo de compañeros"
               nombre="maxRoommates"
               valor={datos.maxRoommates}
-              onChange={(valor) => actualizarCampo('maxRoommates', valor)}
+              onChange={(valor) =>
+                actualizarCampo("maxRoommates", valor)
+              }
               placeholder="Ej. 2"
               tipo="number"
               minimo="1"
@@ -269,7 +326,9 @@ export default function PantallaPublicarHabitacion() {
             etiqueta="Descripción"
             nombre="descripcion"
             valor={datos.descripcion}
-            onChange={(valor) => actualizarCampo('descripcion', valor)}
+            onChange={(valor) =>
+              actualizarCampo("descripcion", valor)
+            }
             placeholder="Describe la habitación, sus características, servicios incluidos y cualquier detalle importante..."
             tipo="textarea"
             filas={5}
@@ -281,36 +340,42 @@ export default function PantallaPublicarHabitacion() {
             etiqueta="¿A partir de cuándo estará disponible?"
             nombre="availableFrom"
             valor={datos.availableFrom}
-            onChange={(valor) => actualizarCampo('availableFrom', valor)}
+            onChange={(valor) =>
+              actualizarCampo("availableFrom", valor)
+            }
             tipo="date"
             minimo={obtenerFechaMexico()}
-            requerido
             error={errores.availableFrom}
             ayuda="Selecciona hoy o una fecha futura."
           />
 
           {errorServidor && (
-            <div className="publicar-habitacion__error-servidor" role="alert">
+            <div
+              className="publicar-habitacion__error-servidor"
+              role="alert"
+            >
               {errorServidor}
             </div>
           )}
 
           <div className="publicar-habitacion__nota">
             <span>✦</span>
+
             <p>
-              Todavía faltan la ubicación y al menos 3 fotografías para
-              publicar tu habitación. Puedes guardar un borrador y
-              completarlo después.
+              Para publicar tu habitación también necesitarás completar
+              su ubicación y agregar al menos 3 fotografías. Puedes
+              guardar un borrador y terminarlo después.
             </p>
           </div>
 
           <div className="publicar-habitacion__acciones">
             <BotonAnuncio
               tipo="secundario"
+              type="button"
               disabled={guardando}
-              onClick={() => guardar('draft')}
+              onClick={() => guardar("borrador")}
             >
-              {guardando ? 'Guardando...' : 'Guardar borrador'}
+              {guardando ? "Guardando..." : "Guardar borrador"}
             </BotonAnuncio>
 
             <BotonAnuncio
@@ -318,7 +383,7 @@ export default function PantallaPublicarHabitacion() {
               type="submit"
               disabled={guardando}
             >
-              {guardando ? 'Guardando...' : 'Continuar a ubicación →'}
+              {guardando ? "Guardando..." : "Publicar →"}
             </BotonAnuncio>
           </div>
         </form>
