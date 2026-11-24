@@ -8,10 +8,13 @@ export interface HabitacionResumen {
   hostId: string;
   title: string;
   monthlyRent: number;
-  status: EstadoHabitacion;
+  status?: EstadoHabitacion;
+  hostName?: string | null;
+  zone?: string | null;
+  city?: string | null;
   photosCount: number;
   availableFrom: string | null;
-  createdAt: string;
+  createdAt?: string | null;
 }
 
 /** Detalle de una habitación (GET /api/v1/rooms/:id). */
@@ -32,20 +35,40 @@ export interface PostulacionRespuesta {
   decidedAt: string | null;
 }
 
-export function obtenerMisPostulaciones() {
-  return solicitud<PostulacionRespuesta[]>('/api/v1/applications/me');
+export function obtenerMisPostulaciones(signal: AbortSignal) {
+  return solicitud<PostulacionRespuesta[]>('/api/v1/applications/me', { signal });
 }
 
 export const TAMANO_PAGINA = 12;
 
-export function obtenerHabitacionesPublicadas(pagina: number) {
-  const offset = (pagina - 1) * TAMANO_PAGINA;
-  return solicitud<HabitacionResumen[]>(
-    `/api/v1/rooms?limit=${TAMANO_PAGINA}&offset=${offset}`,
-  );
+export interface PaginaHabitaciones {
+  items: HabitacionResumen[];
+  hayMas: boolean;
 }
 
-export async function buscarHabitaciones(
+export async function obtenerHabitacionesPublicadas(
+  pagina: number,
+  filtros: { texto: string; presupuestoMax?: number; disponibleYa: boolean },
+  signal: AbortSignal,
+): Promise<PaginaHabitaciones> {
+  if (filtros.disponibleYa) {
+    const resultado = await buscarHabitaciones(pagina, filtros, signal);
+    return { items: resultado.items, hayMas: pagina < resultado.totalPages };
+  }
+
+  const params = new URLSearchParams({
+    page: String(pagina),
+    pageSize: String(TAMANO_PAGINA),
+  });
+  if (filtros.texto) params.set('q', filtros.texto);
+  if (filtros.presupuestoMax !== undefined) params.set('maxRent', String(filtros.presupuestoMax));
+  const resultado = await solicitud<{ items: HabitacionResumen[]; hasMore: boolean }>(
+    `/api/v1/rooms/feed?${params}`, { signal },
+  );
+  return { items: resultado.items, hayMas: resultado.hasMore };
+}
+
+async function buscarHabitaciones(
   pagina: number,
   filtros: { texto: string; presupuestoMax?: number; disponibleYa: boolean },
   signal: AbortSignal,
@@ -70,8 +93,8 @@ export async function buscarHabitaciones(
   };
 }
 
-export function obtenerHabitacion(id: string) {
-  return solicitud<HabitacionDetalle>(`/api/v1/rooms/${encodeURIComponent(id)}`);
+export function obtenerHabitacion(id: string, signal: AbortSignal) {
+  return solicitud<HabitacionDetalle>(`/api/v1/rooms/${encodeURIComponent(id)}`, { signal });
 }
 
 /**
