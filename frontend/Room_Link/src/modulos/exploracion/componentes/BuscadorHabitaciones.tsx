@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export const filtrosHabitaciones = [
@@ -23,12 +25,12 @@ export function BuscadorHabitaciones({
   return (
     <>
       <View style={styles.campoBusqueda}>
-        <Text style={styles.iconoBusqueda}>⌕</Text>
+        <Text accessible={false} style={styles.iconoBusqueda}>⌕</Text>
         <TextInput
           accessibilityLabel="Buscar habitaciones"
           onChangeText={alBuscar}
           placeholder="Buscar habitaciones"
-          placeholderTextColor="#9A909E"
+          placeholderTextColor={color.secundario}
           returnKeyType="search"
           style={styles.entrada}
           value={busqueda}
@@ -67,26 +69,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#EEE8F0',
+    borderColor: color.borde,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    marginTop: 18,
+    backgroundColor: color.blanco,
   },
   iconoBusqueda: {
-    color: '#9C80A4',
+    color: color.accion,
     fontSize: 26,
     lineHeight: 28,
     marginRight: 10,
   },
   entrada: {
     flex: 1,
-    color: '#28232D',
+    color: color.tinta,
     fontSize: 15,
     paddingVertical: 0,
   },
   filtrosContenedor: {
     flexGrow: 0,
-    marginTop: 12,
   },
   filtros: {
     flexDirection: 'row',
@@ -97,22 +97,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 6,
     borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     borderWidth: 1,
-    borderColor: '#EEE8F0',
+    borderColor: color.borde,
     height: 44,
     justifyContent: 'center',
   },
   filtroActivo: {
-    backgroundColor: '#84658D',
-    borderColor: '#84658D',
+    backgroundColor: color.menta,
+    borderColor: color.menta,
   },
   textoFiltro: {
-    color: '#4A4350',
+    color: color.secundario,
     fontSize: 14,
   },
   textoFiltroActivo: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: color.accion,
+    fontWeight: '700',
   },
 });
