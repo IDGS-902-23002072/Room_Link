@@ -42,13 +42,13 @@ const COL = {
 type Vista = 'lista' | 'candidato' | 'decision';
 type Tab = 'nuevas' | 'resueltas';
 
-const esNueva = (p: Postulacion) => p.status === 'pending';
+const esNueva = (p: Postulacion) => p.status === 'pending' || p.status === 'waitlisted';
 const etiquetaEstado = (p: Postulacion) =>
   p.status === 'accepted'
     ? 'ACEPTADA'
     : p.status === 'rejected'
       ? 'RECHAZADA'
-      : 'NUEVA';
+      : p.status === 'waitlisted' ? 'EN LISTA DE ESPERA' : 'NUEVA';
 
 export default function PantallaPostulaciones({
   listingId,
@@ -71,36 +71,24 @@ export default function PantallaPostulaciones({
   const [mensaje, setMensaje] = useState('');
   const [decidiendo, setDecidiendo] = useState(false);
 
-  async function cargar() {
-    setCargando(true);
-    setError(null);
-    try {
-      const data = await listarPostulaciones(listingId);
-      setPosts(data);
-      const ids = [...new Set(data.map((p) => p.applicantId))];
-      const entradas = await Promise.all(
-        ids.map(async (uid) => {
-          try {
-            const perfil = await obtenerPerfilCandidato(uid);
-            return [uid, perfil.fullName] as const;
-          } catch {
-            return [uid, 'Candidato'] as const;
-          }
-        }),
-      );
-      setNombres(Object.fromEntries(entradas));
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : 'No se pudieron cargar las postulaciones.',
-      );
-    } finally {
-      setCargando(false);
-    }
-  }
-
   useEffect(() => {
-    cargar();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let activo = true;
+    listarPostulaciones(listingId).then(async (data) => {
+      const ids = [...new Set(data.map((p) => p.applicantId))];
+      const entradas = await Promise.all(ids.map(async (uid) => {
+        const candidato = await obtenerPerfilCandidato(uid).catch(() => null);
+        return [uid, candidato?.fullName ?? 'Candidato'] as const;
+      }));
+      if (activo) {
+        setPosts(data);
+        setNombres(Object.fromEntries(entradas));
+      }
+    }).catch((e) => {
+      if (activo) setError(e instanceof Error ? e.message : 'No se pudieron cargar las postulaciones.');
+    }).finally(() => {
+      if (activo) setCargando(false);
+    });
+    return () => { activo = false; };
   }, [listingId]);
 
   const nuevas = posts.filter(esNueva).length;
@@ -126,12 +114,12 @@ export default function PantallaPostulaciones({
     setDecidiendo(true);
     setError(null);
     try {
-      await decidirPostulacion(sel.id, decision);
-      await cargar();
+      const resultado = await decidirPostulacion(sel.id, decision);
+      setPosts((actuales) => actuales.map((postulacion) => postulacion.id === resultado.id ? resultado : postulacion));
       setVista('lista');
       setSel(null);
       setMensaje('');
-      setTab('resueltas');
+      setTab(decision === 'waitlist' ? 'nuevas' : 'resueltas');
     } catch (e) {
       setError(
         e instanceof Error ? e.message : 'No se pudo registrar la decisión.',
@@ -263,12 +251,12 @@ export default function PantallaPostulaciones({
               <Text style={styles.quote}>“{sel.message}”</Text>
             ) : null}
 
-            <Pressable
+            {esNueva(sel) && <Pressable
               style={styles.botonPrimario}
               onPress={() => setVista('decision')}
             >
               <Text style={styles.botonPrimarioTexto}>Evaluar solicitud</Text>
-            </Pressable>
+            </Pressable>}
 
             <Pressable
               style={[styles.botonPrimario, { backgroundColor: COL.moradoClaro, marginTop: 8 }]}
@@ -320,13 +308,13 @@ export default function PantallaPostulaciones({
               </Text>
             </Pressable>
 
-            <Pressable
+            {sel.status === 'pending' && <Pressable
               style={styles.botonSecundario}
-              onPress={() => setVista('lista')}
+              onPress={() => decidir('waitlist')}
               disabled={decidiendo}
             >
               <Text style={styles.botonSecundarioTexto}>Poner en lista de espera</Text>
-            </Pressable>
+            </Pressable>}
 
             <Pressable
               style={styles.botonSecundario}

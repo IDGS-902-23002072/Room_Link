@@ -72,7 +72,7 @@ async function login(page, user) {
   await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
 }
 
-async function listing(token) {
+async function listing(token, { publish = true } = {}) {
   const form = new FormData()
   const title = `Habitación QA ${randomUUID().slice(0, 8)}`
   for (const [key, val] of Object.entries({
@@ -81,6 +81,11 @@ async function listing(token) {
   })) form.append(key, val)
   for (let i = 0; i < 3; i++) form.append('photos', new Blob([icon], { type: 'image/png' }), `foto-${i}.png`)
   const room = await call('/rooms', { method: 'POST', token, body: form, want: 201 })
+  if (!publish) return { id: room.id, title }
+  await call(`/rooms/${room.id}/rules`, { method: 'PUT', token, body: { petsAllowed: true } })
+  await call(`/rooms/${room.id}/costs`, {
+    method: 'PUT', token, body: { items: [{ kind: 'other', concept: 'Sin cargos adicionales', amount: 0, isIncluded: true }] },
+  })
   await call(`/rooms/${room.id}/publish`, { method: 'PATCH', token })
   return { id: room.id, title }
 }
@@ -154,6 +159,123 @@ test('buscador, arrendador y admin recorren postulación, chat y moderación', a
   }
 })
 
+test('web publica con reglas y costos, conserva la postulación y permite cerrar el anuncio', async ({ page, browser, baseURL }) => {
+  const seeker = await account('buscador-web')
+  const host = await account('anfitrion-web')
+  const hostContext = await browser.newContext({ baseURL })
+  const hostPage = await hostContext.newPage()
+  const title = `Habitación web QA ${randomUUID().slice(0, 8)}`
+  const tile = { contentType: 'image/png', body: icon }
+  await Promise.all([
+    page.route('https://tile.openstreetmap.org/**', (route) => route.fulfill(tile)),
+    hostPage.route('https://tile.openstreetmap.org/**', (route) => route.fulfill(tile)),
+  ])
+  try {
+    await Promise.all([login(page, seeker), login(hostPage, host)])
+    await call(`/profiles/${host.id}/verification/request`, { method: 'POST', token: host.token })
+    await hostPage.goto('/perfil/cuenta')
+    await hostPage.getByRole('checkbox', { name: /términos de responsabilidad/ }).check()
+    await hostPage.getByRole('button', { name: 'Convertirme en arrendador' }).click()
+    await hostPage.getByRole('link', { name: 'Mis habitaciones' }).click()
+    await hostPage.getByRole('link', { name: 'Nueva habitación' }).click()
+    await hostPage.getByLabel('Título').fill(title)
+    await hostPage.getByLabel('Renta mensual en MXN').fill('3800')
+    await hostPage.getByLabel('Disponible a partir de').fill('2030-01-01')
+    await hostPage.getByLabel('Descripción').fill('Habitación amueblada para probar la publicación web.')
+    if (process.env.E2E_QA_MAP_FIXTURES) {
+      await hostPage.getByRole('searchbox', { name: 'Buscar dirección o colonia' }).fill('Centro de León QA')
+      await hostPage.getByRole('button', { name: 'Buscar en el mapa' }).click()
+      await hostPage.getByRole('button', { name: 'Centro de León, Guanajuato' }).click()
+      await expect(hostPage.getByLabel('Dirección', { exact: true })).toHaveValue('Centro de León, Guanajuato')
+      await expect(hostPage.getByLabel('Latitud')).toHaveValue('21.1221')
+    } else {
+      await hostPage.getByLabel('Dirección', { exact: true }).fill('León, Guanajuato')
+    }
+    await hostPage.getByRole('region', { name: 'Mapa para elegir la ubicación' }).click({ position: { x: 120, y: 110 } })
+    await expect(hostPage.getByLabel('Latitud')).not.toHaveValue('')
+    await hostPage.getByLabel('Agregar fotos').setInputFiles(Array.from({ length: 3 }, (_, index) => ({
+      name: `foto-${index}.png`, mimeType: 'image/png', buffer: icon,
+    })))
+    await hostPage.getByRole('button', { name: 'Guardar y continuar a reglas y costos' }).click()
+    await expect(hostPage.getByRole('button', { name: 'Publicar habitación' })).toBeDisabled()
+    const draftId = new URL(hostPage.url()).pathname.split('/').at(-1)
+    await call(`/geolocation/rooms/${draftId}/nearby`, { token: seeker.token, want: 404 })
+    const incomplete = await call(`/rooms/${draftId}/publish`, { method: 'PATCH', token: host.token, want: 400 })
+    expect(incomplete.error).toMatch(/reglas y el desglose de costos/)
+    await call(`/rooms/${draftId}/rules`, { method: 'PUT', token: host.token, body: { petsAllowed: true } })
+    await call(`/rooms/${draftId}/costs`, { method: 'PUT', token: host.token, body: { items: [] }, want: 400 })
+    await call(`/rooms/${draftId}/publish`, { method: 'PATCH', token: host.token, want: 400 })
+    await hostPage.getByLabel('Permitir mascotas').check()
+    await hostPage.getByLabel('Política de visitas').fill('Avisar con un día de anticipación')
+    await hostPage.getByRole('button', { name: 'Agregar concepto' }).click()
+    await hostPage.getByLabel('Tipo').selectOption('deposit')
+    await hostPage.getByLabel('Nombre del concepto').fill('Depósito reembolsable')
+    await hostPage.getByLabel('Monto en MXN').fill('1900')
+    await hostPage.getByRole('button', { name: 'Guardar reglas y costos' }).click()
+    await expect(hostPage.getByText('Reglas y costos guardados.')).toBeVisible()
+    await hostPage.getByRole('button', { name: 'Publicar habitación' }).click()
+    await expect(hostPage.getByRole('button', { name: 'Pausar anuncio' })).toBeVisible()
+    await hostPage.getByRole('button', { name: 'Pausar anuncio' }).click()
+    await hostPage.getByRole('button', { name: 'Reactivar anuncio' }).click()
+    await expect(hostPage.getByRole('button', { name: 'Pausar anuncio' })).toBeVisible()
+    const listingId = new URL(hostPage.url()).pathname.split('/').at(-1)
+
+    await page.getByRole('link', { name: 'Explorar habitaciones' }).click()
+    await page.getByRole('searchbox').fill(title)
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click()
+    await page.getByRole('link', { name: title, exact: true }).click()
+    await expect(page.getByText('Depósito reembolsable')).toBeVisible()
+    await expect(page.getByText('Avisar con un día de anticipación')).toBeVisible()
+    const map = page.getByRole('region', { name: 'Mapa de ubicación de la habitación' })
+    await map.getByRole('button', { name: 'Acercar' }).click()
+    await expect(map.getByRole('link', { name: 'OpenStreetMap', exact: true })).toBeVisible()
+    if (process.env.E2E_QA_MAP_FIXTURES) {
+      await page.getByRole('button', { name: 'Ver lugares cercanos' }).click()
+      const pharmacy = page.getByRole('button', { name: /Farmacia de prueba · \d+ m/ })
+      await pharmacy.click()
+      await expect(pharmacy).toHaveAttribute('aria-pressed', 'true')
+      await expect(map.locator('.leaflet-overlay-pane path')).toHaveCount(2)
+    }
+    await page.getByLabel('Mensaje para el anfitrión (opcional)').fill('Me interesa conocer la habitación.')
+    await page.getByRole('button', { name: 'Enviar postulación' }).click()
+    await expect(page.getByText('Postulación enviada')).toBeVisible()
+    await page.reload()
+    await expect(page.getByText('Postulación enviada')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Enviar postulación' })).toHaveCount(0)
+    expect(await call('/applications/me', { token: seeker.token })).toHaveLength(1)
+    await call('/applications', { method: 'POST', token: seeker.token, body: { listingId }, want: 409 })
+
+    await hostPage.getByRole('link', { name: 'Ver postulaciones' }).click()
+    await expect(hostPage.getByRole('heading', { name: 'RoomLink QA buscador-web' })).toBeVisible()
+    await expect(hostPage.getByText(/\d+% de afinidad/)).toBeVisible()
+    const [application] = await call('/applications/me', { token: seeker.token })
+    const decisionPath = `/applications/${application.id}/decide`
+    await call(decisionPath, { method: 'PATCH', token: seeker.token, body: { decision: 'waitlist' }, want: 403 })
+    await hostPage.getByRole('button', { name: 'Poner en lista de espera' }).click()
+    await expect(hostPage.getByText('En lista de espera', { exact: true })).toBeVisible()
+    await hostPage.reload()
+    await expect(hostPage.getByText('En lista de espera', { exact: true })).toBeVisible()
+    await call(decisionPath, { method: 'PATCH', token: host.token, body: { decision: 'waitlist' }, want: 409 })
+    await page.goto('/notificaciones')
+    await expect(page.getByText('Tu postulación quedó en lista de espera.')).toBeVisible()
+    await page.locator('article').filter({ hasText: 'Tu postulación quedó en lista de espera.' }).getByRole('link', { name: 'Ver mis postulaciones' }).click()
+    await expect(page.getByText('En lista de espera', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Abrir conversación' })).toHaveCount(0)
+    await hostPage.getByRole('button', { name: 'Aceptar', exact: true }).click()
+    await expect(hostPage.getByText('¿Ya encontraste roomie?')).toBeVisible()
+    await hostPage.getByRole('button', { name: 'Cerrar anuncio' }).click()
+    await expect(hostPage.getByText('Anuncio cerrado.')).toBeVisible()
+    await page.goto('/notificaciones')
+    await expect(page.getByText('Tu postulación fue aceptada.')).toBeVisible()
+    await page.locator('article').filter({ hasText: 'Tu postulación fue aceptada.' }).getByRole('link', { name: 'Ver mis postulaciones' }).click()
+    await expect(page.getByText('Aceptada', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Abrir conversación' }).click()
+    await expect(page).toHaveURL(/\/mensajes\/[^/]+$/)
+  } finally {
+    await hostContext.close()
+  }
+})
+
 test('SMTP entrega el enlace y el reemplazo de contraseña revoca la sesión', async ({ page }) => {
   const user = await account('reset', false)
   await page.goto('/login')
@@ -196,6 +318,16 @@ test('la PWA muestra su pantalla offline y permite volver al recuperar la red', 
   await expect(page.getByRole('heading', { name: 'Inicia sesión' })).toBeVisible()
 })
 
+async function loginMobile(page, user) {
+  await page.goto(mobileWeb)
+  await page.getByTestId('login-email').fill(user.email)
+  await page.getByTestId('login-password').fill(user.password)
+  const signIn = page.waitForResponse((res) => res.url().endsWith('/auth/login') && res.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click()
+  expect((await signIn).status()).toBe(200)
+  await expect(page).not.toHaveURL(/\/login(?:[?#]|$)/)
+}
+
 test('Explorar móvil conserva la postulación tras recargar Expo', async ({ page }) => {
   test.skip(!mobileWeb, 'Requiere el cliente Expo de QA.')
   expect(loopback(mobileWeb)).toBe(true)
@@ -204,13 +336,7 @@ test('Explorar móvil conserva la postulación tras recargar Expo', async ({ pag
   await call(`/profiles/${host.id}/verification/request`, { method: 'POST', token: host.token })
   await call('/auth/become-host', { method: 'POST', token: host.token, body: { acceptedTerms: true } })
   const room = await listing(host.token)
-  await page.goto(mobileWeb)
-  await page.getByTestId('login-email').fill(seeker.email)
-  await page.getByTestId('login-password').fill(seeker.password)
-  const signIn = page.waitForResponse((res) => res.url().endsWith('/auth/login') && res.request().method() === 'POST')
-  await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click()
-  expect((await signIn).status()).toBe(200)
-  await expect(page).not.toHaveURL(/\/login(?:[?#]|$)/)
+  await loginMobile(page, seeker)
   await page.goto(new URL('/explorar', mobileWeb).href)
   const card = page.getByTestId(`habitacion-${room.id}`)
   await card.getByRole('button', { name: 'Postularme', exact: true }).click()
@@ -218,6 +344,56 @@ test('Explorar móvil conserva la postulación tras recargar Expo', async ({ pag
   await page.reload()
   await expect(card.getByText(/Postulación enviada/)).toBeVisible()
   expect(await call(`/applications/listing/${room.id}`, { token: host.token })).toHaveLength(1)
+})
+
+test('Expo publica un borrador con reglas y costos y resuelve la lista de espera', async ({ page }) => {
+  test.skip(!mobileWeb, 'Requiere el cliente Expo de QA.')
+  expect(loopback(mobileWeb)).toBe(true)
+  const seeker = await account('buscador-expo')
+  const host = await account('host-expo')
+  await call(`/profiles/${host.id}/verification/request`, { method: 'POST', token: host.token })
+  await call('/auth/become-host', { method: 'POST', token: host.token, body: { acceptedTerms: true } })
+  const room = await listing(host.token, { publish: false })
+
+  await loginMobile(page, host)
+  await page.goto(new URL('/anuncios', mobileWeb).href)
+  await page.getByText(/^Borradores 1$/).click()
+  await expect(page.getByText(room.title)).toBeVisible()
+  await page.getByText('Editar', { exact: true }).click()
+  await page.getByText('Continuar para publicar', { exact: true }).click()
+  if (process.env.E2E_QA_MAP_FIXTURES) {
+    await page.getByRole('textbox', { name: 'Dirección o colonia' }).fill('Centro de León QA')
+    await expect(page.getByRole('button', { name: 'Continuar a fotografías' })).toBeDisabled()
+    await page.getByRole('button', { name: 'Buscar ubicación' }).click()
+    await page.getByRole('button', { name: 'Centro de León, Guanajuato' }).click()
+  }
+  await page.getByRole('button', { name: 'Continuar a fotografías' }).click()
+  await page.getByText('Enviar anuncio a revisión', { exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Reglas y costos' })).toBeVisible()
+  await page.getByRole('button', { name: 'Guardar y publicar habitación' }).click()
+  await expect(page.getByText('Indica un costo o confirma que no hay cargos adicionales.')).toBeVisible()
+  await page.getByRole('textbox', { name: 'Política de visitas' }).fill('Avisar antes de llegar')
+  await page.getByRole('switch', { name: 'Sin cargos adicionales' }).click()
+  await page.getByRole('button', { name: 'Guardar y publicar habitación' }).click()
+  await expect.poll(async () => (await call(`/rooms/${room.id}`, { token: host.token })).status).toBe('published')
+  const published = await call(`/rooms/${room.id}`, { token: host.token })
+  expect(published.rules.visitsPolicy).toBe('Avisar antes de llegar')
+  expect(published.costItems[0]).toMatchObject({ concept: 'Sin cargos adicionales', amount: 0 })
+
+  const application = await call('/applications', { token: seeker.token, method: 'POST', body: { listingId: room.id }, want: 201 })
+  await page.goto(new URL(`/postulaciones?listingId=${room.id}`, mobileWeb).href)
+  await page.getByText('RoomLink QA buscador-expo', { exact: true }).click()
+  await page.getByText('Evaluar solicitud', { exact: true }).click()
+  await page.getByText('Poner en lista de espera', { exact: true }).click()
+  await expect(page.getByText(/EN LISTA DE ESPERA/)).toBeVisible()
+  await page.reload()
+  await expect(page.getByText(/EN LISTA DE ESPERA/)).toBeVisible()
+  await page.getByText('RoomLink QA buscador-expo', { exact: true }).click()
+  await page.getByText('Evaluar solicitud', { exact: true }).click()
+  await page.getByText('Rechazar postulación', { exact: true }).click()
+  await expect(page.getByText(/RECHAZADA/)).toBeVisible()
+  const [result] = await call('/applications/me', { token: seeker.token })
+  expect(result).toMatchObject({ id: application.id, status: 'rejected' })
 })
 
 test('la navegación web permite saltar al contenido sin desbordar el móvil', async ({ page }) => {

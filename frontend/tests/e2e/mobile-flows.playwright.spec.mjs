@@ -53,7 +53,7 @@ async function createAccount(tag, { withProfile = false, withTest = false, roleH
   const userId = login.data.user.id;
 
   if (withProfile || roleHost) {
-    const prof = await apiJson(`/profile/${userId}`, {
+    const prof = await apiJson("/profiles", {
       method: "POST",
       token,
       body: {
@@ -84,19 +84,10 @@ async function createAccount(tag, { withProfile = false, withTest = false, roleH
   }
 
   if (roleHost) {
-    const hostRes = await apiJson("/auth/become-host", {
-      method: "POST",
-      token,
-      body: {
-        phone: "4771234567",
-        city: "León",
-        zone: "Centro",
-        termsAccepted: true,
-      },
-    });
-    if (hostRes.status === 200 && (hostRes.data?.token || hostRes.data?.accessToken)) {
-      token = hostRes.data.token ?? hostRes.data.accessToken;
-    }
+    expect((await apiJson(`/profiles/${userId}/verification/request`, { method: "POST", token })).status).toBe(200);
+    const hostRes = await apiJson("/auth/become-host", { method: "POST", token, body: { acceptedTerms: true } });
+    expect(hostRes.status).toBe(200);
+    if (hostRes.data?.token || hostRes.data?.accessToken) token = hostRes.data.token ?? hostRes.data.accessToken;
   }
 
   return { email, password, token, userId };
@@ -114,7 +105,7 @@ async function createRoomForm(token, { photos = 3, withLocation = true, availabl
     fd.append("longitude", "-101.683");
   }
   for (let i = 0; i < photos; i++) {
-    fd.append("fotos", new Blob([PNG_1X1], { type: "image/png" }), `foto-${i + 1}.png`);
+    fd.append("photos", new Blob([PNG_1X1], { type: "image/png" }), `foto-${i + 1}.png`);
   }
   const res = await fetch(`${API_URL}/rooms`, {
     method: "POST",
@@ -371,10 +362,7 @@ test.describe("Flujo 5 · HU-06 y M08 Publicar habitación y ciclo de vida", () 
     expect(ok.status).toBe(201);
     const roomId = ok.data.id;
 
-    expect((await apiJson(`/rooms/${roomId}/publish`, { method: "PATCH", token: host.token })).status).toBe(200);
-    expect((await apiJson(`/rooms/${roomId}/pause`, { method: "PATCH", token: other.token })).status).toBe(403);
-    expect((await apiJson(`/rooms/${roomId}/pause`, { method: "PATCH", token: host.token })).status).toBe(200);
-    expect((await apiJson(`/rooms/${roomId}/reactivate`, { method: "PATCH", token: host.token })).status).toBe(200);
+    expect((await apiJson(`/rooms/${roomId}/publish`, { method: "PATCH", token: host.token })).status).toBe(400);
 
     // Persistencia real de reglas y costos (servicios, depósito, mantenimiento) + negativos
     expect(
@@ -408,6 +396,11 @@ test.describe("Flujo 5 · HU-06 y M08 Publicar habitación y ciclo de vida", () 
       })).status,
     ).toBe(200);
 
+    expect((await apiJson(`/rooms/${roomId}/publish`, { method: "PATCH", token: host.token })).status).toBe(200);
+    expect((await apiJson(`/rooms/${roomId}/pause`, { method: "PATCH", token: other.token })).status).toBe(403);
+    expect((await apiJson(`/rooms/${roomId}/pause`, { method: "PATCH", token: host.token })).status).toBe(200);
+    expect((await apiJson(`/rooms/${roomId}/reactivate`, { method: "PATCH", token: host.token })).status).toBe(200);
+
     // Abrir M08 en UI móvil real con la habitación publicada
     await loginInBrowser(page, host.email, host.password);
     await page.goto(`${WEB_URL}/inmueble-detalle?listingId=${roomId}`, { waitUntil: "networkidle" });
@@ -437,7 +430,12 @@ test.describe("Flujo 6 · HU-07 Postulaciones (auto-postulación, terceros y dec
 
     const created = await createRoomForm(host.token, { photos: 3, withLocation: true });
     const roomId = created.data.id;
-    await apiJson(`/rooms/${roomId}/publish`, { method: "PATCH", token: host.token });
+    await apiJson(`/rooms/${roomId}/rules`, { method: "PUT", token: host.token, body: { petsAllowed: true } });
+    await apiJson(`/rooms/${roomId}/costs`, {
+      method: "PUT", token: host.token,
+      body: { items: [{ kind: "other", concept: "Sin cargos adicionales", amount: 0, isIncluded: true }] },
+    });
+    expect((await apiJson(`/rooms/${roomId}/publish`, { method: "PATCH", token: host.token, body: { decision: "accept" } })).status).toBe(200);
 
     // Negativo: auto-postulación
     const selfApp = await apiJson("/applications", {
@@ -458,7 +456,7 @@ test.describe("Flujo 6 · HU-07 Postulaciones (auto-postulación, terceros y dec
 
     // Negativo: tercero no puede decidir
     expect(
-      (await apiJson(`/applications/${appId}/accept`, { method: "PATCH", token: stranger.token })).status,
+      (await apiJson(`/applications/${appId}/decide`, { method: "PATCH", token: stranger.token, body: { decision: "accept" } })).status,
     ).toBe(403);
 
     // UI móvil: host abre /postulaciones y ve la postulación del candidato
@@ -469,11 +467,11 @@ test.describe("Flujo 6 · HU-07 Postulaciones (auto-postulación, terceros y dec
     await expect(page.getByText("Personas interesadas")).toBeVisible();
 
     // Aceptar postulación y verificar que NO permite re-decidir
-    const acc = await apiJson(`/applications/${appId}/accept`, { method: "PATCH", token: host.token });
+    const acc = await apiJson(`/applications/${appId}/decide`, { method: "PATCH", token: host.token, body: { decision: "accept" } });
     expect(acc.status).toBe(200);
     expect(acc.data.status).toBe("accepted");
     expect([400, 409]).toContain(
-      (await apiJson(`/applications/${appId}/accept`, { method: "PATCH", token: host.token })).status,
+      (await apiJson(`/applications/${appId}/decide`, { method: "PATCH", token: host.token, body: { decision: "accept" } })).status,
     );
   });
 });

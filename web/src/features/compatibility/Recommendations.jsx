@@ -326,9 +326,10 @@ export default function Recommendations() {
           <h1>Encuentra tu gente</h1>
           <p className="muted">Roomies recomendados para compartir tu próximo espacio.</p>
         </div>
-        <AppLink className="button button-secondary" href="/cuestionario">
-          Revisar mi test
-        </AppLink>
+        <div className="feature-actions">
+          <AppLink className="button button-mint" href="/habitaciones">Explorar habitaciones</AppLink>
+          <AppLink className="button button-secondary" href="/cuestionario">Revisar mi test</AppLink>
+        </div>
       </header>
 
       {feed && !feed.hasTest && (

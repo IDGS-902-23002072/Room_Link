@@ -12,7 +12,7 @@ function destination(item) {
   if (item.type === 'new_message' && item.payload?.roomId) {
     return ['/mensajes/' + encodeURIComponent(item.payload.roomId), 'Abrir conversación']
   }
-  if (item.type === 'application_status_changed') return ['/explorar', 'Ir a explorar']
+  if (item.type === 'application_status_changed') return ['/mis-postulaciones', 'Ver mis postulaciones']
   return null
 }
 

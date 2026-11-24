@@ -38,6 +38,8 @@ jobs:
       SMTP_URL: smtp://127.0.0.1:1025
       SMTP_FROM: RoomLink QA <qa@roomlink.test>
       PUBLIC_WEB_ORIGIN: http://localhost:3000
+      GEOCODING_URL: http://127.0.0.1:4521/search
+      NEARBY_PLACES_URL: http://127.0.0.1:4521/interpreter
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -61,6 +63,7 @@ jobs:
           npm --prefix backend run build
           npm --prefix web run build
           cp -R web/dist backend/public
+          node frontend/tests/e2e/serve-map-fixtures.mjs >/tmp/roomlink-qa-maps.log 2>&1 &
           cd backend
           node dist/src/server.js > /tmp/roomlink-qa-api.log 2>&1 &
           for attempt in $(seq 1 30); do
@@ -89,6 +92,7 @@ jobs:
         working-directory: frontend
         env:
           E2E_QA_MOBILE_URL: http://localhost:8081
+          E2E_QA_MAP_FIXTURES: "1"
         run: npx playwright test --config=playwright.qa.config.mjs
       - name: Verificar backup, restauración y carga
         run: |

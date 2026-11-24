@@ -1,3 +1,5 @@
+import { GeolocationService } from "./modules/geolocation/geolocation.service.js";
+import { createGeolocationRoutes } from "./modules/geolocation/geolocation.routes.js";
 import { configureSmtp } from "./modules/auth/smtp-mailer.js";
 import { Hono } from "hono";
 import { db, checkDatabase as defaultCheckDatabase } from "./db/client.js";
@@ -254,6 +256,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const roomsService = new RoomsService(roomRepo);
   const roomsController = new RoomsController(roomsService);
   app.route("/api/v1/rooms", createRoomsRoutes(roomsController, authService));
+  app.route("/api/v1/geolocation", createGeolocationRoutes(new GeolocationService(), roomsService, authService));
 
   // 4. Applications Module (resuelve el host del listing para autorizar decide/getByListing)
   const applicationsService = new ApplicationsService(appRepo, authDependencies.eventPublisher);

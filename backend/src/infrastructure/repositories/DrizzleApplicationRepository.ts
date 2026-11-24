@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { AppError } from "../../shared/AppError.js";
 import type { MySql2Database } from "drizzle-orm/mysql2";
-import { Application, type IApplicationRepository } from "../../domain/index.js";
+import { Application, type IApplicationRepository, type ApplicationStatus } from "../../domain/index.js";
 import {
   appApplications,
   type AppApplicationRow,
@@ -27,7 +27,7 @@ export class DrizzleApplicationRepository implements IApplicationRepository {
       applicantId: row.applicantId,
       status: row.status,
       message: row.message,
-      compatibilityScore: row.compatibilityScore ? Number(row.compatibilityScore) : null,
+      compatibilityScore: row.compatibilityScore == null ? null : Number(row.compatibilityScore),
       createdAt: new Date(row.createdAt),
       decidedAt: row.decidedAt ? new Date(row.decidedAt) : null,
     });
@@ -47,7 +47,7 @@ export class DrizzleApplicationRepository implements IApplicationRepository {
           applicantId: row.applicantId,
           status: row.status,
           message: row.message,
-          compatibilityScore: row.compatibilityScore ? Number(row.compatibilityScore) : null,
+          compatibilityScore: row.compatibilityScore == null ? null : Number(row.compatibilityScore),
           createdAt: new Date(row.createdAt),
           decidedAt: row.decidedAt ? new Date(row.decidedAt) : null,
         }),
@@ -68,7 +68,7 @@ export class DrizzleApplicationRepository implements IApplicationRepository {
           applicantId: row.applicantId,
           status: row.status,
           message: row.message,
-          compatibilityScore: row.compatibilityScore ? Number(row.compatibilityScore) : null,
+          compatibilityScore: row.compatibilityScore == null ? null : Number(row.compatibilityScore),
           createdAt: new Date(row.createdAt),
           decidedAt: row.decidedAt ? new Date(row.decidedAt) : null,
         }),
@@ -82,7 +82,7 @@ export class DrizzleApplicationRepository implements IApplicationRepository {
       applicantId: app.applicantId,
       status: app.status,
       message: app.message ?? null,
-      compatibilityScore: app.compatibilityScore ? app.compatibilityScore.toFixed(2) : null,
+      compatibilityScore: app.compatibilityScore?.toFixed(2) ?? null,
     };
 
     try {
@@ -106,13 +106,14 @@ export class DrizzleApplicationRepository implements IApplicationRepository {
     return app;
   }
 
-  async update(app: Application): Promise<void> {
-    await this.db
+  async update(app: Application, previousStatus: ApplicationStatus): Promise<boolean> {
+    const [result] = await this.db
       .update(appApplications)
       .set({
         status: app.status,
         decidedAt: new Date(),
       })
-      .where(eq(appApplications.id, app.id));
+      .where(and(eq(appApplications.id, app.id), eq(appApplications.status, previousStatus)));
+    return result.affectedRows === 1;
   }
 }

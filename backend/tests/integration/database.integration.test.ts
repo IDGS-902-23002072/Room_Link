@@ -4,8 +4,9 @@ import type { RowDataPacket } from "mysql2";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDatabase, db, pool } from "../../src/db/client.js";
 
-import { Application } from "../../src/domain/index.js";
+import { Application, CompatibilityProfile } from "../../src/domain/index.js";
 import { DrizzleApplicationRepository } from "../../src/infrastructure/repositories/DrizzleApplicationRepository.js";
+import { DrizzleCompatibilityRepository } from "../../src/infrastructure/repositories/DrizzleCompatibilityRepository.js";
 import { DrizzleUserRepository } from "../../src/infrastructure/repositories/DrizzleUserRepository.js";
 
 interface CountRow extends RowDataPacket {
@@ -135,6 +136,7 @@ describe("MySQL schema", () => {
       listingId,
       applicantId,
       status: "pending",
+      compatibilityScore: 0,
       createdAt: new Date(),
     });
 
@@ -143,7 +145,47 @@ describe("MySQL schema", () => {
       status: 409,
       code: "APPLICATION_ALREADY_SENT",
     });
-    expect((await repository.findByApplicantId(applicantId)).map(({ id }) => id)).toEqual([first.id]);
+    expect(await repository.findByApplicantId(applicantId)).toEqual([expect.objectContaining({ id: first.id, compatibilityScore: 0 })]);
+  });
+
+  it("keeps a single valid decision when two copies of a postulación are updated", async () => {
+    const repository = new DrizzleApplicationRepository(db);
+    const [original] = await repository.findByApplicantId(applicantId);
+    const waiting = await repository.findById(original!.id);
+    const accepted = await repository.findById(original!.id);
+    waiting!.waitlist();
+    accepted!.accept();
+    const writes = await Promise.all([
+      repository.update(waiting!, "pending"),
+      repository.update(accepted!, "pending"),
+    ]);
+    expect(writes.filter(Boolean)).toHaveLength(1);
+    expect((await repository.findById(original!.id))?.status).toBe(writes[0] ? "waitlisted" : "accepted");
+  });
+
+  it("saves simultaneous compatibility tests and persists both directions of affinity", async () => {
+    const repository = new DrizzleCompatibilityRepository(db);
+    await run(
+      "INSERT INTO profile_profiles (user_id, full_name, birth_date) VALUES (?, 'Cuenta Anfitrión', '1999-01-01'), (?, 'Cuenta Buscador', '1999-01-01')",
+      [ownerId, applicantId],
+    );
+    const now = new Date();
+    const build = (userId: string, answer: number) => new CompatibilityProfile({
+      userId, schedule: answer, cleanliness: answer, noise: answer, pets: answer,
+      smoking: answer, visits: answer, genderPref: answer, completedAt: now, updatedAt: now,
+    });
+    const host = build(ownerId, 1);
+    const applicant = build(applicantId, 5);
+
+    for (let index = 0; index < 3; index++) await Promise.all([repository.save(host), repository.save(applicant)]);
+
+    const [pair] = await pool.execute<RowDataPacket[]>(
+      "SELECT user_a, score FROM match_affinity_scores WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)",
+      [ownerId, applicantId, applicantId, ownerId],
+    );
+    expect(pair).toHaveLength(2);
+    expect(Number(pair[0]?.score)).toBe(Number(pair[1]?.score));
+    expect((await repository.findCandidate(ownerId, applicantId))?.compatibilityScore).toBe(Number(pair[0]?.score));
   });
 
   it("allows only one active connection per unordered user pair", async () => {

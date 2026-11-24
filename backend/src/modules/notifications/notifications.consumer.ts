@@ -1,6 +1,12 @@
 import type { NotificationsService } from "./notifications.service.js";
 import type { DomainEvent, InProcessEventBus } from "./event-bus.js";
 
+const applicationTitles = new Map<unknown, string>([
+  ["accepted", "Tu postulación fue aceptada."],
+  ["rejected", "Tu postulación fue rechazada."],
+  ["waitlisted", "Tu postulación quedó en lista de espera."],
+]);
+
 export interface ListingHostResolver {
   (listingId: string): Promise<string | null>;
 }
@@ -27,10 +33,12 @@ export class NotificationsEventConsumer {
         return this.onUserRegistered(event);
       case "ConnectionRequestedEvent":
         return this.notify(event.payload.addresseeId, "connection_request", "Recibiste una solicitud de conexión.", { connectionId: event.aggregateId });
-      case "ApplicationStatusChanged":
-        return this.notify(event.payload.applicantId, "application_status_changed",
-          event.payload.status === "accepted" ? "Tu postulación fue aceptada." : "Tu postulación fue rechazada.",
+      case "ApplicationStatusChanged": {
+        const title = applicationTitles.get(event.payload.status);
+        if (title) return this.notify(event.payload.applicantId, "application_status_changed", title,
           { listingId: event.payload.listingId, applicationId: event.aggregateId, status: event.payload.status });
+        return;
+      }
       case "ConnectionAcceptedEvent":
         return this.onConnectionAccepted(event);
       case "ListingModeratedEvent":

@@ -45,6 +45,14 @@ export class Application {
     return this.props.compatibilityScore;
   }
 
+  public waitlist(): void {
+    if (this.status !== "pending") {
+      throw new Error(`No se puede poner en lista de espera una solicitud en estado '${this.status}'`);
+    }
+    this.props.status = "waitlisted";
+    this.props.decidedAt = new Date();
+  }
+
   public accept(): void {
     if (this.props.status !== "pending" && this.props.status !== "waitlisted") {
       throw new Error(`No se puede aceptar una solicitud en estado '${this.props.status}'`);

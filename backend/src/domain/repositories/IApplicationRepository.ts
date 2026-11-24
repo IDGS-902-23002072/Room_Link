@@ -1,3 +1,4 @@
+import type { ApplicationStatus } from "../entities/User.js";
 import type { Application } from "../entities/Application.js";
 
 export interface IApplicationRepository {
@@ -5,5 +6,5 @@ export interface IApplicationRepository {
   findByListingId(listingId: string): Promise<Application[]>;
   findByApplicantId(applicantId: string): Promise<Application[]>;
   create(app: Application): Promise<Application>;
-  update(app: Application): Promise<void>;
+  update(app: Application, previousStatus: ApplicationStatus): Promise<boolean>;
 }

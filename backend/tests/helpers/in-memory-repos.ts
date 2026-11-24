@@ -465,7 +465,14 @@ export class InMemoryRoomRepository implements IRoomListingRepository {
 export class InMemoryApplicationRepository implements IApplicationRepository {
   readonly items = new Map<string, Application>();
   async findById(id: string) {
-    return this.items.get(id) ?? null;
+    const app = this.items.get(id);
+    if (!app) return null;
+    const { createdAt, decidedAt } = app.toJSON();
+    return new Application({
+      id: app.id, listingId: app.listingId, applicantId: app.applicantId, status: app.status,
+      message: app.message, compatibilityScore: app.compatibilityScore,
+      createdAt: new Date(String(createdAt)), decidedAt: decidedAt ? new Date(String(decidedAt)) : null,
+    });
   }
   async findByListingId(listingId: string) {
     return [...this.items.values()].filter((a) => a.listingId === listingId);
@@ -477,8 +484,10 @@ export class InMemoryApplicationRepository implements IApplicationRepository {
     this.items.set(app.id, app);
     return app;
   }
-  async update(app: Application) {
+  async update(app: Application, previousStatus: Application["status"]) {
+    if (this.items.get(app.id)?.status !== previousStatus) return false;
     this.items.set(app.id, app);
+    return true;
   }
 }
 

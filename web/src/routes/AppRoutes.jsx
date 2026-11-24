@@ -14,6 +14,10 @@ import { Workspace } from '../features/roomlink/Workspace.jsx'
 import { AccountPage, PhotosPage, ProfilePage } from '../features/roomlink/Profile.jsx'
 import { SearchPage } from '../features/roomlink/Search.jsx'
 import { AgreementsPage } from '../features/roomlink/Agreements.jsx'
+import { ListingDetail, ListingDirectory } from '../features/listings/ListingDirectory.jsx'
+import { HostApplications, MyApplications } from '../features/listings/Applications.jsx'
+import { HostListings, ManageListingPage, NewListing } from '../features/listings/HostListings.jsx'
+import '../features/listings/listings.css'
 
 function Shell() {
   const { session, logout } = useAuth()
@@ -40,6 +44,9 @@ function Shell() {
         <Brand />
         <nav aria-label="Navegación principal" className="main-nav">
           <NavLink to="/explorar">Explorar</NavLink>
+          <NavLink to="/habitaciones">Habitaciones</NavLink>
+          <NavLink to="/mis-postulaciones">Mis postulaciones</NavLink>
+          {session?.user.roles?.includes('host') && <NavLink to="/anfitrion">Mis habitaciones</NavLink>}
           <NavLink to="/buscar">Buscar roomies</NavLink>
           <NavLink to="/cuestionario">Mi test</NavLink>
           <NavLink to="/mensajes">Mensajes</NavLink>
@@ -130,6 +137,13 @@ export default function AppRoutes() {
           <Route element={<Recommendations />} path="/explorar" />
           <Route element={<Recommendations />} path="/recomendados" />
           <Route element={<Recommendations />} path="/perfil/candidato/:candidateId" />
+          <Route element={<ListingDirectory />} path="/habitaciones" />
+          <Route element={<ListingDetail />} path="/habitaciones/:listingId" />
+          <Route element={<MyApplications />} path="/mis-postulaciones" />
+          <Route element={<HostListings />} path="/anfitrion" />
+          <Route element={<NewListing />} path="/anfitrion/habitaciones/nueva" />
+          <Route element={<ManageListingPage />} path="/anfitrion/habitaciones/:listingId" />
+          <Route element={<HostApplications />} path="/anfitrion/habitaciones/:listingId/postulaciones" />
           <Route element={<Questionnaire />} path="/cuestionario" />
           <Route element={<Questionnaire />} path="/resultados/test" />
           <Route element={<Workspace module="profile" />} path="/perfil">

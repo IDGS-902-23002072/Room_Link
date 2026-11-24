@@ -318,7 +318,14 @@ class InMemoryApplicationRepository
   public apps: Map<string, Application> = new Map();
 
   async findById(id: string): Promise<Application | null> {
-    return this.apps.get(id) ?? null;
+    const app = this.apps.get(id);
+    if (!app) return null;
+    const { createdAt, decidedAt } = app.toJSON();
+    return new Application({
+      id: app.id, listingId: app.listingId, applicantId: app.applicantId, status: app.status,
+      message: app.message, compatibilityScore: app.compatibilityScore,
+      createdAt: new Date(String(createdAt)), decidedAt: decidedAt ? new Date(String(decidedAt)) : null,
+    });
   }
 
   async findByListingId(listingId: string): Promise<Application[]> {
@@ -338,8 +345,10 @@ class InMemoryApplicationRepository
     return app;
   }
 
-  async update(app: Application): Promise<void> {
+  async update(app: Application, previousStatus: Application["status"]) {
+    if (this.apps.get(app.id)?.status !== previousStatus) return false;
     this.apps.set(app.id, app);
+    return true;
   }
 }
 

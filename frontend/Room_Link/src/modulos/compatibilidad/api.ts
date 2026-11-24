@@ -93,7 +93,7 @@ export async function solicitud<T>(path: string, init?: RequestInit): Promise<T>
     | (T & { error?: string; code?: string })
     | null;
   if (!response.ok) {
-    if (response.status >= 500) {
+    if (response.status >= 500 && !body?.code?.startsWith("GEOLOCATION_")) {
       throw new Error(
         `La API respondió con un error interno (${response.status}). Comprueba que MySQL esté iniciado y que /ready responda con estado "ready".`,
       );

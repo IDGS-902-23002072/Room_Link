@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { Application, type IApplicationRepository } from "../../domain/index.js";
 
+import { AppError } from "../../shared/AppError.js";
 import type { DomainEventPublisher } from "../auth/auth.ports.js";
+
+export type ApplicationDecision = "accept" | "reject" | "waitlist";
 
 export interface CreateApplicationInput {
   listingId: string;
@@ -39,19 +42,25 @@ export class ApplicationsService {
     return await this.appRepo.findById(id);
   }
 
-  async decide(id: string, decision: "accept" | "reject"): Promise<Application> {
+  async decide(id: string, decision: ApplicationDecision): Promise<Application> {
     const app = await this.appRepo.findById(id);
     if (!app) {
-      throw new Error(`Solicitud con ID ${id} no encontrada.`);
+      throw new AppError("Solicitud no encontrada.", 404, "APPLICATION_NOT_FOUND");
     }
 
-    if (decision === "accept") {
-      app.accept();
-    } else {
-      app.reject();
+    const previousStatus = app.status;
+    try {
+      if (decision === "accept") app.accept();
+      else if (decision === "reject") app.reject();
+      else app.waitlist();
+    } catch (cause) {
+      if (cause instanceof Error) throw new AppError(cause.message, 409, "APPLICATION_STATUS_CONFLICT");
+      throw cause;
     }
 
-    await this.appRepo.update(app);
+    if (!await this.appRepo.update(app, previousStatus)) {
+      throw new AppError("La postulación cambió mientras la revisabas.", 409, "APPLICATION_STATUS_CONFLICT");
+    }
     await this.events?.publish({
       type: "ApplicationStatusChanged",
       aggregateId: app.id,
