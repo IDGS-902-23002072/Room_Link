@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'expo-router';
+import { color } from '@/constants/roomlink';
+
+import { useCallback, useRef, useState } from 'react';
+import { Link, useFocusEffect } from 'expo-router';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MarcaRoomLink } from '@/components/MarcaRoomLink';
 import { useSesion } from '@/auth/SesionContext';
 
 import {
@@ -119,8 +122,9 @@ export function PantallaChats() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
+  const cargaSala = useRef(0);
 
-  const ejecutar = async (operacion: () => Promise<void>) => {
+  const ejecutar = useCallback(async (operacion: () => Promise<void>) => {
     if (!sesion) {
       setError('Inicia sesión para abrir tus conversaciones.');
       return;
@@ -135,21 +139,18 @@ export function PantallaChats() {
     } finally {
       setCargando(false);
     }
-  };
+  }, [sesion]);
 
-  const cargarBandeja = () =>
+  const cargarBandeja = useCallback(() =>
     ejecutar(async () => {
       const lista = await obtenerBandejaMensajes();
       setConversaciones(lista);
       setCargadaBandeja(true);
-    });
+    }), [ejecutar]);
 
-  useEffect(() => {
-    if (sesion && !cargadaBandeja) {
-      void cargarBandeja();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sesion]);
+  useFocusEffect(useCallback(() => {
+    if (sesion && !cargadaBandeja) void cargarBandeja();
+  }, [sesion, cargadaBandeja, cargarBandeja]));
 
   const abrirSala = (entrada: ElementoBandejaChat | string) => {
     const roomId = typeof entrada === 'string' ? entrada.trim() : idSala(entrada);
@@ -168,11 +169,15 @@ export function PantallaChats() {
     const counterpartId =
       typeof entrada === 'string' ? null : entrada.counterpartId ?? null;
 
+    setMensajes([]);
+    setContexto(null);
+    setTextoMensaje('');
     setSalaActiva({ roomId, titulo, subtitulo, counterpartId });
     setVista('sala');
+    const carga = ++cargaSala.current;
     void ejecutar(async () => {
       const historial = await obtenerMensajesSala(roomId);
-      setMensajes(normalizarHistorial(historial));
+      if (carga === cargaSala.current) setMensajes(normalizarHistorial(historial));
       await marcarSalaLeida(roomId).catch(() => undefined);
     });
   };
@@ -221,7 +226,7 @@ export function PantallaChats() {
   const reportarInterlocutor = () => {
     const targetId = contexto?.counterpartId || salaActiva?.counterpartId;
     if (!targetId) {
-      setAviso('Reporte registrado para revisión del equipo.');
+      setError('No pudimos identificar al usuario de esta conversación.');
       return;
     }
     void ejecutar(async () => {
@@ -259,14 +264,9 @@ export function PantallaChats() {
           contentContainerStyle={[styles.contenido, { width: anchoContenido }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          <Text style={styles.eyebrow}>ROOMLINK / 10</Text>
+          <MarcaRoomLink />
           <View style={styles.filaEncabezado}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.titulo}>Tus conversaciones</Text>
-              <Text style={styles.subtitulo}>
-                Conexiones que se convierten en hogar.
-              </Text>
-            </View>
+            <Text accessibilityRole="header" style={styles.titulo}>Tus conversaciones</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Link href="/conexiones" asChild>
                 <Pressable
@@ -299,7 +299,7 @@ export function PantallaChats() {
               value={busqueda}
               onChangeText={setBusqueda}
               placeholder="Buscar conversación"
-              placeholderTextColor="#B4ACBD"
+              placeholderTextColor={color.secundario}
               style={styles.buscadorInput}
             />
           </View>
@@ -361,7 +361,7 @@ export function PantallaChats() {
               disabled={cargando}
               style={styles.botonPrimario}>
               {cargando ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={color.blanco} />
               ) : (
                 <Text style={styles.textoBotonPrimario}>Cargar bandeja</Text>
               )}
@@ -484,7 +484,7 @@ export function PantallaChats() {
                       ? 'UUID de la conexión aceptada'
                       : 'UUID de la postulación aceptada'
                 }
-                placeholderTextColor="#B4ACBD"
+                placeholderTextColor={color.secundario}
                 style={styles.input}
                 autoCapitalize="none"
               />
@@ -530,7 +530,6 @@ export function PantallaChats() {
               <Text style={styles.textoVolver}>‹</Text>
             </Pressable>
             <View style={{ flex: 1 }}>
-              <Text style={styles.eyebrow}>EN LÍNEA</Text>
               <Text style={styles.tituloSala}>
                 {salaActiva?.titulo || 'Conversación'}
               </Text>
@@ -616,7 +615,7 @@ export function PantallaChats() {
                 value={textoMensaje}
                 onChangeText={setTextoMensaje}
                 placeholder="Escribe un mensaje…"
-                placeholderTextColor="#B4ACBD"
+                placeholderTextColor={color.secundario}
                 style={styles.compositorInput}
                 multiline
               />
@@ -664,7 +663,7 @@ export function PantallaChats() {
             <Text style={styles.textoVolver}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>ROOMLINK / 10</Text>
+            <MarcaRoomLink />
             <Text style={styles.titulo}>Detalles de la conexión</Text>
             <Text style={styles.subtitulo}>Información de la conversación</Text>
           </View>
@@ -768,7 +767,7 @@ const styles = StyleSheet.create({
   areaSegura: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#ECE6F1',
+    backgroundColor: color.blanco,
   },
   contenido: {
     flexGrow: 1,
@@ -785,16 +784,9 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 92,
   },
-  eyebrow: {
-    color: '#8A8294',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-  },
   filaEncabezado: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
   },
@@ -807,32 +799,32 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E7DDEC',
+    borderColor: color.borde,
   },
   textoVolver: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 22,
     fontWeight: '700',
     lineHeight: 24,
   },
   titulo: {
-    color: '#2B2531',
-    fontSize: 26,
+    color: color.tinta,
+    fontSize: 30,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.85,
   },
   tituloSala: {
-    color: '#2B2531',
+    color: color.tinta,
     fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.4,
   },
   subtitulo: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 14,
     marginTop: 2,
   },
@@ -840,12 +832,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     borderWidth: 1,
-    borderColor: '#D8CADF',
+    borderColor: color.borde,
   },
   textoBotonRecargar: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -853,26 +845,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: '#E7DDEC',
+    borderColor: color.borde,
     paddingHorizontal: 16,
     paddingVertical: 4,
   },
   iconoBuscar: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 16,
   },
   buscadorInput: {
     flex: 1,
-    color: '#2B2531',
+    color: color.tinta,
     fontSize: 15,
     paddingVertical: 10,
   },
   segmento: {
     flexDirection: 'row',
-    backgroundColor: '#ECE3F0',
+    backgroundColor: color.menta,
     borderRadius: 999,
     padding: 4,
     gap: 4,
@@ -887,66 +879,66 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   segmentoItemActivo: {
-    backgroundColor: '#B695C0',
+    backgroundColor: color.accion,
   },
   segmentoTexto: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 13,
     fontWeight: '700',
   },
   segmentoTextoActivo: {
-    color: '#FFFFFF',
+    color: color.blanco,
   },
   segmentoBadge: {
     minWidth: 18,
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 999,
-    backgroundColor: '#DAC9DF',
+    backgroundColor: color.lavanda,
     alignItems: 'center',
   },
   segmentoBadgeActivo: {
     backgroundColor: 'rgba(255,255,255,0.3)',
   },
   segmentoBadgeTexto: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 10,
     fontWeight: '800',
   },
   segmentoBadgeTextoActivo: {
-    color: '#FFFFFF',
+    color: color.blanco,
   },
   botonPrimario: {
-    backgroundColor: '#81638B',
+    backgroundColor: color.accion,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textoBotonPrimario: {
-    color: '#FFFFFF',
+    color: color.blanco,
     fontSize: 15,
     fontWeight: '800',
   },
   botonSecundario: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#D8CADF',
+    borderColor: color.borde,
     paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textoBotonSecundario: {
-    color: '#2B2531',
+    color: color.tinta,
     fontSize: 15,
     fontWeight: '800',
   },
   tarjeta: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E7DDEC',
+    borderColor: color.borde,
     padding: 16,
     gap: 12,
   },
@@ -970,88 +962,88 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#EFE7F2',
+    backgroundColor: color.lavanda,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarTexto: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 15,
     fontWeight: '800',
   },
   nombreItem: {
-    color: '#2B2531',
+    color: color.tinta,
     fontSize: 15,
     fontWeight: '800',
   },
   horaItem: {
-    color: '#B4ACBD',
+    color: color.secundario,
     fontSize: 11,
     fontWeight: '700',
   },
   badgeNuevos: {
-    backgroundColor: '#B695C0',
+    backgroundColor: color.accion,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 999,
   },
   badgeNuevosTexto: {
-    color: '#FFFFFF',
+    color: color.blanco,
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 0.4,
   },
   previewItem: {
-    color: '#4C4556',
+    color: color.tinta,
     fontSize: 13,
   },
   metaItem: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 12,
   },
   heroTeal: {
-    backgroundColor: '#5DC1B9',
+    backgroundColor: color.menta,
     borderRadius: 18,
     padding: 20,
     gap: 6,
   },
   heroTitulo: {
-    color: '#FFFFFF',
+    color: color.tinta,
     fontSize: 17,
     fontWeight: '800',
   },
   heroSubtitulo: {
-    color: '#FFFFFF',
+    color: color.accion,
     fontSize: 13,
     lineHeight: 19,
     opacity: 0.94,
   },
   etiquetaCampo: {
-    color: '#4C4556',
+    color: color.tinta,
     fontSize: 13,
     fontWeight: '700',
   },
   input: {
-    backgroundColor: '#FAF7FC',
+    backgroundColor: color.fondo,
     borderWidth: 1.5,
-    borderColor: '#E7DDEC',
+    borderColor: color.borde,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#2B2531',
+    color: color.tinta,
   },
   enlaceCentrado: {
     alignItems: 'center',
     paddingVertical: 6,
   },
   textoEnlaceMuted: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 13,
     fontWeight: '700',
   },
   textoEnlacePrimario: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1059,7 +1051,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   textoEnlacePerfil: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1085,25 +1077,25 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   burbujaMia: {
-    backgroundColor: '#B695C0',
+    backgroundColor: color.accion,
     borderBottomRightRadius: 6,
   },
   burbujaAjena: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     borderWidth: 1,
-    borderColor: '#E7DDEC',
+    borderColor: color.borde,
     borderBottomLeftRadius: 6,
   },
   textoBurbuja: {
-    color: '#2B2531',
+    color: color.tinta,
     fontSize: 15,
     lineHeight: 21,
   },
   textoBurbujaMia: {
-    color: '#FFFFFF',
+    color: color.blanco,
   },
   metaBurbuja: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 11,
     paddingHorizontal: 4,
   },
@@ -1114,17 +1106,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     borderRadius: 24,
     borderWidth: 1.5,
-    borderColor: '#E7DDEC',
+    borderColor: color.borde,
     paddingLeft: 16,
     paddingRight: 6,
     paddingVertical: 6,
   },
   compositorInput: {
     flex: 1,
-    color: '#2B2531',
+    color: color.tinta,
     fontSize: 15,
     paddingVertical: 8,
     maxHeight: 110,
@@ -1133,12 +1125,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#81638B',
+    backgroundColor: color.accion,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textoBotonEnviar: {
-    color: '#FFFFFF',
+    color: color.blanco,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -1150,11 +1142,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   portadaIcono: {
-    color: '#2F8F86',
+    color: color.accion,
     fontSize: 32,
   },
   portadaTexto: {
-    color: '#2F8F86',
+    color: color.accion,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1163,7 +1155,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 6,
-    backgroundColor: '#DCF0E8',
+    backgroundColor: color.menta,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
@@ -1172,10 +1164,10 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 999,
-    backgroundColor: '#2F9E82',
+    backgroundColor: color.accion,
   },
   textoChipExito: {
-    color: '#2F9E82',
+    color: color.accion,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.6,
@@ -1195,7 +1187,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#ECE3F0',
+    backgroundColor: color.menta,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1203,34 +1195,34 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   vacioTitulo: {
-    color: '#2B2531',
+    color: color.tinta,
     fontSize: 17,
     fontWeight: '800',
   },
   vacioSubtitulo: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 13,
     textAlign: 'center',
     maxWidth: 260,
     lineHeight: 19,
   },
   avisoError: {
-    backgroundColor: '#F7E3E1',
+    backgroundColor: color.rosa,
     borderRadius: 14,
     padding: 12,
   },
   textoAvisoError: {
-    color: '#C0564F',
+    color: color.rosaTexto,
     fontSize: 13,
     fontWeight: '700',
   },
   avisoOk: {
-    backgroundColor: '#DCF0E8',
+    backgroundColor: color.menta,
     borderRadius: 14,
     padding: 12,
   },
   textoAvisoOk: {
-    color: '#2F9E82',
+    color: color.accion,
     fontSize: 13,
     fontWeight: '700',
   },
