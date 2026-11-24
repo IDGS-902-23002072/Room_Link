@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { color } from '@/constants/roomlink';
+
 export function PantallaModulo({ titulo, detalle, volver, children }: {
   titulo: string;
   detalle: string;
@@ -12,7 +14,7 @@ export function PantallaModulo({ titulo, detalle, volver, children }: {
   return (
     <SafeAreaView style={estilos.area}>
       <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
-        <Link href={volver} style={estilos.enlace}>‹ Volver</Link>
+        <Link href={volver} style={[estilos.enlace, estilos.volver]}>‹ Volver</Link>
         <Text accessibilityRole="header" style={estilos.titulo}>{titulo}</Text>
         <Texto secundario>{detalle}</Texto>
         {children}
@@ -42,22 +44,22 @@ export function Aviso({ children, error = false }: { children: ReactNode; error?
   ) : null;
 }
 
-export function Accion({ texto, alPulsar, primaria = false, deshabilitada = false, seleccionada }: {
+export function Accion({ texto, alPulsar, primaria = false, deshabilitada = false, seleccionada, peligro = false }: {
   texto: string;
   alPulsar: () => void;
   primaria?: boolean;
   deshabilitada?: boolean;
   seleccionada?: boolean;
+  peligro?: boolean;
 }) {
-  const destacada = primaria || seleccionada;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled: deshabilitada, selected: seleccionada }}
       disabled={deshabilitada}
       onPress={alPulsar}
-      style={({ pressed }) => [estilos.boton, destacada && estilos.primario, (pressed || deshabilitada) && estilos.atenuado]}>
-      <Text style={[estilos.enlace, destacada && estilos.blanco]}>{texto}</Text>
+      style={({ pressed }) => [estilos.boton, seleccionada && estilos.seleccionada, primaria && estilos.primario, peligro && estilos.peligro, (pressed || deshabilitada) && estilos.atenuado]}>
+      <Text style={[estilos.enlace, primaria && estilos.blanco, peligro && estilos.textoPeligro]}>{texto}</Text>
     </Pressable>
   );
 }
@@ -77,19 +79,23 @@ export function Opciones<T extends string>({ opciones, valor, alCambiar }: {
 }
 
 export const estilos = StyleSheet.create({
-  area: { flex: 1, backgroundColor: '#FAF7FA' },
-  contenido: { width: '100%', maxWidth: 460, alignSelf: 'center', padding: 22, paddingBottom: 32, gap: 14 },
-  titulo: { color: '#2C2433', fontSize: 29, fontWeight: '800' },
-  seccion: { color: '#2C2433', fontSize: 17, fontWeight: '700' },
-  texto: { color: '#2C2433', fontSize: 15, lineHeight: 21 },
-  secundario: { color: '#6E5F74' },
-  tarjeta: { backgroundColor: '#FFFFFF', borderColor: '#E8DEEB', borderWidth: 1, borderRadius: 20, padding: 16, gap: 12 },
+  area: { flex: 1, backgroundColor: color.fondo },
+  contenido: { width: '100%', maxWidth: 520, alignSelf: 'center', padding: 20, paddingBottom: 32, gap: 16 },
+  titulo: { color: color.tinta, fontSize: 32, fontWeight: '800', letterSpacing: -0.9 },
+  seccion: { color: color.tinta, fontSize: 18, fontWeight: '800', letterSpacing: -0.25 },
+  texto: { color: color.tinta, fontSize: 15, lineHeight: 22 },
+  secundario: { color: color.secundario },
+  tarjeta: { backgroundColor: color.blanco, borderColor: color.borde, borderWidth: 1, borderRadius: 22, padding: 17, gap: 12 },
   fila: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  boton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderWidth: 1, borderColor: '#E8DEEB', backgroundColor: '#FFFFFF', paddingHorizontal: 13, paddingVertical: 8 },
-  primario: { backgroundColor: '#81638B', borderColor: '#81638B' },
-  enlace: { color: '#6C4F76', fontSize: 14, fontWeight: '700' },
-  blanco: { color: '#FFFFFF' },
+  boton: { minHeight: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: color.borde, backgroundColor: color.blanco, paddingHorizontal: 13, paddingVertical: 8 },
+  primario: { backgroundColor: color.accion, borderColor: color.accion },
+  seleccionada: { backgroundColor: color.menta, borderColor: color.menta },
+  peligro: { backgroundColor: color.rosa, borderColor: color.rosa },
+  textoPeligro: { color: color.rosaTexto },
+  enlace: { color: color.accion, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  volver: { alignSelf: 'flex-start', paddingVertical: 11, paddingHorizontal: 12, borderRadius: 12, backgroundColor: color.mentaSuave, overflow: 'hidden' },
+  blanco: { color: color.blanco },
   atenuado: { opacity: 0.55 },
-  aviso: { color: '#584461', backgroundColor: '#EEE4F1', borderRadius: 13, padding: 12, lineHeight: 20 },
-  error: { color: '#913947', backgroundColor: '#FCEFF1' },
+  aviso: { color: color.accion, backgroundColor: color.mentaSuave, borderRadius: 14, padding: 12, lineHeight: 20 },
+  error: { color: color.rosaTexto, backgroundColor: color.rosa },
 });
