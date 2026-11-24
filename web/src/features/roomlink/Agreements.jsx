@@ -114,7 +114,7 @@ function AgreementsList({ agreementId, tab }) {
     <>
       {tab === 'review'
         ? <Heading title="Revisar y aceptar el acuerdo">Lee la versión compartida y consulta la respuesta de cada integrante.</Heading>
-        : <Heading action={<Link className="button button-mint" to="/acuerdos/crear">Crear nuevo acuerdo</Link>} title="Acuerdos vigentes">Consulta los compromisos aceptados por los integrantes de tu hogar.</Heading>}
+        : <Heading action={<Link className="button button-primary" to="/acuerdos/crear">Crear nuevo acuerdo</Link>} title="Acuerdos vigentes">Consulta los compromisos aceptados por los integrantes de tu hogar.</Heading>}
       <ResourceStatus label="Cargando tus acuerdos…" resource={resource} />
       {resource.data && (tab === 'review'
         ? <ReviewAgreement {...resource.data} token={token} user={user} />
@@ -191,19 +191,19 @@ function CreateAgreement() {
               {rooms.data?.length === 0 && <p className="muted">Necesitas un anuncio propio para enviar un acuerdo.</p>}
             </Panel>
             <Panel title="Normas internas">
-              <div aria-label="Categorías de normas" className="room-actions" role="group">{categories.map((name) => <button aria-pressed={category === name} className="button button-subtle" key={name} onClick={() => setCategory(name)} type="button">{name}</button>)}</div>
+              <div aria-label="Categorías de normas" className="room-actions" role="group">{categories.map((name) => <button aria-pressed={category === name} className={`button button-${category === name ? 'primary' : 'secondary'}`} key={name} onClick={() => setCategory(name)} type="button">{name}</button>)}</div>
               <label className="field">Título de la norma<input maxLength={120} onChange={(event) => setDraft({ ...draft, rules: { ...draft.rules, [category]: { ...rule, title: event.target.value } } })} value={rule.title} /></label>
               <label className="field">Descripción y compromisos<textarea maxLength={2000} onChange={(event) => setDraft({ ...draft, rules: { ...draft.rules, [category]: { ...rule, description: event.target.value } } })} value={rule.description} /></label>
               <div className="room-actions">
-                <button className="button button-rose" disabled={!draft.rules[category]} onClick={() => {
+                <button className="button button-secondary" disabled={!draft.rules[category]} onClick={() => {
                   const next = { ...draft.rules }
                   delete next[category]
                   persist({ ...draft, rules: next })
                 }} type="button">Eliminar norma</button>
-                <button className="button button-mint" disabled={!rule.title.trim() || !rule.description.trim()} onClick={() => persist(draft)} type="button">Guardar norma</button>
+                <button className="button button-primary" disabled={!rule.title.trim() || !rule.description.trim()} onClick={() => persist(draft)} type="button">Guardar norma</button>
               </div>
               {Object.entries(draft.rules).filter(([name, value]) => name !== category && (value.title || value.description)).map(([name, value]) => (
-                <div className="room-row room-rule" key={name}><div><h3>{value.title || name}</h3><p className="muted">{value.description}</p></div><button className="button button-subtle" onClick={() => setCategory(name)} type="button">Editar {name.toLowerCase()}</button></div>
+                <div className="room-row room-rule" key={name}><div><h3>{value.title || name}</h3><p className="muted">{value.description}</p></div><button className="button button-secondary" onClick={() => setCategory(name)} type="button">Editar {name.toLowerCase()}</button></div>
               ))}
             </Panel>
             {preview && <Panel title={draft.title || 'Vista previa del borrador'}>{draft.startDate && <p>Inicio propuesto · {draft.startDate}</p>}{Object.entries(draft.rules).map(([name, value]) => <div className="room-rule" key={name}><h3>{value.title || name}</h3><p>{value.description}</p></div>)}</Panel>}
@@ -216,14 +216,14 @@ function CreateAgreement() {
             <Panel title="Antes de enviar">
               <ol><li>Revisa las normas con tu roomie.</li><li>Envía la versión para revisión.</li><li>Consulta la aceptación individual.</li></ol>
               <p className="muted">El nombre, la fecha propuesta y las normas personalizadas forman tu borrador local. La versión enviada toma sus reglas del anuncio.</p>
-              <button aria-expanded={preview} className="button button-subtle" onClick={() => setPreview(!preview)} type="button">{preview ? 'Ocultar borrador' : 'Ver borrador'}</button>
+              <button aria-expanded={preview} className="button button-secondary" onClick={() => setPreview(!preview)} type="button">{preview ? 'Ocultar borrador' : 'Ver borrador'}</button>
             </Panel>
           </div>
         </div>
         <Feedback error={error}>{message}</Feedback>
         <div className="room-save">
-          <Link className="button button-rose" to="/acuerdos">Cancelar</Link>
-          <div className="room-actions"><button className="button button-subtle" onClick={() => persist(draft)} type="button">Guardar borrador</button><button className="button button-mint" disabled={busy || !draft.listingId || !draft.roomieId} type="submit">{busy ? 'Enviando…' : 'Enviar reglas del anuncio a revisión'}</button></div>
+          <Link className="button button-secondary" to="/acuerdos">Cancelar</Link>
+          <div className="room-actions"><button className="button button-secondary" onClick={() => persist(draft)} type="button">Guardar borrador</button><button className="button button-primary" disabled={busy || !draft.listingId || !draft.roomieId} type="submit">{busy ? 'Enviando…' : 'Enviar reglas del anuncio a revisión'}</button></div>
         </div>
       </form>
     </>
@@ -271,7 +271,7 @@ function Participants({ item, names, user }) {
 }
 
 function AgreementDownload({ item }) {
-  return <button className="button button-subtle" onClick={() => downloadText(`acuerdo-v${item.version}`, [agreementTitle(item), `Versión ${item.version}`, `Creado el ${formatDate(item.createdAt)}`, '', ...rulesFor(item).flatMap(([label, value]) => [label, value, ''])])} type="button">Descargar documento</button>
+  return <button className="button button-secondary" onClick={() => downloadText(`acuerdo-v${item.version}`, [agreementTitle(item), `Versión ${item.version}`, `Creado el ${formatDate(item.createdAt)}`, '', ...rulesFor(item).flatMap(([label, value]) => [label, value, ''])])} type="button">Descargar documento</button>
 }
 
 function ReviewAgreement({ items, names, token, user }) {
@@ -280,8 +280,8 @@ function ReviewAgreement({ items, names, token, user }) {
   const item = agreementId ? items.find(({ id }) => id === agreementId) : pending[0]
   return (
     <div className="room-stack">
-      {pending.length > 1 && <nav aria-label="Acuerdos para revisar" className="room-actions">{pending.map((entry) => <Link aria-current={entry.id === item?.id ? 'page' : undefined} className="button button-subtle" key={entry.id} to={`/acuerdos/revisar/${encodeURIComponent(entry.id)}`}>{agreementTitle(entry)} · v{entry.version}</Link>)}</nav>}
-      {item ? <ReviewDetail item={item} key={item.id} names={names} token={token} user={user} /> : <Panel><p>{agreementId ? 'El acuerdo no está disponible en tu cuenta.' : 'No hay acuerdos pendientes de revisión.'}</p><Link className="button button-subtle" to="/acuerdos">Consultar acuerdos vigentes</Link></Panel>}
+      {pending.length > 1 && <nav aria-label="Acuerdos para revisar" className="room-actions">{pending.map((entry) => <Link aria-current={entry.id === item?.id ? 'page' : undefined} className="button button-secondary" key={entry.id} to={`/acuerdos/revisar/${encodeURIComponent(entry.id)}`}>{agreementTitle(entry)} · v{entry.version}</Link>)}</nav>}
+      {item ? <ReviewDetail item={item} key={item.id} names={names} token={token} user={user} /> : <Panel><p>{agreementId ? 'El acuerdo no está disponible en tu cuenta.' : 'No hay acuerdos pendientes de revisión.'}</p><Link className="button button-secondary" to="/acuerdos">Consultar acuerdos vigentes</Link></Panel>}
     </div>
   )
 }
@@ -338,12 +338,12 @@ function ReviewDetail({ item, names, token, user }) {
                 <label className="room-check"><input checked={checked} onChange={(event) => setChecked(event.target.checked)} type="checkbox" />He leído y acepto las normas de la versión {version.version}.</label>
                 <p className="muted">Al confirmar se registran la versión y la fecha de aceptación.</p>
                 <div className="room-actions">
-                  <button aria-expanded={change !== null} className="button button-subtle" disabled={!member || busy} onClick={() => setChange(change === null ? '' : null)} type="button">Solicitar un cambio</button>
-                  <button className="button button-mint" disabled={!member || !checked || busy} onClick={accept} type="button">Aceptar versión {version.version}</button>
+                  <button aria-expanded={change !== null} className="button button-secondary" disabled={!member || busy} onClick={() => setChange(change === null ? '' : null)} type="button">Solicitar un cambio</button>
+                  <button className="button button-primary" disabled={!member || !checked || busy} onClick={accept} type="button">Aceptar versión {version.version}</button>
                 </div>
                 {change !== null && <>
                   <label className="field">Cambio que quieres proponer<textarea maxLength={1000} onChange={(event) => setChange(event.target.value)} value={change} /></label>
-                  <button className="button button-subtle" disabled={!change.trim()} onClick={() => prepareShare(`Propongo un cambio para «${agreementTitle(version)}» (v${version.version}).\n\n${change.trim()}\n\n${reviewUrl}`)} type="button">Preparar mensaje para compartir</button>
+                  <button className="button button-secondary" disabled={!change.trim()} onClick={() => prepareShare(`Propongo un cambio para «${agreementTitle(version)}» (v${version.version}).\n\n${change.trim()}\n\n${reviewUrl}`)} type="button">Preparar mensaje para compartir</button>
                 </>}
               </>
             )}
@@ -354,10 +354,10 @@ function ReviewDetail({ item, names, token, user }) {
           <Panel title="Estado de aceptación">
             <Participants item={version} names={names} user={user} />
             {!version.fullyAccepted &&
-              <button className="button button-subtle" onClick={() => prepareShare(`Hola, está pendiente tu revisión de «${agreementTitle(version)}» (v${version.version}). Puedes leerlo aquí: ${reviewUrl}`)} type="button">Preparar recordatorio</button>}
+              <button className="button button-secondary" onClick={() => prepareShare(`Hola, está pendiente tu revisión de «${agreementTitle(version)}» (v${version.version}). Puedes leerlo aquí: ${reviewUrl}`)} type="button">Preparar recordatorio</button>}
           </Panel>
-          {shareText && <Panel title="Compartir con tu hogar"><label className="field">Mensaje<textarea readOnly value={shareText} /></label><button className="button button-subtle" onClick={copyShare} type="button">Copiar mensaje</button>{copyStatus && <small role="status">{copyStatus}</small>}</Panel>}
-          <Panel title="¿Qué pasa después?"><p>Una actualización requiere que todos acepten la misma versión.</p><Link className="button button-subtle" to="/acuerdos">Consultar acuerdos vigentes</Link></Panel>
+          {shareText && <Panel title="Compartir con tu hogar"><label className="field">Mensaje<textarea readOnly value={shareText} /></label><button className="button button-secondary" onClick={copyShare} type="button">Copiar mensaje</button>{copyStatus && <small role="status">{copyStatus}</small>}</Panel>}
+          <Panel title="¿Qué pasa después?"><p>Una actualización requiere que todos acepten la misma versión.</p><Link className="button button-secondary" to="/acuerdos">Consultar acuerdos vigentes</Link></Panel>
         </div>
       </div>
     </>
@@ -401,17 +401,17 @@ function CurrentAgreements({ items, names, token, user }) {
       <div className="room-grid room-grid-current">
         <div className="room-stack">
           <Panel title="Tu hogar">
-            <div className="room-actions"><button aria-pressed={!all} className="button button-subtle" onClick={() => setAll(false)} type="button">Vigentes ({current.length})</button><button aria-pressed={all} className="button button-subtle" onClick={() => setAll(true)} type="button">Todas las versiones</button></div>
+            <div className="room-actions"><button aria-pressed={!all} className="button button-secondary" onClick={() => setAll(false)} type="button">Vigentes ({current.length})</button><button aria-pressed={all} className="button button-secondary" onClick={() => setAll(true)} type="button">Todas las versiones</button></div>
             {!shown.length && <p className="muted">{all ? 'Aún no tienes acuerdos.' : 'Aún no hay acuerdos vigentes.'}</p>}
-            {shown.map((item) => <button aria-pressed={item.id === details?.id} className="button button-subtle" key={item.id} onClick={() => setSelected(item.id)} type="button">{agreementTitle(item)} · v{item.version}</button>)}
+            {shown.map((item) => <button aria-pressed={item.id === details?.id} className={`button button-${item.id === details?.id ? 'primary' : 'secondary'}`} key={item.id} onClick={() => setSelected(item.id)} type="button">{agreementTitle(item)} · v{item.version}</button>)}
           </Panel>
-          {pending.map((item) => <Panel key={item.id} title="Acuerdo en revisión"><p>{agreementTitle(item)} · v{item.version}</p><Link className="button button-subtle" to={`/acuerdos/revisar/${encodeURIComponent(item.id)}`}>Revisar aceptación</Link></Panel>)}
+          {pending.map((item) => <Panel key={item.id} title="Acuerdo en revisión"><p>{agreementTitle(item)} · v{item.version}</p><Link className="button button-secondary" to={`/acuerdos/revisar/${encodeURIComponent(item.id)}`}>Revisar aceptación</Link></Panel>)}
         </div>
         {details && (
           <div className="room-stack">
             <AgreementText item={details} />
             <Panel title="Registro de aceptación"><span className="room-pill">{current.some(({ id }) => id === details.id) ? 'Vigente' : details.fullyAccepted ? 'Versión anterior' : 'Pendiente'}</span><Participants item={details} names={names} user={user} /><AgreementDownload item={details} />
-              {canUpdate && <button className="button button-mint" disabled={busy} onClick={createVersion} type="button">Crear nueva versión</button>}
+              {canUpdate && <button className="button button-primary" disabled={busy} onClick={createVersion} type="button">Crear nueva versión</button>}
               <Feedback error={error} />
             </Panel>
           </div>

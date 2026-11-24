@@ -11,7 +11,7 @@ import Moderation, { ModerationListing, ReportDirectory, ReportListing } from '.
 import Questionnaire from '../features/compatibility/Questionnaire.jsx'
 import Recommendations from '../features/compatibility/Recommendations.jsx'
 import { Workspace } from '../features/roomlink/Workspace.jsx'
-import { AccountPage, PhotosPage, ProfilePage } from '../features/roomlink/Profile.jsx'
+import { AccountPage, IdentityReviewsPage, PhotosPage, ProfilePage } from '../features/roomlink/Profile.jsx'
 import { SearchPage } from '../features/roomlink/Search.jsx'
 import { AgreementsPage } from '../features/roomlink/Agreements.jsx'
 import { ListingDetail, ListingDirectory } from '../features/listings/ListingDirectory.jsx'
@@ -56,6 +56,7 @@ function Shell() {
           <NavLink to="/denunciar" className={({ isActive }) => isActive || location.pathname.endsWith('/denunciar') ? 'active' : undefined}>Denunciar anuncio</NavLink>
           {isAdmin && <NavLink to="/admin/moderacion">Moderación</NavLink>}
           {isAdmin && <NavLink to="/admin/dashboard">Dashboard</NavLink>}
+          {isAdmin && <NavLink to="/admin/identidad">Identidad</NavLink>}
         </nav>
         <div className="account-menu">
           <span aria-hidden="true" className="account-avatar">{accountInitial}</span>
@@ -167,6 +168,7 @@ export default function AppRoutes() {
           <Route element={<ReportListing />} path="/anuncios/:listingId/denunciar" />
           <Route element={<AdminLayout />} path="/admin">
             <Route element={<Dashboard />} path="dashboard" />
+            <Route element={<IdentityReviewsPage />} path="identidad" />
             <Route element={<Navigate replace to="cola" />} path="moderacion" />
             <Route element={<Moderation key="cola" tab="cola" />} path="moderacion/cola" />
             <Route element={<Moderation key="denuncias" tab="denuncias" />} path="moderacion/denuncias" />

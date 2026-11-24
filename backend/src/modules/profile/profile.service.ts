@@ -204,9 +204,25 @@ export class ProfileService {
 
   async requestIdentityVerification(userId: string): Promise<Profile> {
     const profile = await this.getProfile(userId);
+    const previousStatus = profile.identityStatus;
+    if (previousStatus === "pending") return profile;
     profile.requestIdentityVerification();
-    await this.profileRepo.updateIdentityStatus(profile);
+    if (!(await this.profileRepo.updateIdentityStatus(profile, previousStatus))) return this.getProfile(userId);
     return profile;
+  }
+
+  async listPendingVerifications(page: number) {
+    const pageSize = 20;
+    const items = await this.profileRepo.listPendingVerifications(pageSize + 1, (page - 1) * pageSize);
+    return { items: items.slice(0, pageSize), hasMore: items.length > pageSize };
+  }
+
+  async resolveIdentityVerification(userId: string, decision: "verified" | "rejected"): Promise<boolean> {
+    const profile = await this.profileRepo.findByUserId(userId);
+    if (!profile || profile.identityStatus !== "pending") return false;
+    if (decision === "verified") profile.markIdentityVerified();
+    else profile.rejectIdentityVerification();
+    return this.profileRepo.updateIdentityStatus(profile, "pending");
   }
 
   // ---- Preferencias de notificación ----

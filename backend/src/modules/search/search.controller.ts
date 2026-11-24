@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import type { SearchService } from "./search.service.js";
 import { SearchView } from "./search.view.js";
-import type { SearchFilters, Pagination } from "../../domain/index.js";
+import { searchHabits, type SearchFilters, type Pagination } from "../../domain/index.js";
 
 const asNumber = (value: string | undefined): number | null => {
   if (value === undefined || value === "") return null;
@@ -22,6 +22,16 @@ const parseFilters = (c: Context): SearchFilters => ({
   minAge: asNumber(c.req.query("minAge")),
   maxAge: asNumber(c.req.query("maxAge")),
   zoneId: c.req.query("zoneId") ?? null,
+  city: c.req.query("city")?.trim() ?? "",
+  zones: (c.req.queries("zone") ?? []).slice(0, 50),
+  viewerId: c.get("auth").userId as string,
+  order: c.req.query("order") ?? "",
+  availableNow: asBoolean(c.req.query("availableNow")) === true,
+  habits: searchHabits.flatMap((dimension) => {
+    const value = c.req.query(dimension);
+    if (value === undefined || !/^[1-5]$/.test(value)) return [];
+    return [{ dimension, score: Number(value), required: c.req.query(`${dimension}Required`) === "true" }];
+  }),
   petsAllowed: asBoolean(c.req.query("petsAllowed")),
   smokingAllowed: asBoolean(c.req.query("smokingAllowed")),
   partiesAllowed: asBoolean(c.req.query("partiesAllowed")),
@@ -49,6 +59,8 @@ export class SearchController {
       return c.json({ error: msg }, 400);
     }
   };
+
+  listZones = async (c: Context) => c.json(await this.searchService.listZones());
 
   searchListings = async (c: Context) => {
     try {

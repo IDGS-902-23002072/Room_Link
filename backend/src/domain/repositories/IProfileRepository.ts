@@ -17,7 +17,8 @@ export interface IProfileRepository {
       facebook?: string | null | undefined;
     },
   ): Promise<void>;
-  updateIdentityStatus(profile: Profile): Promise<void>;
+  updateIdentityStatus(profile: Profile, previousStatus?: Profile["identityStatus"]): Promise<boolean>;
+  listPendingVerifications(limit: number, offset: number): Promise<{ userId: string; fullName: string }[]>;
 
   // Galería de fotos (EL-02.2 / EL-02.5)
   listPhotos(userId: string): Promise<ProfilePhoto[]>;

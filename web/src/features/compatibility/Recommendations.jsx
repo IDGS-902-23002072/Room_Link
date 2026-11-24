@@ -6,6 +6,7 @@ import { goBack, push } from '../../routes/navigation.js'
 import { useAuth } from '../../hooks/useAuth.js'
 import { asyncEffect } from '../../hooks/asyncEffect.js'
 import { useRoomLinkQuery } from '../../hooks/useRoomLinkQuery.js'
+import { apiRequest } from '../../services/api.js'
 import {
   getCandidate,
   getRecommendationFeed,
@@ -115,8 +116,18 @@ function CandidateDetail({ candidateId }) {
   useEffect(
     () => asyncEffect(async (isActive) => {
       try {
-        const result = await getCandidate(session.user.id, candidateId, session.token)
-        if (isActive()) setDetail({ candidateId, profile: result, error: '' })
+        const path = `/api/v1/profiles/${encodeURIComponent(candidateId)}`
+        const [candidate, publicProfile] = await Promise.allSettled([
+          getCandidate(session.user.id, candidateId, session.token),
+          apiRequest(path, { token: session.token }),
+        ])
+        if (candidate.status === 'rejected' && publicProfile.status === 'rejected') throw candidate.reason
+        const profile = {
+          ...(publicProfile.status === 'fulfilled' && publicProfile.value),
+          compatibilityScore: null,
+          ...(candidate.status === 'fulfilled' && candidate.value),
+        }
+        if (isActive()) setDetail({ candidateId, profile, error: '' })
       } catch (cause) {
         if (isActive()) {
           setDetail({
@@ -211,6 +222,13 @@ function CandidateDetail({ candidateId }) {
             <h2>Sobre mí</h2>
             <p>{profile.bio || 'Este perfil aún no tiene una descripción.'}</p>
           </section>
+          {(profile.phone || profile.email || profile.instagram || profile.facebook) && <section className="detail-section">
+            <h2>Contacto</h2>
+            {profile.phone && <p>Teléfono {profile.phone}</p>}
+            {profile.email && <p>Correo {profile.email}</p>}
+            {profile.instagram && <p>Instagram {profile.instagram}</p>}
+            {profile.facebook && <p>Facebook {profile.facebook}</p>}
+          </section>}
           <section className="detail-section">
             <h2>Estilo de vida</h2>
             <div className="lifestyle-tags">

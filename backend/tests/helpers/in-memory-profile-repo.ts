@@ -18,7 +18,12 @@ export class InMemoryExtendedProfileRepository implements IProfileRepository {
   public prefs: Map<string, ProfileNotificationPreference> = new Map();
 
   async findByUserId(userId: string): Promise<Profile | null> {
-    return this.profiles.get(userId) ?? null;
+    const profile = this.profiles.get(userId);
+    if (!profile) return null;
+    const { userId: id, fullName, birthDate, occupation, bio, phone, instagram, facebook,
+      identityStatus, identityVerifiedAt, createdAt, updatedAt } = profile;
+    return new Profile({ userId: id, fullName, birthDate, occupation, bio, phone, instagram,
+      facebook, identityStatus, identityVerifiedAt, createdAt, updatedAt });
   }
 
   async create(profile: Profile): Promise<Profile> {
@@ -30,12 +35,22 @@ export class InMemoryExtendedProfileRepository implements IProfileRepository {
     this.profiles.set(profile.userId, profile);
   }
 
-  async updateSocials(): Promise<void> {
-    /* la entidad ya está en el mapa */
+  async updateSocials(userId: string, socials: Parameters<IProfileRepository["updateSocials"]>[1]): Promise<void> {
+    this.profiles.get(userId)?.updateSocials(socials);
   }
 
-  async updateIdentityStatus(profile: Profile): Promise<void> {
+  async updateIdentityStatus(profile: Profile, previousStatus?: Profile["identityStatus"]): Promise<boolean> {
+    if (previousStatus !== undefined && this.profiles.get(profile.userId)?.identityStatus !== previousStatus) return false;
     this.profiles.set(profile.userId, profile);
+    return true;
+  }
+
+  async listPendingVerifications(limit: number, offset: number) {
+    return Array.from(this.profiles.values())
+      .filter(({ identityStatus }) => identityStatus === "pending")
+      .sort((a, b) => a.userId.localeCompare(b.userId))
+      .slice(offset, offset + limit)
+      .map(({ userId, fullName }) => ({ userId, fullName }));
   }
 
   async listPhotos(userId: string): Promise<ProfilePhoto[]> {

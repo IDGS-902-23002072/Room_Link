@@ -249,6 +249,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
           (conn.requesterId === ownerId || conn.addresseeId === ownerId),
       );
     },
+    getEmail: async (userId: string) => (await userRepo.findById(userId))?.email ?? null,
   });
   app.route("/api/v1/profiles", createProfileRoutes(profileController, authService));
 
@@ -358,7 +359,11 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const agreementsService = new AgreementsService(
     dependencies.agreementRepo ?? new DrizzleAgreementRepository(db),
   );
-  const agreementsController = new AgreementsController(agreementsService);
+  const agreementsController = new AgreementsController(agreementsService, async (listingId, roomieId) =>
+    (await appRepo.findByApplicantId(roomieId)).some(
+      (application) => application.listingId === listingId && application.status === "accepted",
+    ),
+  );
   app.route(
     "/api/v1/agreements",
     createAgreementsRoutes(agreementsController, authService),

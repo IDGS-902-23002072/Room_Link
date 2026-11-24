@@ -1,5 +1,6 @@
 import type {
   ISearchRepository,
+  SearchProfileDetails,
   SearchFilters,
   Pagination,
   PaginatedResult,
@@ -17,11 +18,15 @@ export class SearchService {
   async searchProfiles(
     filters: SearchFilters,
     pagination: Pagination,
-  ): Promise<PaginatedResult<Profile>> {
+  ): Promise<PaginatedResult<Profile> & { details?: Map<string, SearchProfileDetails> }> {
     this.validateFilters(filters);
     const page = this.normalizePagination(pagination);
     const result = await this.repo.searchProfiles(filters, page);
-    return this.buildPaginated(result.items, result.total, page);
+    return { ...this.buildPaginated(result.items, result.total, page), ...(result.details && { details: result.details }) };
+  }
+
+  listZones() {
+    return this.repo.listZones?.() ?? Promise.resolve([]);
   }
 
   async searchListings(
@@ -88,7 +93,10 @@ export class SearchService {
   }
 
   private normalizePagination(pagination: Pagination): Pagination {
-    const page = Math.max(1, Math.floor(pagination.page || 1));
+    const requestedPage = Math.floor(pagination.page);
+    const page = Number.isSafeInteger(requestedPage)
+      ? Math.max(1, Math.min(requestedPage, Math.floor(Number.MAX_SAFE_INTEGER / MAX_PAGE_SIZE)))
+      : 1;
     const requestedSize = Math.floor(
       pagination.pageSize || DEFAULT_PAGE_SIZE,
     );

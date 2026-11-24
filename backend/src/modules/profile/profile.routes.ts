@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import {
   createAuthMiddleware,
   requireSelfOrAdmin,
+  requireAdmin,
   type AuthService,
   type AuthVariables,
 } from "../auth/index.js";
@@ -14,6 +15,9 @@ export const createProfileRoutes = (
   const router = new Hono<{ Variables: AuthVariables }>();
   const authenticate = createAuthMiddleware(authService);
   const self = requireSelfOrAdmin("userId");
+
+  router.get("/verification/pending", authenticate, requireAdmin, controller.listPendingVerifications);
+  router.put("/:userId/verification/decision", authenticate, requireAdmin, controller.resolveVerification);
 
   // Lectura de perfil (requiere sesión)
   router.get("/:userId", authenticate, controller.getProfile);

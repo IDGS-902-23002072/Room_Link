@@ -84,14 +84,27 @@ export class DrizzleProfileRepository implements IProfileRepository {
       .where(eq(profileProfiles.userId, userId));
   }
 
-  async updateIdentityStatus(profile: Profile): Promise<void> {
-    await this.db
+  async updateIdentityStatus(profile: Profile, previousStatus?: Profile["identityStatus"]): Promise<boolean> {
+    const [result] = await this.db
       .update(profileProfiles)
       .set({
         identityStatus: profile.identityStatus,
         identityVerifiedAt: profile.identityVerifiedAt ?? null,
       })
-      .where(eq(profileProfiles.userId, profile.userId));
+      .where(and(
+        eq(profileProfiles.userId, profile.userId),
+        previousStatus === undefined ? undefined : eq(profileProfiles.identityStatus, previousStatus),
+      ));
+    return result.affectedRows > 0;
+  }
+
+  async listPendingVerifications(limit: number, offset: number) {
+    return this.db.select({ userId: profileProfiles.userId, fullName: profileProfiles.fullName })
+      .from(profileProfiles)
+      .where(eq(profileProfiles.identityStatus, "pending"))
+      .orderBy(asc(profileProfiles.userId))
+      .limit(limit)
+      .offset(offset);
   }
 
   async listPhotos(userId: string): Promise<ProfilePhoto[]> {

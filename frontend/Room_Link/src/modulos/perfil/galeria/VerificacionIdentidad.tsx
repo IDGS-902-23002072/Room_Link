@@ -32,11 +32,12 @@ export function VerificacionIdentidad() {
   return (
     <Tarjeta titulo="Verificación de identidad">
       <Texto>{estado ? estados[estado] ?? estado : error ? 'Estado no disponible' : 'Consultando estado…'}</Texto>
-      <Texto secundario>Puedes iniciar la solicitud y consultar su estado aquí. Usa el canal de verificación para entregar documentos o selfies.</Texto>
+      <Texto secundario>Presenta una identificación oficial vigente en persona. Acuerda la revisión con tu equipo de RoomLink y consulta aquí el resultado.</Texto>
       <Aviso error>{error}</Aviso>
       {estado && estado !== 'pending' && estado !== 'verified' && (
         <Accion alPulsar={() => void solicitar()} deshabilitada={ocupada} primaria texto="Iniciar verificación" />
       )}
+      {estado === 'pending' && <Accion alPulsar={() => { setError(''); setIntento((valor) => valor + 1); }} texto="Actualizar estado" />}
       {!estado && error && <Accion alPulsar={() => { setError(''); setIntento((valor) => valor + 1); }} texto="Reintentar" />}
     </Tarjeta>
   );

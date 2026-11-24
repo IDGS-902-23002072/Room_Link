@@ -38,12 +38,36 @@ export function obtenerMisPostulaciones() {
 
 export const TAMANO_PAGINA = 12;
 
-/** Feed paginado de habitaciones publicadas (limit/offset). */
 export function obtenerHabitacionesPublicadas(pagina: number) {
   const offset = (pagina - 1) * TAMANO_PAGINA;
   return solicitud<HabitacionResumen[]>(
     `/api/v1/rooms?limit=${TAMANO_PAGINA}&offset=${offset}`,
   );
+}
+
+export async function buscarHabitaciones(
+  pagina: number,
+  filtros: { texto: string; presupuestoMax?: number; disponibleYa: boolean },
+  signal: AbortSignal,
+) {
+  const params = new URLSearchParams({
+    page: String(pagina),
+    pageSize: String(TAMANO_PAGINA),
+    text: filtros.texto.trim(),
+    availableNow: String(filtros.disponibleYa),
+  });
+  if (filtros.presupuestoMax !== undefined) params.set('budgetMax', String(filtros.presupuestoMax));
+  const resultado = await solicitud<{
+    items: (Omit<HabitacionDetalle, 'photosCount' | 'locationId'> & { photoCount: number })[];
+    total: number;
+    totalPages: number;
+  }>(`/api/v1/search/listings?${params}`, { signal });
+  return {
+    ...resultado,
+    items: resultado.items.map(({ photoCount, ...habitacion }) => ({
+      ...habitacion, photosCount: photoCount, locationId: null,
+    })),
+  };
 }
 
 export function obtenerHabitacion(id: string) {

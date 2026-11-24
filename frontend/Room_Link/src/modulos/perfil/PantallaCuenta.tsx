@@ -5,6 +5,7 @@ import { StyleSheet, Switch, View } from 'react-native';
 
 import { solicitarRecuperacion } from '@/auth/api-auth';
 import { useSesion } from '@/auth/SesionContext';
+import { solicitud } from '@/modulos/compatibilidad/api';
 import { Accion, Aviso, estilos, Opciones, PantallaModulo, Tarjeta, Texto } from '@/modulos/comunes/InterfazModulo';
 import { actualizarPreferenciasNotificaciones, obtenerPreferenciasNotificaciones, type PreferenciaNotificacion } from '@/modulos/notificaciones/api';
 import {
@@ -20,6 +21,13 @@ const alertas = [
 const idiomas = [['es-MX', 'Español'], ['en-US', 'Inglés']] as const;
 const zonas = [['America/Mexico_City', 'Ciudad de México'], ['America/Tijuana', 'Tijuana'], ['America/Cancun', 'Cancún']] as const;
 const inicial = { idioma: 'es-MX', zona: 'America/Mexico_City', visible: true, pausada: false, perfiles: true };
+const opcionesPrivacidad = [
+  ['showPhoneToConnections', 'Compartir teléfono'],
+  ['showEmailToConnections', 'Compartir correo'],
+  ['showSocialsToConnections', 'Compartir redes sociales'],
+] as const;
+type Privacidad = Record<typeof opcionesPrivacidad[number][0], boolean>;
+
 const permisoTexto = { granted: 'Permitidas', denied: 'Denegadas', never_ask_again: 'Bloqueadas en ajustes', undetermined: 'Sin decidir' };
 
 function Interruptor({ texto, activo, cambiar }: { texto: string; activo: boolean; cambiar: (valor: boolean) => void }) {
@@ -29,6 +37,66 @@ function Interruptor({ texto, activo, cambiar }: { texto: string; activo: boolea
       <Switch accessibilityLabel={texto} onValueChange={cambiar} trackColor={{ false: '#D8CDD9', true: '#81638B' }} value={activo} />
     </View>
   );
+}
+
+function PrivacidadContacto({ usuarioId }: { usuarioId: string }) {
+  const ruta = `/api/v1/profiles/${encodeURIComponent(usuarioId)}/privacy`;
+  const [valores, setValores] = useState<Privacidad | null>(null);
+  const [guardados, setGuardados] = useState<Privacidad | null>(null);
+  const [intento, setIntento] = useState(0);
+  const [ocupada, setOcupada] = useState(false);
+  const [error, setError] = useState('');
+  const [aviso, setAviso] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void solicitud<Privacidad>(ruta, { signal: controller.signal }).then((datos) => {
+      if (!controller.signal.aborted) {
+        setValores(datos);
+        setGuardados(datos);
+      }
+    }).catch((causa: Error) => {
+      if (!controller.signal.aborted) setError(causa.message);
+    });
+    return () => controller.abort();
+  }, [ruta, intento]);
+
+  const cambios = valores && opcionesPrivacidad.some(([clave]) => valores[clave] !== guardados?.[clave]);
+
+  async function guardar() {
+    if (!valores || ocupada) return;
+    setOcupada(true);
+    setError('');
+    setAviso('');
+    try {
+      const body = Object.fromEntries(opcionesPrivacidad.map(([clave]) => [clave, valores[clave]]));
+      const datos = await solicitud<Privacidad>(ruta, { method: 'PUT', body: JSON.stringify(body) });
+      setGuardados(datos);
+      setValores(datos);
+      setAviso('Privacidad guardada.');
+    } catch (causa) {
+      setError(causa instanceof Error ? causa.message : 'Error al guardar la privacidad.');
+    } finally {
+      setOcupada(false);
+    }
+  }
+
+  return <Tarjeta titulo="Privacidad de contacto">
+    <Texto secundario>Elige qué datos pueden consultar tus conexiones aceptadas.</Texto>
+    {valores ? <>
+      {opcionesPrivacidad.map(([clave, texto]) => <Interruptor
+        activo={valores[clave]}
+        cambiar={(activo) => { if (!ocupada) setValores({ ...valores, [clave]: activo }); }}
+        key={clave}
+        texto={texto}
+      />)}
+      <Accion alPulsar={() => void guardar()} deshabilitada={ocupada || !cambios} primaria texto="Guardar privacidad" />
+    </> : error
+      ? <Accion alPulsar={() => { setError(''); setIntento((valor) => valor + 1); }} texto="Reintentar" />
+      : <Texto secundario>Cargando privacidad.</Texto>}
+    <Aviso error>{error}</Aviso>
+    <Aviso>{aviso}</Aviso>
+  </Tarjeta>;
 }
 
 export function PantallaCuenta() {
@@ -111,6 +179,7 @@ export function PantallaCuenta() {
           }} deshabilitada={ocupada} primaria texto={ocupada ? 'Procesando…' : 'Guardar preferencias'} />
         </Tarjeta>
       </>}
+      {id && <PrivacidadContacto key={id} usuarioId={id} />}
       <Tarjeta titulo="Permiso del dispositivo">
         <Texto>Notificaciones {permisoTexto[permiso].toLowerCase()}.</Texto>
         <Accion alPulsar={() => void ejecutar(async () => {

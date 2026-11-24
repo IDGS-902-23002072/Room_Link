@@ -1,6 +1,7 @@
 import type {
   PaginatedResult,
   Profile,
+  SearchProfileDetails,
   RoomListing,
 } from "../../domain/index.js";
 import { ProfileView, type ProfileResponseDto } from "../profile/profile.view.js";
@@ -15,6 +16,7 @@ export interface ListingSummaryDto {
   maxRoommates: number | null;
   status: string;
   photoCount: number;
+  createdAt: string;
 }
 
 export interface PaginatedDto<T> {
@@ -39,20 +41,24 @@ export class SearchView {
       maxRoommates: listing.maxRoommates ?? null,
       status: listing.status,
       photoCount: listing.photoCount,
+      createdAt: listing.createdAt.toISOString(),
     };
   }
 
   public static toProfilesPage(
-    result: PaginatedResult<Profile>,
-  ): PaginatedDto<ProfileResponseDto> {
+    result: PaginatedResult<Profile> & { details?: Map<string, SearchProfileDetails> },
+  ): PaginatedDto<ProfileResponseDto & Partial<SearchProfileDetails>> {
     return {
       // HU-02 — En búsqueda/descubrimiento el espectador no es dueño ni conexión:
       // se ocultan teléfono y redes de todos los candidatos.
       items: result.items.map((profile) =>
-        ProfileView.toPublicProfile(profile, {
-          isOwner: false,
-          isConnected: false,
-          privacy: null,
+        ({
+          ...ProfileView.toPublicProfile(profile, {
+            isOwner: false,
+            isConnected: false,
+            privacy: null,
+          }),
+          ...result.details?.get(profile.userId),
         }),
       ),
       page: result.page,
