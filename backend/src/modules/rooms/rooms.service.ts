@@ -1,60 +1,944 @@
+
 import { randomUUID } from "node:crypto";
-import { RoomListing, type IRoomListingRepository } from "../../domain/index.js";
+
+import {
+  RoomListing,
+  type IRoomListingRepository,
+  type RoomFeedFilters,
+  type RoomFeedItem,
+  type RoomPhotoInput,
+  type RoomPhotoRecord,
+  type RoomPhotoUpdateItem,
+  type RoomLocationInput,
+  type RoomRulesRecord,
+  type RoomCostItemInput,
+  type RoomCostItemRecord,
+  type RoomCostKind,
+} from "../../domain/index.js";
+
+// ======================================================
+// INTERFACES
+// ======================================================
 
 export interface CreateRoomInput {
   hostId: string;
   title: string;
-  description?: string | null | undefined;
+  description?: string | null;
   monthlyRent: number;
-  availableFrom?: string | null | undefined;
-  maxRoommates?: number | null | undefined;
+  availableFrom?: string | null;
+  maxRoommates?: number | null;
+
+  // Ubicación opcional para permitir borradores incompletos.
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+
+  // Fotografías opcionales.
+  photos?: RoomPhotoInput[];
 }
 
+export interface UpdateRoomInput {
+  title: string;
+  description: string | null;
+  monthlyRent: number;
+  availableFrom: string | null;
+  maxRoommates: number | null;
+
+  // Ubicación opcional.
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+
+  // Fotografías existentes y nuevas, respetando su orden.
+  photos: RoomPhotoUpdateItem[];
+}
+
+// ======================================================
+// CONSTANTES
+// ======================================================
+
+const TIPOS_IMAGEN_PERMITIDOS = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+
+const TAMANO_MAXIMO_IMAGEN = 8 * 1024 * 1024;
+
+const MAXIMO_FOTOGRAFIAS = 10;
+const MINIMO_FOTOGRAFIAS_PUBLICACION = 3;
+
+const RENTA_MAXIMA = 99999999.99;
+const MAXIMO_COMPANEROS = 100;
+
+// ======================================================
+// VALIDACIONES DE FECHAS
+// ======================================================
+
+/**
+ * Obtiene la fecha actual de México.
+ * El resultado tiene formato YYYY-MM-DD.
+ */
+function obtenerFechaActualMexico(): string {
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const obtenerParte = (tipo: string): string => {
+    return partes.find(
+      (parte) => parte.type === tipo
+    )?.value ?? "";
+  };
+
+  return `${obtenerParte("year")}-${obtenerParte("month")}-${obtenerParte("day")}`;
+}
+
+/**
+ * Comprueba que la fecha tenga formato YYYY-MM-DD
+ * y que exista realmente en el calendario.
+ */
+function fechaValida(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (
+    year === undefined ||
+    month === undefined ||
+    day === undefined
+  ) {
+    return false;
+  }
+
+  const fechaUTC = new Date(
+    Date.UTC(year, month - 1, day)
+  );
+
+  return (
+    fechaUTC.getUTCFullYear() === year &&
+    fechaUTC.getUTCMonth() === month - 1 &&
+    fechaUTC.getUTCDate() === day
+  );
+}
+
+/**
+ * Valida la fecha de disponibilidad.
+ * Permite null para guardar borradores incompletos.
+ */
+function validarFechaDisponibilidad(
+  fecha: string | null | undefined
+): Date | null {
+  if (fecha === null || fecha === undefined || fecha === "") {
+    return null;
+  }
+
+  if (!fechaValida(fecha)) {
+    throw new Error(
+      "La fecha de disponibilidad no tiene un formato válido."
+    );
+  }
+
+  const hoy = obtenerFechaActualMexico();
+
+  if (fecha < hoy) {
+    throw new Error(
+      "La habitación no puede estar disponible desde una fecha pasada."
+    );
+  }
+
+  // Guardamos la fecha como medianoche UTC.
+  return new Date(`${fecha}T00:00:00.000Z`);
+}
+
+/**
+ * Comprueba que exista una fecha de disponibilidad válida
+ * antes de publicar o reactivar.
+ */
+function validarFechaRequerida(fecha: Date | null): void {
+  if (!fecha || Number.isNaN(fecha.getTime())) {
+    throw new Error(
+      "Debes registrar una fecha de disponibilidad antes de publicar."
+    );
+  }
+
+  const anio = fecha.getUTCFullYear();
+  const mes = String(fecha.getUTCMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getUTCDate()).padStart(2, "0");
+
+  const fechaTexto = `${anio}-${mes}-${dia}`;
+
+  if (fechaTexto < obtenerFechaActualMexico()) {
+    throw new Error(
+      "La habitación no puede estar disponible desde una fecha pasada."
+    );
+  }
+}
+
+// ======================================================
+// VALIDACIÓN DE UBICACIÓN
+// ======================================================
+
+/**
+ * Permite que los tres campos de ubicación estén vacíos.
+ *
+ * Si se proporciona alguno, los tres deben estar completos.
+ */
+function obtenerUbicacion(input: {
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}): RoomLocationInput | null {
+  const direccion = input.address?.trim() ?? "";
+  const latitud = input.latitude;
+  const longitud = input.longitude;
+
+  const sinDireccion = !direccion;
+  const sinLatitud = latitud === null || latitud === undefined;
+  const sinLongitud = longitud === null || longitud === undefined;
+
+  // No se proporcionó ningún dato de ubicación.
+  if (sinDireccion && sinLatitud && sinLongitud) {
+    return null;
+  }
+
+  // No se permite una ubicación incompleta.
+  if (sinDireccion || sinLatitud || sinLongitud) {
+    throw new Error(
+      "Para registrar la ubicación debes proporcionar dirección, latitud y longitud.",
+    );
+  }
+
+  if (direccion.length > 500) {
+    throw new Error(
+      "La dirección no debe superar los 500 caracteres.",
+    );
+  }
+
+  if (
+    typeof latitud !== "number" ||
+    !Number.isFinite(latitud) ||
+    latitud < -90 ||
+    latitud > 90
+  ) {
+    throw new Error("La latitud no es válida.");
+  }
+
+  if (
+    typeof longitud !== "number" ||
+    !Number.isFinite(longitud) ||
+    longitud < -180 ||
+    longitud > 180
+  ) {
+    throw new Error("La longitud no es válida.");
+  }
+
+  return {
+    address: direccion,
+    latitude: latitud,
+    longitude: longitud,
+  };
+}
+
+// ======================================================
+// VALIDACIONES GENERALES
+// ======================================================
+
+/**
+ * Valida los datos generales de una publicación.
+ * No exige ubicación porque puede tratarse de un borrador.
+ */
+function validarDatosPublicacion(input: {
+  title: string;
+  description?: string | null;
+  monthlyRent: number;
+  maxRoommates?: number | null;
+}): void {
+  // Título.
+  if (
+    typeof input.title !== "string" ||
+    input.title.trim().length < 5 ||
+    input.title.trim().length > 200
+  ) {
+    throw new Error(
+      "El título debe tener entre 5 y 200 caracteres.",
+    );
+  }
+
+  // Descripción.
+  if (
+    input.description !== undefined &&
+    input.description !== null &&
+    typeof input.description !== "string"
+  ) {
+    throw new Error("La descripción no es válida.");
+  }
+
+  if (
+    typeof input.description === "string" &&
+    input.description.trim().length > 5000
+  ) {
+    throw new Error(
+      "La descripción no puede superar los 5000 caracteres.",
+    );
+  }
+
+  // Renta.
+  if (
+    typeof input.monthlyRent !== "number" ||
+    !Number.isFinite(input.monthlyRent) ||
+    input.monthlyRent <= 0 ||
+    input.monthlyRent > RENTA_MAXIMA ||
+    Math.round(input.monthlyRent * 100) !==
+    input.monthlyRent * 100
+  ) {
+    throw new Error(
+      "La renta mensual debe ser mayor a cero y tener máximo dos decimales.",
+    );
+  }
+
+  // Número máximo de compañeros.
+  if (
+    input.maxRoommates !== undefined &&
+    input.maxRoommates !== null &&
+    (
+      !Number.isInteger(input.maxRoommates) ||
+      input.maxRoommates < 1 ||
+      input.maxRoommates > MAXIMO_COMPANEROS
+    )
+  ) {
+    throw new Error(
+      "El número de compañeros debe ser un entero entre 1 y 100.",
+    );
+  }
+}
+
+// ======================================================
+// VALIDACIÓN DE FOTOGRAFÍAS
+// ======================================================
+
+/**
+ * Valida fotografías nuevas.
+ */
+function validarFotografia(photo: RoomPhotoInput): void {
+  if (
+    !photo.fileName ||
+    typeof photo.fileName !== "string" ||
+    !photo.fileName.trim() ||
+    photo.fileName.length > 255
+  ) {
+    throw new Error(
+      "El nombre de una fotografía no es válido.",
+    );
+  }
+
+  if (!TIPOS_IMAGEN_PERMITIDOS.includes(photo.mimeType)) {
+    throw new Error(
+      "Solo se permiten fotografías JPG, PNG o WEBP.",
+    );
+  }
+
+  if (
+    !Buffer.isBuffer(photo.imageData) ||
+    photo.imageData.length === 0 ||
+    photo.imageData.length > TAMANO_MAXIMO_IMAGEN
+  ) {
+    throw new Error(
+      "Cada fotografía debe pesar más de 0 bytes y máximo 8 MB.",
+    );
+  }
+}
+
+/**
+ * Valida la cantidad de fotografías recibidas.
+ */
+function validarCantidadFotografias(
+  photos: unknown,
+): asserts photos is RoomPhotoInput[] {
+  if (
+    !Array.isArray(photos) ||
+    photos.length > MAXIMO_FOTOGRAFIAS
+  ) {
+    throw new Error(
+      "La publicación debe tener como máximo 10 fotografías.",
+    );
+  }
+}
+
+// ======================================================
+// SERVICIO DE HABITACIONES
+// ======================================================
+
 export class RoomsService {
-  constructor(private roomRepo: IRoomListingRepository) {}
+  constructor(
+    private roomRepo: IRoomListingRepository,
+  ) { }
+
+  // ====================================================
+  // CONSULTAS
+  // ====================================================
+
+  async listFeed(
+    filters: RoomFeedFilters,
+    page = 1,
+    pageSize = 12
+  ): Promise<{ items: RoomFeedItem[]; hasMore: boolean }> {
+    if (!Number.isInteger(page) || page < 1) {
+      throw new Error("La página debe ser un entero mayor o igual a 1.");
+    }
+    if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 50) {
+      throw new Error("El tamaño de página debe estar entre 1 y 50.");
+    }
+    if (
+      filters.minRent !== undefined &&
+      filters.maxRent !== undefined &&
+      filters.minRent > filters.maxRent
+    ) {
+      throw new Error("La renta mínima no puede ser mayor que la máxima.");
+    }
+
+    const rows = await this.roomRepo.findPublishedFeed(
+      filters,
+      pageSize + 1,
+      (page - 1) * pageSize
+    );
+
+    return {
+      items: rows.slice(0, pageSize),
+      hasMore: rows.length > pageSize,
+    };
+  }
 
   async getById(id: string): Promise<RoomListing> {
-    const room = await this.roomRepo.findById(id);
-    if (!room) {
-      throw new Error(`Habitación con ID ${id} no encontrada.`);
+    if (!id?.trim()) {
+      throw new Error("El ID de la habitación es obligatorio.");
     }
+
+    const room = await this.roomRepo.findById(id);
+
+    if (!room) {
+      throw new Error(
+        `Habitación con ID ${id} no encontrada.`,
+      );
+    }
+
     return room;
   }
 
-  async listPublished(limit = 20, offset = 0): Promise<RoomListing[]> {
-    return await this.roomRepo.findPublished(limit, offset);
+  // Obtener ubicación de una publicación.
+  async getLocation(id: string) {
+    const room = await this.getById(id);
+
+    if (!room.locationId) {
+      return null;
+    }
+
+    return await this.roomRepo.findLocationById(
+      room.locationId,
+    );
   }
 
-  async listByHost(hostId: string): Promise<RoomListing[]> {
+  // Obtener fotografías de una publicación.
+  async getPhotos(id: string) {
+    await this.getById(id);
+
+    return await this.roomRepo.findPhotosByListingId(id);
+  }
+
+  // Obtener reglas de la casa (HU-06 / M08).
+  async getRules(listingId: string): Promise<RoomRulesRecord | null> {
+    await this.getById(listingId);
+    if (!this.roomRepo.findRulesByListingId) return null;
+    return await this.roomRepo.findRulesByListingId(listingId);
+  }
+
+  // Guardar reglas de la casa (HU-06 / M08).
+  async saveRules(
+    listingId: string,
+    input: Partial<RoomRulesRecord>,
+  ): Promise<RoomRulesRecord> {
+    const room = await this.getById(listingId);
+    if (room.status === "closed") {
+      throw new Error("Una publicación cerrada no puede modificarse.");
+    }
+
+    const horaRegex = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+    const normalizarHora = (val: string | null | undefined): string | null => {
+      if (!val || !val.trim()) return null;
+      const t = val.trim();
+      if (!horaRegex.test(t)) {
+        throw new Error("El horario de silencio debe tener formato HH:MM.");
+      }
+      return t.length === 5 ? `${t}:00` : t;
+    };
+
+    const rules: RoomRulesRecord = {
+      visitsPolicy: input.visitsPolicy?.trim() || null,
+      partiesAllowed: Boolean(input.partiesAllowed),
+      quietHoursStart: normalizarHora(input.quietHoursStart),
+      quietHoursEnd: normalizarHora(input.quietHoursEnd),
+      petsAllowed: Boolean(input.petsAllowed),
+      smokingAllowed: Boolean(input.smokingAllowed),
+      commonAreasNotes: input.commonAreasNotes?.trim() || null,
+      extraRules: input.extraRules?.trim() || null,
+    };
+
+    if (!this.roomRepo.upsertRules) return rules;
+    return await this.roomRepo.upsertRules(listingId, rules);
+  }
+
+  // Obtener desglose de costos (HU-06 / M08).
+  async getCostItems(listingId: string): Promise<RoomCostItemRecord[]> {
+    await this.getById(listingId);
+    if (!this.roomRepo.findCostItemsByListingId) return [];
+    return await this.roomRepo.findCostItemsByListingId(listingId);
+  }
+
+  // Reemplazar desglose de costos (servicios, depósito, mantenimiento).
+  async saveCostItems(
+    listingId: string,
+    items: RoomCostItemInput[],
+  ): Promise<RoomCostItemRecord[]> {
+    const room = await this.getById(listingId);
+    if (room.status === "closed") {
+      throw new Error("Una publicación cerrada no puede modificarse.");
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new Error("Registra al menos un concepto o indica que no hay cargos adicionales.");
+    }
+    if (items.length > 20) {
+      throw new Error("Se permiten máximo 20 conceptos de costo.");
+    }
+
+    const tiposValidos: RoomCostKind[] = [
+      "rent",
+      "service",
+      "deposit",
+      "maintenance",
+      "other",
+    ];
+
+    const normalizados: RoomCostItemInput[] = items.map((item) => {
+      if (!tiposValidos.includes(item.kind)) {
+        throw new Error(`Tipo de costo inválido: ${String(item.kind)}`);
+      }
+      const concept = typeof item.concept === "string" ? item.concept.trim() : "";
+      if (!concept || concept.length > 160) {
+        throw new Error("Cada concepto de costo debe tener entre 1 y 160 caracteres.");
+      }
+      const amount = Number(item.amount);
+      if (!Number.isFinite(amount) || amount < 0) {
+        throw new Error("El monto de cada costo debe ser un número mayor o igual a 0.");
+      }
+      const isIncluded = Boolean(item.isIncluded);
+      const isProrated = Boolean(item.isProrated);
+      if (isIncluded && isProrated) {
+        throw new Error("Un costo no puede ser incluido y prorrateado al mismo tiempo.");
+      }
+      return { kind: item.kind, concept, amount, isIncluded, isProrated };
+    });
+
+    if (!this.roomRepo.replaceCostItems) {
+      return normalizados.map((item) => ({
+        ...item,
+        id: randomUUID(),
+        listingId,
+      }));
+    }
+
+    return await this.roomRepo.replaceCostItems(listingId, normalizados);
+  }
+
+  // Obtener fotografía específica.
+  async getPhoto(
+    listingId: string,
+    photoId: string,
+  ): Promise<RoomPhotoRecord> {
+    const photo = await this.roomRepo.findPhotoById(
+      listingId,
+      photoId,
+    );
+
+    if (!photo) {
+      throw new Error("Fotografía no encontrada.");
+    }
+
+    return photo;
+  }
+
+  // Obtener primera fotografía.
+  async getFirstPhoto(
+    listingId: string,
+  ): Promise<RoomPhotoRecord> {
+    const photo =
+      await this.roomRepo.findFirstPhotoByListingId(
+        listingId,
+      );
+
+    if (!photo) {
+      throw new Error(
+        "La habitación no tiene fotografías.",
+      );
+    }
+
+    return photo;
+  }
+
+  // Obtener publicaciones disponibles.
+  async listPublished(
+    limit = 20,
+    offset = 0,
+  ): Promise<RoomListing[]> {
+    if (
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > 100 ||
+      !Number.isInteger(offset) ||
+      offset < 0
+    ) {
+      throw new Error(
+        "Los parámetros de paginación no son válidos.",
+      );
+    }
+
+    return await this.roomRepo.findPublished(
+      limit,
+      offset,
+    );
+  }
+
+  // Obtener todas las publicaciones de un anfitrión.
+  async listByHost(
+    hostId: string,
+  ): Promise<RoomListing[]> {
+    if (!hostId?.trim()) {
+      throw new Error(
+        "El ID del anfitrión es obligatorio.",
+      );
+    }
+
     return await this.roomRepo.findByHostId(hostId);
   }
 
-  async createListing(input: CreateRoomInput): Promise<RoomListing> {
+  // ====================================================
+  // CREAR PUBLICACIÓN
+  // ====================================================
+
+  async createListing(
+    input: CreateRoomInput,
+  ): Promise<RoomListing> {
+    if (!input.hostId?.trim()) {
+      throw new Error("El usuario es obligatorio.");
+    }
+
+    // Validar datos generales.
+    validarDatosPublicacion(input);
+
+    // Validar ubicación opcional.
+    const location = obtenerUbicacion(input);
+
+    // Validar fecha de disponibilidad.
+    const availableFrom = validarFechaDisponibilidad(
+      input.availableFrom,
+    );
+
+    // Si no se mandan fotografías, utilizar un arreglo vacío.
+    const photos = input.photos ?? [];
+
+    validarCantidadFotografias(photos);
+
+    for (const photo of photos) {
+      validarFotografia(photo);
+    }
+
+    // Crear como borrador.
     const room = new RoomListing({
       id: randomUUID(),
-      hostId: input.hostId,
-      title: input.title,
-      description: input.description ?? null,
+      hostId: input.hostId.trim(),
+      title: input.title.trim(),
+      description: input.description?.trim() || null,
       monthlyRent: input.monthlyRent,
-      availableFrom: input.availableFrom ? new Date(input.availableFrom) : null,
+      availableFrom,
       maxRoommates: input.maxRoommates ?? null,
       status: "draft",
-      photoCount: 0,
+      photoCount: photos.length,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
-    return await this.roomRepo.create(room);
+    // Guardar publicación, ubicación opcional y fotografías.
+    return await this.roomRepo.createWithLocationAndPhotos(
+      room,
+      location,
+      photos,
+    );
   }
 
-  async publishListing(id: string): Promise<RoomListing> {
+  // ====================================================
+  // ACTUALIZAR PUBLICACIÓN
+  // ====================================================
+
+  async updateListing(
+    id: string,
+    input: UpdateRoomInput,
+  ): Promise<RoomListing> {
     const room = await this.getById(id);
+
+    // Una publicación cerrada es definitiva.
+    if (room.status === "closed") {
+      throw new Error(
+        "Esta publicación está cerrada y ya no puede modificarse. Debes crear una nueva publicación.",
+      );
+    }
+
+    // Validar datos generales.
+    validarDatosPublicacion(input);
+
+    // Validar ubicación opcional.
+    const location = obtenerUbicacion(input);
+
+    // Las publicaciones publicadas o pausadas deben
+    // conservar una ubicación.
+    if (room.status !== "draft" && !location) {
+      throw new Error(
+        "Una publicación que ya fue publicada debe conservar su ubicación.",
+      );
+    }
+
+    // Validar fecha.
+    const availableFrom = validarFechaDisponibilidad(
+      input.availableFrom,
+    );
+
+    // Validar fotografías.
+    if (
+      !Array.isArray(input.photos) ||
+      input.photos.length > MAXIMO_FOTOGRAFIAS
+    ) {
+      throw new Error(
+        "La publicación debe tener como máximo 10 fotografías.",
+      );
+    }
+
+    // Las publicaciones que ya fueron publicadas deben
+    // conservar al menos 3 fotografías, incluso pausadas.
+    if (
+      room.status !== "draft" &&
+      input.photos.length < MINIMO_FOTOGRAFIAS_PUBLICACION
+    ) {
+      throw new Error(
+        "Una publicación que ya fue publicada debe conservar al menos 3 fotografías.",
+      );
+    }
+
+    // Validar fotografías existentes y evitar duplicados.
+    const idsExistentes = new Set<string>();
+
+    for (const item of input.photos) {
+      if (item.type === "existing") {
+        if (
+          typeof item.id !== "string" ||
+          !item.id.trim()
+        ) {
+          throw new Error(
+            "El identificador de una fotografía existente no es válido.",
+          );
+        }
+
+        if (idsExistentes.has(item.id)) {
+          throw new Error(
+            "No puedes repetir una fotografía existente.",
+          );
+        }
+
+        idsExistentes.add(item.id);
+      } else if (item.type === "new") {
+        validarFotografia(item.photo);
+      } else {
+        throw new Error(
+          "El tipo de fotografía enviado no es válido.",
+        );
+      }
+    }
+
+    // Actualizar datos de la entidad.
+    room.updateDetails({
+      title: input.title.trim(),
+      description: input.description?.trim() || null,
+      monthlyRent: input.monthlyRent,
+      availableFrom,
+      maxRoommates: input.maxRoommates,
+    });
+
+    room.setPhotoCount(input.photos.length);
+
+    // Actualizar publicación, ubicación y fotografías.
+    await this.roomRepo.updateWithLocationAndPhotos(
+      room,
+      location,
+      input.photos,
+    );
+
+    // Recuperar la publicación actualizada.
+    return await this.getById(id);
+  }
+
+  // ====================================================
+  // PUBLICAR BORRADOR
+  // ====================================================
+
+  async publishListing(
+    id: string,
+  ): Promise<RoomListing> {
+    const room = await this.getById(id);
+
+    // Solo se pueden publicar borradores.
+    if (room.status !== "draft") {
+      throw new Error(
+        "Solamente puedes publicar una habitación que esté en estado borrador.",
+      );
+    }
+
+    // Verificar ubicación.
+    if (!room.locationId) {
+      throw new Error(
+        "No puedes publicar una habitación sin una ubicación registrada.",
+      );
+    }
+
+    // Verificar fecha de disponibilidad.
+    // ?? null evita pasar undefined a la función.
+    validarFechaRequerida(room.availableFrom ?? null);
+
+    // Consultar fotografías reales.
     const photoCount = await this.roomRepo.countPhotos(id);
+
     room.setPhotoCount(photoCount);
 
-    // Ejecuta la regla de negocio del dominio: requiere al menos 3 fotos
+    if (photoCount < MINIMO_FOTOGRAFIAS_PUBLICACION) {
+      throw new Error(
+        "Necesitas al menos 3 fotografías para publicar una habitación.",
+      );
+    }
+
+    // Validar datos generales.
+    validarDatosPublicacion({
+      title: room.title,
+      description: room.description ?? null,
+      monthlyRent: room.monthlyRent,
+      maxRoommates: room.maxRoommates ?? null,
+    });
+    const [rules, costs] = await Promise.all([this.getRules(id), this.getCostItems(id)]);
+    if (!rules || costs.length === 0) {
+      throw new Error("Guarda las reglas y el desglose de costos antes de publicar. Si no hay cargos adicionales, regístralo en el desglose.");
+    }
+    // Cambiar estado draft -> published.
     room.publish();
+
     await this.roomRepo.update(room);
+
+    return room;
+  }
+
+  // ====================================================
+  // PAUSAR PUBLICACIÓN
+  // ====================================================
+
+  async pauseListing(
+    id: string,
+  ): Promise<RoomListing> {
+    const room = await this.getById(id);
+
+    if (room.status !== "published") {
+      throw new Error(
+        "Solamente puedes pausar una publicación que esté activa.",
+      );
+    }
+
+    room.pause();
+
+    await this.roomRepo.update(room);
+
+    return room;
+  }
+
+  // ====================================================
+  // REACTIVAR PUBLICACIÓN
+  // ====================================================
+
+  async reactivateListing(
+    id: string,
+  ): Promise<RoomListing> {
+    const room = await this.getById(id);
+
+    // Solamente se puede reactivar una publicación pausada.
+    if (room.status !== "paused") {
+      throw new Error(
+        "Solamente puedes reactivar una publicación que esté pausada.",
+      );
+    }
+
+    // Verificar ubicación.
+    if (!room.locationId) {
+      throw new Error(
+        "No puedes reactivar una publicación sin ubicación.",
+      );
+    }
+
+    // Verificar fecha de disponibilidad.
+    validarFechaRequerida(room.availableFrom ?? null);
+
+    // Recuperar cantidad real de fotografías.
+    const photoCount = await this.roomRepo.countPhotos(id);
+
+    room.setPhotoCount(photoCount);
+
+    if (photoCount < MINIMO_FOTOGRAFIAS_PUBLICACION) {
+      throw new Error(
+        "No puedes reactivar esta publicación porque necesita al menos 3 fotografías.",
+      );
+    }
+
+    // Validar datos generales.
+    validarDatosPublicacion({
+      title: room.title,
+      description: room.description ?? null,
+      monthlyRent: room.monthlyRent,
+      maxRoommates: room.maxRoommates ?? null,
+    });
+
+    // Cambiar estado paused -> published.
+    room.reactivate();
+
+    await this.roomRepo.update(room);
+
+    return room;
+  }
+
+  // ====================================================
+  // CERRAR PUBLICACIÓN
+  // ====================================================
+
+  async closeListing(
+    id: string,
+  ): Promise<RoomListing> {
+    const room = await this.getById(id);
+
+    // Solo una publicación activa puede cerrarse.
+    if (room.status !== "published") {
+      throw new Error(
+        "Solamente puedes cerrar una publicación que esté activa. Si está pausada, primero debes reactivarla.",
+      );
+    }
+
+    room.close();
+
+    await this.roomRepo.update(room);
+
     return room;
   }
 }

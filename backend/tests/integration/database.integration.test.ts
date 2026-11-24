@@ -4,6 +4,11 @@ import type { RowDataPacket } from "mysql2";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDatabase, db, pool } from "../../src/db/client.js";
 
+import { Application, CompatibilityProfile } from "../../src/domain/index.js";
+import { DrizzleApplicationRepository } from "../../src/infrastructure/repositories/DrizzleApplicationRepository.js";
+import { DrizzleCompatibilityRepository } from "../../src/infrastructure/repositories/DrizzleCompatibilityRepository.js";
+import { DrizzleUserRepository } from "../../src/infrastructure/repositories/DrizzleUserRepository.js";
+
 interface CountRow extends RowDataPacket {
   total: number;
 }
@@ -57,6 +62,15 @@ describe("MySQL schema", () => {
     expect(weightRows[0]?.total).toBe(7);
   });
 
+  it("persists the host role without replacing the seeker role, even when retried", async () => {
+    const users = new DrizzleUserRepository(db);
+    await run("INSERT INTO auth_user_roles (user_id, role) VALUES (?, ?)", [ownerId, "seeker"]);
+
+    await Promise.all([users.grantHostRole(ownerId), users.grantHostRole(ownerId)]);
+
+    expect((await users.findById(ownerId))?.roles.slice().sort()).toEqual(["host", "seeker"]);
+  });
+
   it("rejects profiles for minors", async () => {
     await expect(
       run(
@@ -89,14 +103,89 @@ describe("MySQL schema", () => {
 
     for (const position of [1, 2, 3]) {
       await run(
-        "INSERT INTO room_photos (id, listing_id, url, position) VALUES (?, ?, ?, ?)",
-        [randomUUID(), listingId, `https://example.test/${position}.jpg`, position],
+        `INSERT INTO room_photos
+      (id, listing_id, file_name, mime_type, image_data, position)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          randomUUID(),
+          listingId,
+          `fotografia-${position}.jpg`,
+          "image/jpeg",
+          Buffer.from(`imagen de prueba ${position}`),
+          position,
+        ],
       );
     }
 
     await run("UPDATE room_listings SET status = 'published' WHERE id = ?", [
       listingId,
     ]);
+  });
+
+  it("exposes the published room card after the binary-photo migration", async () => {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      "SELECT main_photo FROM v_room_card WHERE id = ?", [listingId],
+    );
+    expect(rows[0]?.main_photo).toBe(`/api/v1/rooms/${listingId}/photos/first`);
+  });
+
+  it("keeps one application per listing and applicant when a request is retried", async () => {
+    const repository = new DrizzleApplicationRepository(db);
+    const application = () => new Application({
+      id: randomUUID(),
+      listingId,
+      applicantId,
+      status: "pending",
+      compatibilityScore: 0,
+      createdAt: new Date(),
+    });
+
+    const first = await repository.create(application());
+    await expect(repository.create(application())).rejects.toMatchObject({
+      status: 409,
+      code: "APPLICATION_ALREADY_SENT",
+    });
+    expect(await repository.findByApplicantId(applicantId)).toEqual([expect.objectContaining({ id: first.id, compatibilityScore: 0 })]);
+  });
+
+  it("keeps a single valid decision when two copies of a postulación are updated", async () => {
+    const repository = new DrizzleApplicationRepository(db);
+    const [original] = await repository.findByApplicantId(applicantId);
+    const waiting = await repository.findById(original!.id);
+    const accepted = await repository.findById(original!.id);
+    waiting!.waitlist();
+    accepted!.accept();
+    const writes = await Promise.all([
+      repository.update(waiting!, "pending"),
+      repository.update(accepted!, "pending"),
+    ]);
+    expect(writes.filter(Boolean)).toHaveLength(1);
+    expect((await repository.findById(original!.id))?.status).toBe(writes[0] ? "waitlisted" : "accepted");
+  });
+
+  it("saves simultaneous compatibility tests and persists both directions of affinity", async () => {
+    const repository = new DrizzleCompatibilityRepository(db);
+    await run(
+      "INSERT INTO profile_profiles (user_id, full_name, birth_date) VALUES (?, 'Cuenta Anfitrión', '1999-01-01'), (?, 'Cuenta Buscador', '1999-01-01')",
+      [ownerId, applicantId],
+    );
+    const now = new Date();
+    const build = (userId: string, answer: number) => new CompatibilityProfile({
+      userId, schedule: answer, cleanliness: answer, noise: answer, pets: answer,
+      smoking: answer, visits: answer, genderPref: answer, completedAt: now, updatedAt: now,
+    });
+    const host = build(ownerId, 1);
+    const applicant = build(applicantId, 5);
+
+    for (let index = 0; index < 3; index++) await Promise.all([repository.save(host), repository.save(applicant)]);
+
+    const [pair] = await pool.execute<RowDataPacket[]>(
+      "SELECT user_a, score FROM match_affinity_scores WHERE (user_a = ? AND user_b = ?) OR (user_a = ? AND user_b = ?)",
+      [ownerId, applicantId, applicantId, ownerId],
+    );
+    expect(pair).toHaveLength(2);
+    expect(Number(pair[0]?.score)).toBe(Number(pair[1]?.score));
+    expect((await repository.findCandidate(ownerId, applicantId))?.compatibilityScore).toBe(Number(pair[0]?.score));
   });
 
   it("allows only one active connection per unordered user pair", async () => {

@@ -1,0 +1,113 @@
+import {
+  Profile,
+  ProfilePhoto,
+  ContactPrivacy,
+  ProfileNotificationPreference,
+  type ProfileNotificationType,
+  type IProfileRepository,
+} from "../../src/domain/index.js";
+
+/**
+ * Repositorio en memoria para pruebas unitarias de módulos de Perfil extendido
+ * (HU-02). Mantiene estado observable en Maps públicos para aserciones.
+ */
+export class InMemoryExtendedProfileRepository implements IProfileRepository {
+  public profiles: Map<string, Profile> = new Map();
+  public photos: Map<string, ProfilePhoto> = new Map();
+  public privacy: Map<string, ContactPrivacy> = new Map();
+  public prefs: Map<string, ProfileNotificationPreference> = new Map();
+
+  async findByUserId(userId: string): Promise<Profile | null> {
+    const profile = this.profiles.get(userId);
+    if (!profile) return null;
+    const { userId: id, fullName, birthDate, occupation, bio, phone, instagram, facebook,
+      identityStatus, identityVerifiedAt, createdAt, updatedAt } = profile;
+    return new Profile({ userId: id, fullName, birthDate, occupation, bio, phone, instagram,
+      facebook, identityStatus, identityVerifiedAt, createdAt, updatedAt });
+  }
+
+  async create(profile: Profile): Promise<Profile> {
+    this.profiles.set(profile.userId, profile);
+    return profile;
+  }
+
+  async update(profile: Profile): Promise<void> {
+    this.profiles.set(profile.userId, profile);
+  }
+
+  async updateSocials(userId: string, socials: Parameters<IProfileRepository["updateSocials"]>[1]): Promise<void> {
+    this.profiles.get(userId)?.updateSocials(socials);
+  }
+
+  async updateIdentityStatus(profile: Profile, previousStatus?: Profile["identityStatus"]): Promise<boolean> {
+    if (previousStatus !== undefined && this.profiles.get(profile.userId)?.identityStatus !== previousStatus) return false;
+    this.profiles.set(profile.userId, profile);
+    return true;
+  }
+
+  async listPendingVerifications(limit: number, offset: number) {
+    return Array.from(this.profiles.values())
+      .filter(({ identityStatus }) => identityStatus === "pending")
+      .sort((a, b) => a.userId.localeCompare(b.userId))
+      .slice(offset, offset + limit)
+      .map(({ userId, fullName }) => ({ userId, fullName }));
+  }
+
+  async listPhotos(userId: string): Promise<ProfilePhoto[]> {
+    return Array.from(this.photos.values())
+      .filter((p) => p.userId === userId)
+      .sort((a, b) => a.position - b.position);
+  }
+
+  async countPhotos(userId: string): Promise<number> {
+    return (await this.listPhotos(userId)).length;
+  }
+
+  async addPhoto(photo: ProfilePhoto): Promise<ProfilePhoto> {
+    this.photos.set(photo.id, photo);
+    return photo;
+  }
+
+  async removePhoto(_userId: string, photoId: string): Promise<void> {
+    this.photos.delete(photoId);
+  }
+
+  async updatePhotoPosition(photo: ProfilePhoto): Promise<void> {
+    this.photos.set(photo.id, photo);
+  }
+
+  async findPhoto(
+    userId: string,
+    photoId: string,
+  ): Promise<ProfilePhoto | null> {
+    const p = this.photos.get(photoId);
+    return p && p.userId === userId ? p : null;
+  }
+
+  async findContactPrivacy(userId: string): Promise<ContactPrivacy | null> {
+    return this.privacy.get(userId) ?? null;
+  }
+
+  async upsertContactPrivacy(privacy: ContactPrivacy): Promise<void> {
+    this.privacy.set(privacy.userId, privacy);
+  }
+
+  async listNotificationPreferences(
+    userId: string,
+  ): Promise<ProfileNotificationPreference[]> {
+    return Array.from(this.prefs.values()).filter((p) => p.userId === userId);
+  }
+
+  async upsertNotificationPreference(
+    preference: ProfileNotificationPreference,
+  ): Promise<void> {
+    this.prefs.set(`${preference.userId}:${preference.type}`, preference);
+  }
+
+  async findNotificationPreference(
+    userId: string,
+    type: ProfileNotificationType,
+  ): Promise<ProfileNotificationPreference | null> {
+    return this.prefs.get(`${userId}:${type}`) ?? null;
+  }
+}

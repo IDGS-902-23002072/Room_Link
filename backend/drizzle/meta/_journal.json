@@ -43,6 +43,20 @@
       "when": 1792523835907,
       "tag": "0005_compatibility_weights",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1793900912358,
+      "tag": "0006_perpetual_the_fury",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1795470452272,
+      "tag": "0007_restore_room_card_view",
+      "breakpoints": true
     }
   ]
 }

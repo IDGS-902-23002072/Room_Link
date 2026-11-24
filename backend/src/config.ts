@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 const parsePort = (value: string | undefined, fallback: number): number => {
   const parsed = Number(value ?? fallback);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65_535) {
@@ -16,6 +18,12 @@ export const config = {
     user: process.env.DB_USER ?? "roomlink_app",
     password: process.env.DB_PASSWORD ?? "roomlink_school",
     database: process.env.DB_NAME ?? "roomlink",
+  },
+  auth: {
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
+    secureCookies:
+      process.env.COOKIE_SECURE === "true" ||
+      (process.env.COOKIE_SECURE !== "false" && process.env.NODE_ENV === "production"),
   },
 } as const;
 

@@ -36,6 +36,8 @@ const dbDimensionToDomain: Record<
   gender_pref: "genderPref",
 };
 
+type CacheTransaction = Parameters<Parameters<MySql2Database<typeof schema>["transaction"]>[0]>[0];
+
 export class DrizzleCompatibilityRepository implements ICompatibilityRepository {
   constructor(private readonly db: MySql2Database<typeof schema>) {}
 
@@ -59,7 +61,7 @@ export class DrizzleCompatibilityRepository implements ICompatibilityRepository 
   }
 
   async save(profile: CompatibilityProfile): Promise<void> {
-    await this.db.transaction(async (transaction) => {
+    await this.updateCache(async (transaction) => {
       const answers = profile.answers;
       await transaction
         .insert(schema.compatProfiles)
@@ -95,16 +97,7 @@ export class DrizzleCompatibilityRepository implements ICompatibilityRepository 
         payload: profile.answers,
       });
 
-      await transaction
-        .delete(schema.matchAffinityScores)
-        .where(
-          or(
-            eq(schema.matchAffinityScores.userA, profile.userId),
-            eq(schema.matchAffinityScores.userB, profile.userId),
-          ),
-        );
-
-      await this.rebuildUserCache(transaction, profile.userId);
+      await this.refreshUserCache(transaction, profile.userId);
     });
   }
 
@@ -211,21 +204,38 @@ export class DrizzleCompatibilityRepository implements ICompatibilityRepository 
       .where(eq(schema.matchAffinityScores.userA, userId));
 
     if (Number(candidateTotal?.value ?? 0) !== Number(cachedTotal?.value ?? 0)) {
-      await this.db.transaction(async (transaction) => {
-        await transaction
-          .delete(schema.matchAffinityScores)
-          .where(eq(schema.matchAffinityScores.userA, userId));
-        await this.rebuildUserCache(transaction, userId);
-      });
+      await this.updateCache((transaction) => this.refreshUserCache(transaction, userId));
     }
   }
 
-  private async rebuildUserCache(
-    transaction: Parameters<
-      Parameters<MySql2Database<typeof schema>["transaction"]>[0]
-    >[0],
+  private async updateCache(work: (transaction: CacheTransaction) => Promise<void>): Promise<void> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await this.db.transaction(async (transaction) => {
+          // A rebuild writes both directions of each pair. Lock the same seeded row before reading or writing any of them.
+          await transaction.select({ dimension: schema.compatDimensionWeights.dimension })
+            .from(schema.compatDimensionWeights)
+            .where(eq(schema.compatDimensionWeights.dimension, "schedule"))
+            .for("update");
+          await work(transaction);
+        });
+        return;
+      } catch (error) {
+        const failure = error as { code?: string; cause?: { code?: string } };
+        if (attempt >= 3 || (failure.cause?.code ?? failure.code) !== "ER_LOCK_DEADLOCK") throw error;
+      }
+    }
+  }
+
+  private async refreshUserCache(
+    transaction: CacheTransaction,
     userId: string,
   ): Promise<void> {
+    await transaction.delete(schema.matchAffinityScores).where(or(
+      eq(schema.matchAffinityScores.userA, userId),
+      eq(schema.matchAffinityScores.userB, userId),
+    ));
+
     const [viewer] = await transaction
       .select({ profile: schema.compatProfiles })
       .from(schema.compatProfiles)

@@ -120,10 +120,11 @@ describe("Domain Entities & Business Rules", () => {
       expect(() => room.publish()).toThrow(/al menos 3 fotografías/);
     });
 
-    it("allows publishing when listing has 3 or more photos", () => {
+    it("allows publishing when listing has 3 or more photos and a location", () => {
       const room = new RoomListing({
         id: "r-4",
         hostId: "u-1",
+        locationId: "loc-1",
         title: "Habitación completa",
         monthlyRent: 2500,
         status: "draft",
@@ -135,6 +136,21 @@ describe("Domain Entities & Business Rules", () => {
       expect(room.canPublish()).toBe(true);
       room.publish();
       expect(room.status).toBe("published");
+    });
+
+    it("rejects publishing when listing has no location", () => {
+      const room = new RoomListing({
+        id: "r-5",
+        hostId: "u-1",
+        title: "Habitación sin ubicación",
+        monthlyRent: 2500,
+        status: "draft",
+        photoCount: 3,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(() => room.publish()).toThrow(/ubicación/);
     });
   });
 
@@ -225,6 +241,35 @@ describe("Domain Entities & Business Rules", () => {
 
       const score = morningPerson.calculateAffinityWith(nightOwlParty);
       expect(score).toBe(0);
+    });
+
+    it("calculates a weighted intermediate compatibility score", () => {
+      const baseline = new CompatibilityProfile({
+        userId: "u-1",
+        schedule: 1,
+        cleanliness: 1,
+        noise: 1,
+        pets: 1,
+        smoking: 1,
+        visits: 1,
+        genderPref: 1,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const oneStepDifferent = new CompatibilityProfile({
+        userId: "u-2",
+        schedule: 2,
+        cleanliness: 1,
+        noise: 1,
+        pets: 1,
+        smoking: 1,
+        visits: 1,
+        genderPref: 1,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(baseline.calculateAffinityWith(oneStepDifferent)).toBe(97);
     });
   });
 });

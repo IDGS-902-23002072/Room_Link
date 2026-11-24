@@ -10,42 +10,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  integration-frontend:
-    name: Frontend · integration tests
-    runs-on: ubuntu-latest
-    if: hashFiles('frontend/package.json') != ''
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Integration tests
-        run: npm test -- --testPathPattern='\.integration\.test\.' --ci --runInBand
-
-      - name: Upload integration coverage
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-integration-frontend
-          path: frontend/coverage
-          if-no-files-found: ignore
-
+  # El frontend móvil no tiene tests de integración propios (su integración
+  # cross-origin con el backend se cubre en el E2E de regression.yml).
   integration-backend:
     name: Backend · integration tests
     runs-on: ubuntu-latest
-    if: hashFiles('backend/package.json') != ''
     services:
       mysql:
         image: mysql:8.4
@@ -76,6 +45,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Configurar migraciones de MySQL
+        env:
+          MYSQL_PWD: roomlink_root
+        run: docker exec -e MYSQL_PWD "${{ job.services.mysql.id }}" mysql -uroot -e 'SET GLOBAL log_bin_trust_function_creators = 1'
+
       - name: Apply migrations
         env:
           DB_HOST: 127.0.0.1
@@ -92,7 +66,7 @@ jobs:
           DB_USER: roomlink_app
           DB_PASSWORD: roomlink_school
           DB_NAME: roomlink
-        run: bunx --bun vitest run tests/
+        run: bunx --bun vitest run tests/integration/
 
       - name: Upload integration coverage
         if: always()

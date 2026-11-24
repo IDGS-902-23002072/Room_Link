@@ -1,0 +1,123 @@
+.listing-page {
+  display: grid;
+  gap: 22px;
+  align-content: start;
+}
+.listing-page .feature-heading { margin-bottom: 0; }
+.listing-page p { margin: 0; overflow-wrap: anywhere; }
+.listing-page .room-panel > h2 { font-size: 20px; }
+.listing-page > .access-link { justify-self: start; }
+
+.listing-grid, .listing-terms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.listing-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+.listing-card.room-panel { padding: 0; gap: 0; overflow: hidden; height: 100%; }
+.listing-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: var(--mint);
+}
+.listing-card-body { display: grid; gap: 10px; padding: 19px; }
+.listing-card-body .button, .listing-form > .button, .listing-application > .button { justify-self: start; }
+.listing-card h2 a, .listing-row h2 a { color: inherit; text-decoration: none; }
+.listing-card h2 a:hover, .listing-row h2 a:hover { text-decoration: underline; }
+.listing-price { font-size: 1.15rem; font-weight: 800; color: var(--mint-dark); }
+.listing-price small { font-weight: 500; color: var(--muted); }
+.listing-excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.listing-description { white-space: pre-wrap; line-height: 1.55; }
+.listing-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 165px), 1fr));
+  gap: 12px;
+}
+.listing-gallery img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 12px;
+  object-fit: cover;
+  background: var(--mint);
+}
+.listing-gallery .button { margin-top: 6px; }
+.listing-map {
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  height: clamp(240px, 38vw, 365px);
+  border-radius: 14px;
+  background: #e8f3ed;
+}
+.listing-map[aria-label='Mapa para elegir la ubicación'] { cursor: crosshair; }
+.listing-facts { display: grid; gap: 8px; margin: 0; }
+.listing-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.listing-facts dt { font-weight: 650; overflow-wrap: anywhere; }
+.listing-facts dd { margin: 0; text-align: right; }
+.listing-facts small { display: block; color: var(--muted); font-weight: 400; }
+.listing-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.listing-status {
+  display: inline-flex;
+  padding: 5px 10px;
+  border-radius: 99px;
+  background: #f7efd9;
+  color: #6a4b19;
+  font-weight: 700;
+  font-size: .8rem;
+}
+.listing-status-accepted { background: var(--mint); color: var(--mint-dark); }
+.listing-status-rejected, .listing-status-withdrawn { background: var(--rose); color: var(--rose-dark); }
+.listing-search { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; }
+.listing-search label { flex: 1 1 235px; }
+.listing-form fieldset { display: grid; min-width: 0; margin: 0; gap: 13px; }
+.listing-form fieldset:not(.room-panel, .listing-cost) { padding: 0; border: 0; }
+.listing-form legend { padding: 0; margin-bottom: 8px; font-weight: 700; }
+.listing-form label, .listing-search label { display: grid; gap: 6px; font-weight: 650; }
+.listing-form :is(input:not([type='checkbox']), select, textarea), .listing-search input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+  background: white;
+}
+.listing-form textarea { min-height: 80px; resize: vertical; }
+.listing-form .listing-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 14px;
+}
+.listing-form .listing-wide { grid-column: 1 / -1; }
+.listing-checks { display: flex; gap: 12px 20px; flex-wrap: wrap; }
+.listing-checks label { display: flex; align-items: center; gap: 7px; }
+.listing-checks input { accent-color: var(--mint-dark); }
+.listing-cost { border: 1px solid var(--line); border-radius: 13px; padding: 13px; }
+.listing-cost .button, .listing-form fieldset > .button { justify-self: start; }
+.listing-page .button-subtle[aria-pressed='true'] { background: var(--mint); border-color: var(--mint-strong); }
+.listing-location-results {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.listing-location-results .button { text-align: left; white-space: normal; }

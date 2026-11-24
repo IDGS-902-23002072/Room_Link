@@ -1,0 +1,15 @@
+appId: com.anonymous.Room_Link
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: login-email
+- inputText: ${QA_EMAIL}
+- tapOn:
+    id: login-password
+- inputText: ${QA_PASSWORD}
+- hideKeyboard
+- tapOn: Iniciar sesión
+- extendedWaitUntil:
+    visible: ${QA_EXPECTED_SCREEN}
+    timeout: 15000
