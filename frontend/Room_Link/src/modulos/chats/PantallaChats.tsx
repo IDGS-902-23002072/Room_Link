@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'expo-router';
 import {
   ActivityIndicator,
@@ -92,7 +92,11 @@ function formatearHora(iso?: string): string {
   }
 }
 
-export function PantallaChats() {
+export function PantallaChats({
+  roomIdInicial,
+}: {
+  roomIdInicial?: string;
+}) {
   const { sesion } = useSesion();
   const userId = sesion?.usuario.id ?? null;
   const { width } = useWindowDimensions();
@@ -137,6 +141,8 @@ export function PantallaChats() {
     }
   };
 
+  const bandejaSolicitada = useRef(false);
+
   const cargarBandeja = () =>
     ejecutar(async () => {
       const lista = await obtenerBandejaMensajes();
@@ -145,11 +151,21 @@ export function PantallaChats() {
     });
 
   useEffect(() => {
-    if (sesion && !cargadaBandeja) {
-      void cargarBandeja();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sesion]);
+  if (!sesion || cargadaBandeja || bandejaSolicitada.current) {
+    return;
+  }
+
+  bandejaSolicitada.current = true;
+
+  const temporizador = setTimeout(() => {
+    void cargarBandeja().catch(() => {
+      bandejaSolicitada.current = false;
+    });
+  }, 0);
+
+  return () => clearTimeout(temporizador);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [sesion?.usuario.id, cargadaBandeja]);
 
   const abrirSala = (entrada: ElementoBandejaChat | string) => {
     const roomId = typeof entrada === 'string' ? entrada.trim() : idSala(entrada);
@@ -176,6 +192,19 @@ export function PantallaChats() {
       await marcarSalaLeida(roomId).catch(() => undefined);
     });
   };
+
+  useEffect(() => {
+  if (!roomIdInicial || !sesion) {
+    return;
+  }
+
+  const temporizador = setTimeout(() => {
+    void abrirSala(roomIdInicial);
+  }, 0);
+
+  return () => clearTimeout(temporizador);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [roomIdInicial, sesion?.usuario.id]);
 
   const abrirPorIdManual = () => {
     const limpio = idManual.trim();

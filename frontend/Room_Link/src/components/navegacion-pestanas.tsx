@@ -15,7 +15,7 @@ import {
 import { useSesion } from '@/auth/SesionContext';
 import { Colors } from '@/constants/theme';
 
-type RutaMenu = '/explorar' | '/anuncios' | '/chats' | '/perfil';
+type RutaMenu = '/explorar' | '/anuncios' | '/chats' | '/perfil' | '/conexiones' | '/mis-roomies';
 
 interface OpcionMenu {
   titulo: string;
@@ -40,8 +40,10 @@ export default function NavegacionPestanas() {
   const opciones: OpcionMenu[] = [
     { titulo: 'Descubrir', ruta: '/explorar', roles: ['seeker'], icono: '⌕' },
     { titulo: 'Anuncios', ruta: '/anuncios', roles: ['seeker', 'host'], icono: '⌂' },
+    { titulo: 'Conexiones', ruta: '/conexiones', roles: ['seeker'], icono: '♧' },
     { titulo: 'Chats', ruta: '/chats', roles: ['seeker', 'host'], icono: '☏' },
     { titulo: 'Perfil', ruta: '/perfil', icono: '●' },
+    { titulo: 'Mis roomies', ruta: '/mis-roomies', roles: ['seeker'], icono: '♧' },
   ];
 
   const opcionesDisponibles = opciones.filter((opcion) => {
@@ -81,7 +83,16 @@ export default function NavegacionPestanas() {
         <Stack.Screen name="anuncios" options={{ title: 'Anuncios' }} />
         <Stack.Screen name="chats" options={{ title: 'Chats' }} />
         <Stack.Screen name="perfil" options={{ title: 'Mi perfil' }} />
+        <Stack.Screen
+          name="conexiones"
+          options={{ title: 'Solicitudes de conexión' }}
+        />
+        <Stack.Screen
+          name="mis-roomies"
+          options={{ title: 'Mis roomies' }}
+        />
       </Stack>
+
 
       <Modal
         visible={menuVisible}
