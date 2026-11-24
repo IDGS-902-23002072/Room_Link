@@ -415,6 +415,57 @@ test('HU-03 y HU-04 guardan las siete respuestas y ordenan los perfiles por afin
   await expect(cards.first()).toBeVisible()
 })
 
+test('HU-05 combina zona, presupuesto y edad con total coherente, cero resultados y limpieza', async ({ page }) => {
+  const viewer = await account('hu05-viewer')
+  const candTag = 'hu05-cand-' + randomUUID().slice(0, 8)
+  const candName = 'RoomLink QA ' + candTag
+  const candidate = await account(candTag)
+  // Zona y ciudad únicas: aíslan al candidato aunque la base QA tenga muchos perfiles.
+  const suffix = randomUUID().slice(0, 8)
+  const zoneName = 'ZonaHU05 ' + suffix
+  const cityName = 'CiudadHU05 ' + suffix
+  await withQaDatabase(async (db) => {
+    const zoneId = randomUUID()
+    await db.execute('INSERT INTO geo_zones (id, name, city) VALUES (?, ?, ?)', [zoneId, zoneName, cityName])
+    await db.execute(
+      'INSERT INTO profile_housing_preferences (user_id, desired_zone_id, budget_min, budget_max) VALUES (?, ?, ?, ?)',
+      [candidate.id, zoneId, 3000, 5000],
+    )
+  })
+
+  await login(page, viewer)
+  await page.goto('/buscar')
+  const total = page.getByRole('status').filter({ hasText: /perfil(es)? encontrad/ })
+
+  // 1) Zona + ciudad únicas → exactamente un perfil.
+  await page.getByLabel('Ciudad').selectOption(cityName)
+  await page.getByRole('checkbox', { name: zoneName }).check()
+  await page.getByRole('button', { name: 'Aplicar filtros' }).click()
+  await expect(total).toHaveText('1 perfil encontrado')
+  await expect(page.getByRole('heading', { name: new RegExp(candName) })).toBeVisible()
+
+  // 2) Combinar con presupuesto y edad que SÍ incluyen al candidato → sigue habiendo total coherente.
+  await page.getByLabel('Mínimo').fill('3000')
+  await page.getByLabel('Máximo').fill('5000')
+  await page.getByLabel('Desde').fill('25')
+  await page.getByLabel('Hasta').fill('30')
+  await page.getByRole('button', { name: 'Aplicar filtros' }).click()
+  await expect(total).toHaveText('1 perfil encontrado')
+  await expect(page.getByRole('heading', { name: new RegExp(candName) })).toBeVisible()
+
+  // 3) Un presupuesto válido pero sin solape con el del candidato deja cero resultados.
+  await page.getByLabel('Mínimo').fill('10000')
+  await page.getByLabel('Máximo').fill('20000')
+  await page.getByRole('button', { name: 'Aplicar filtros' }).click()
+  await expect(total).toHaveText('0 perfiles encontrados')
+  await expect(page.getByText(/Sin coincidencias/)).toBeVisible()
+
+  // 4) Limpiar filtros restaura resultados (sin el mensaje de cero).
+  await page.getByRole('button', { name: 'Restablecer filtros' }).click()
+  await expect(page.getByText(/Sin coincidencias/)).toHaveCount(0)
+  await expect(total).not.toHaveText('0 perfiles encontrados')
+})
+
 test('M10 abre chat desde una conexión aceptada y conserva el mensaje al recargar', async ({ page, browser, baseURL }) => {
   const sender = await account('chat-origen')
   const receiver = await account('chat-receptor')

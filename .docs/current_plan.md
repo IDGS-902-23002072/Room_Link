@@ -18,8 +18,8 @@ Integrar `origin/feature/roberto` sobre `develop` resolviendo los 10 conflictos 
 - [x] Verificación: typecheck backend ✓ · unit 172 ✓ · integración 9 ✓ (DB compose 3307) · smoke 12 ✓ · web lint/build/test ✓ · móvil typecheck ✓ + unit 19 ✓.
 - [x] Árbol resuelto y staged, SIN commitear. **Pendiente: el usuario commitea el merge.**
 - [x] (Fase 2) E2E Playwright multi-perfil: suite `qa-roles` completa en verde tras el merge (9 web + 2 Expo skip) + **test nuevo** `HU-02 privacidad de contacto por conexión + M02 revisión de identidad` (4 perfiles: dueño/conexión/ajeno/admin). Total: 10 passed, 2 skipped.
-- [ ] (Fase 2) Completar otros pendientes de Robert (HU-05 filtros combinados Vite, M12 dos firmas, M15 métricas) sin tocar módulos de Avril.
-- [ ] (Fase 2) Smoke APK Android (o reporte BLOCKED con motivo).
+- [x] (Fase 2) HU-05 filtros combinados Vite: el merge ya dejó `Search.jsx` server-side (`/api/v1/search/profiles` con budget/edad/ciudad/zona[]/hábitos + paginación). Verificado el contrato backend y **E2E nuevo** `HU-05 combina zona, presupuesto y edad...` (zona/ciudad únicas → total=1, combinación coherente, presupuesto no solapado → 0 resultados, limpiar restaura). Suite completa: 11 passed, 2 skipped.
+- [ ] (Fase 2) M12 dos firmas, M15 métricas (sin tocar Avril). Android: lo prueba el usuario a mano.
 
 ## [CRITERIOS DE ACEPTACIÓN]
 - `git status` muestra el merge resuelto y staged, sin marcadores `<<<<<<<` en ningún archivo, SIN commit creado.
