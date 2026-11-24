@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react'
 import { Navigate, NavLink, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import ActivityLog from '../pages/ActivityLog/ActivityLog.jsx'
 import Dashboard from '../pages/Dashboard/Dashboard.jsx'
 import Login from '../pages/Login/Login.jsx'
 import { useAuth } from '../hooks/useAuth.js'
@@ -51,6 +52,7 @@ function Shell() {
           <NavLink to="/denunciar" className={({ isActive }) => isActive || location.pathname.endsWith('/denunciar') ? 'active' : undefined}>Denunciar anuncio</NavLink>
           {isAdmin && <NavLink to="/admin/moderacion">Moderación</NavLink>}
           {isAdmin && <NavLink to="/admin/dashboard">Dashboard</NavLink>}
+          {isAdmin && <NavLink to="/admin/bitacora">Bitácora</NavLink>}
         </nav>
         <div className="account-menu">
           <span aria-hidden="true" className="account-avatar">{accountInitial}</span>
@@ -161,6 +163,7 @@ export default function AppRoutes() {
           <Route element={<ReportListing />} path="/anuncios/:listingId/denunciar" />
           <Route element={<AdminLayout />} path="/admin">
             <Route element={<Dashboard />} path="dashboard" />
+            <Route element={<ActivityLog />} path="bitacora" />
             <Route element={<Navigate replace to="cola" />} path="moderacion" />
             <Route element={<Moderation key="cola" tab="cola" />} path="moderacion/cola" />
             <Route element={<Moderation key="denuncias" tab="denuncias" />} path="moderacion/denuncias" />
