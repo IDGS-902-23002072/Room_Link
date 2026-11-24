@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Badge from '../../components/Badge/Badge.jsx'
 import Card from '../../components/Card/Card.jsx'
 import {
+  describeApplicationStatus,
   formatAvailability,
   formatHostName,
   formatRent,
@@ -11,7 +12,7 @@ import {
 } from './rooms.js'
 import styles from './RoomCard.module.css'
 
-export default function RoomCard({ compatibility, onOpen, room }) {
+export default function RoomCard({ applicationStatus, compatibility, onOpen, room }) {
   const [coverFailed, setCoverFailed] = useState(false)
   const hasCover = room.photosCount > 0 && !coverFailed
 
@@ -38,6 +39,9 @@ export default function RoomCard({ compatibility, onOpen, room }) {
             <span aria-hidden="true" className={styles.placeholder}>Sin fotos</span>
           )}
           <span className={styles.price}>{formatRent(room.monthlyRent)}</span>
+          {applicationStatus ? (
+            <span className={styles.applied}>{describeApplicationStatus(applicationStatus)}</span>
+          ) : null}
         </div>
 
         <div className={styles.body}>
@@ -58,6 +62,7 @@ export default function RoomCard({ compatibility, onOpen, room }) {
 }
 
 RoomCard.propTypes = {
+  applicationStatus: PropTypes.string,
   compatibility: PropTypes.number,
   onOpen: PropTypes.func.isRequired,
   room: PropTypes.shape({

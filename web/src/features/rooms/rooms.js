@@ -43,6 +43,32 @@ export function applyToRoom(listingId, message, token) {
   })
 }
 
+/** Postulaciones de la persona en sesión (GET /api/v1/applications/me). */
+export function getMyApplications(token) {
+  return apiRequest('/api/v1/applications/me', { token })
+}
+
+const APPLICATION_STATUS_LABELS = {
+  pending: 'Postulación enviada · en revisión',
+  waitlisted: 'Postulación en lista de espera',
+  accepted: 'Postulación aceptada',
+  rejected: 'Postulación no aceptada',
+}
+
+export function describeApplicationStatus(status) {
+  return APPLICATION_STATUS_LABELS[status] ?? 'Postulación enviada'
+}
+
+/** Índice listingId -> estado, tolerante a respuestas inesperadas. */
+export function indexApplications(applications) {
+  const byListing = {}
+  if (!Array.isArray(applications)) return byListing
+  for (const application of applications) {
+    if (application?.listingId) byListing[application.listingId] = application.status ?? 'pending'
+  }
+  return byListing
+}
+
 /**
  * Afinidad (0-100) entre la persona en sesión y el anfitrión de la habitación.
  * Devuelve null si no hay test, si el anfitrión no tiene perfil o si falla.

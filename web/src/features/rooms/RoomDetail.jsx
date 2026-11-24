@@ -11,6 +11,7 @@ import { useAuth } from '../../hooks/useAuth.js'
 import { goBack } from '../../routes/navigation.js'
 import {
   applyToRoom,
+  describeApplicationStatus,
   describeRules,
   formatAvailability,
   formatCostKind,
@@ -18,7 +19,9 @@ import {
   formatRoommates,
   formatRoomLocation,
   getHostCompatibility,
+  getMyApplications,
   getRoom,
+  indexApplications,
   roomPhotoUrl,
 } from './rooms.js'
 import styles from './RoomDetail.module.css'
@@ -34,6 +37,7 @@ export default function RoomDetail({ roomId }) {
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [applied, setApplied] = useState(false)
+  const [appStatus, setAppStatus] = useState({ roomId: null, status: null })
   const [applyError, setApplyError] = useState('')
 
   useEffect(
@@ -56,6 +60,19 @@ export default function RoomDetail({ roomId }) {
     [roomId, session.token, session.user.id],
   )
 
+  // Al abrir (o recargar) la habitación se consulta si ya existe una postulación.
+  useEffect(
+    () => asyncEffect(async (isActive) => {
+      try {
+        const mine = indexApplications(await getMyApplications(session.token))
+        if (isActive()) setAppStatus({ roomId, status: mine[roomId] ?? null })
+      } catch {
+        if (isActive()) setAppStatus({ roomId, status: null })
+      }
+    }),
+    [roomId, session.token],
+  )
+
   async function handleApply(event) {
     event.preventDefault()
     if (sending || applied) return
@@ -64,7 +81,14 @@ export default function RoomDetail({ roomId }) {
     try {
       await applyToRoom(roomId, message, session.token)
       setApplied(true)
+      setAppStatus({ roomId, status: 'pending' })
     } catch (cause) {
+      // 409: el servidor ya tenía la postulación; se trata como enviada.
+      if (cause?.status === 409) {
+        setApplied(true)
+        setAppStatus({ roomId, status: 'pending' })
+        return
+      }
       setApplyError(cause instanceof Error ? cause.message : 'No se pudo enviar tu postulación.')
     } finally {
       setSending(false)
@@ -101,6 +125,8 @@ export default function RoomDetail({ roomId }) {
   const rules = describeRules(room.rules)
   const costItems = Array.isArray(room.costItems) ? room.costItems : []
   const ownRoom = room.hostId === session.user.id
+  const checkingApplication = appStatus.roomId !== roomId
+  const existingStatus = appStatus.roomId === roomId ? appStatus.status : null
   const open = room.status === undefined || room.status === 'published'
 
   return (
@@ -199,10 +225,13 @@ export default function RoomDetail({ roomId }) {
               <Notice tone="info">Esta es tu propia publicación.</Notice>
             ) : !open ? (
               <Notice tone="warning">Esta habitación ya no recibe postulaciones.</Notice>
-            ) : applied ? (
+            ) : existingStatus || applied ? (
               <Notice tone="success">
-                Tu postulación fue enviada. El anfitrión la revisará y te responderá.
+                {describeApplicationStatus(existingStatus ?? 'pending')}. El anfitrión la
+                revisará y te responderá.
               </Notice>
+            ) : checkingApplication ? (
+              <p className={styles.meta} role="status">Comprobando tu postulación…</p>
             ) : (
               <form className={styles.form} onSubmit={handleApply}>
                 <Field

@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   RENT_FILTERS,
+  describeApplicationStatus,
   describeRules,
   formatAvailability,
   formatHostName,
@@ -10,6 +11,7 @@ import {
   formatRoomLocation,
   formatRoommates,
   formatShortDate,
+  indexApplications,
 } from './rooms.js'
 
 const TODAY = new Date(2026, 10, 23) // 23 nov 2026, hora local
@@ -76,4 +78,17 @@ test('las reglas omiten lo que el anfitrión no indicó', () => {
 test('los filtros de renta incluyen "cualquier precio" sin tope', () => {
   assert.equal(RENT_FILTERS[0].maxRent, undefined)
   assert.ok(RENT_FILTERS.slice(1).every(({ maxRent }) => maxRent > 0))
+})
+
+test('indexa las postulaciones por habitación y tolera datos inválidos', () => {
+  assert.deepEqual(indexApplications(null), {})
+  assert.deepEqual(
+    indexApplications([{ listingId: 'a', status: 'accepted' }, { listingId: 'b' }, {}]),
+    { a: 'accepted', b: 'pending' },
+  )
+})
+
+test('describe el estado de la postulación', () => {
+  assert.equal(describeApplicationStatus('accepted'), 'Postulación aceptada')
+  assert.equal(describeApplicationStatus('otro'), 'Postulación enviada')
 })

@@ -9,7 +9,13 @@ import { asyncEffect } from '../../hooks/asyncEffect.js'
 import { useAuth } from '../../hooks/useAuth.js'
 import { push } from '../../routes/navigation.js'
 import RoomCard from './RoomCard.jsx'
-import { RENT_FILTERS, getHostCompatibility, getRoomFeed } from './rooms.js'
+import {
+  RENT_FILTERS,
+  getHostCompatibility,
+  getMyApplications,
+  getRoomFeed,
+  indexApplications,
+} from './rooms.js'
 import styles from './RoomFeed.module.css'
 
 const SEARCH_DEBOUNCE_MS = 350
@@ -23,6 +29,7 @@ export default function RoomFeed() {
   const [rentId, setRentId] = useState('any')
   const [feedState, setFeedState] = useState({ key: '', result: null, error: '' })
   const [scores, setScores] = useState({})
+  const [applications, setApplications] = useState({})
 
   const maxRent = RENT_FILTERS.find((filter) => filter.id === rentId)?.maxRent
   const key = `${page}|${search}|${rentId}`
@@ -59,6 +66,19 @@ export default function RoomFeed() {
   const loading = feedState.key !== key
   const items = loading ? [] : (feedState.result?.items ?? [])
   const error = loading ? '' : feedState.error
+
+  // Postulaciones propias, para marcar las habitaciones a las que ya me postulé.
+  useEffect(
+    () => asyncEffect(async (isActive) => {
+      try {
+        const mine = indexApplications(await getMyApplications(token))
+        if (isActive()) setApplications(mine)
+      } catch {
+        // El feed funciona sin la marca si esta consulta falla.
+      }
+    }),
+    [token],
+  )
 
   // Afinidad con cada anfitrión (usuario ↔ usuario); es opcional y falla en silencio.
   useEffect(
@@ -140,6 +160,7 @@ export default function RoomFeed() {
         <div className={styles.grid}>
           {items.map((room) => (
             <RoomCard
+              applicationStatus={applications[room.id]}
               compatibility={scores[room.hostId] ?? undefined}
               key={room.id}
               onOpen={() => push(navigate, `/habitacion/${encodeURIComponent(room.id)}`)}
