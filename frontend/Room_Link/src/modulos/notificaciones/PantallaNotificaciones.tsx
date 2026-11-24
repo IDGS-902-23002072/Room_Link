@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
@@ -345,7 +347,7 @@ export function PantallaNotificaciones() {
                 styles.chipTipo,
                 {
                   backgroundColor:
-                    permisoSistema === 'granted' ? '#DCF0E8' : '#F6ECD6',
+                    permisoSistema === 'granted' ? color.menta : color.crema,
                 },
               ]}>
               <Text
@@ -353,7 +355,7 @@ export function PantallaNotificaciones() {
                   styles.textoChipTipo,
                   {
                     color:
-                      permisoSistema === 'granted' ? '#2F9E82' : '#C08A2C',
+                      permisoSistema === 'granted' ? color.accion : color.cremaTexto,
                   },
                 ]}>
                 {permisoSistema === 'granted' ? 'ACTIVO' : 'PENDIENTE'}
@@ -433,7 +435,7 @@ export function PantallaNotificaciones() {
             </View>
 
             {cargando ? (
-              <ActivityIndicator color="#81638B" style={{ marginVertical: 20 }} />
+              <ActivityIndicator color={color.accion} style={{ marginVertical: 20 }} />
             ) : items.length === 0 ? (
               <View style={styles.vacio}>
                 <View style={styles.vacioIcono}>
@@ -491,7 +493,7 @@ export function PantallaNotificaciones() {
               correo electrónico.
             </Text>
             {cargando && preferencias.length === 0 ? (
-              <ActivityIndicator color="#81638B" />
+              <ActivityIndicator color={color.accion} />
             ) : (
               preferencias.map((pref) => (
                 <View key={pref.type} style={styles.filaPreferencia}>
@@ -547,7 +549,7 @@ const styles = StyleSheet.create({
   areaSegura: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#ECE6F1',
+    backgroundColor: color.blanco,
   },
   contenido: {
     flexGrow: 1,
@@ -566,39 +568,39 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E7DDEC',
+    borderColor: color.borde,
   },
   textoVolver: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 22,
     fontWeight: '700',
     lineHeight: 24,
   },
   eyebrow: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   titulo: {
-    color: '#2B2531',
+    color: color.tinta,
     fontSize: 26,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
   subtitulo: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 14,
     marginTop: 2,
   },
   segmento: {
     flexDirection: 'row',
-    backgroundColor: '#ECE3F0',
+    backgroundColor: color.menta,
     borderRadius: 999,
     padding: 4,
     gap: 4,
@@ -613,34 +615,34 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   segmentoItemActivo: {
-    backgroundColor: '#B695C0',
+    backgroundColor: color.accion,
   },
   segmentoTexto: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 13,
     fontWeight: '700',
   },
   segmentoTextoActivo: {
-    color: '#FFFFFF',
+    color: color.blanco,
   },
   segmentoBadge: {
     minWidth: 18,
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 999,
-    backgroundColor: '#DAC9DF',
+    backgroundColor: color.lavanda,
     alignItems: 'center',
   },
   segmentoBadgeActivo: {
     backgroundColor: 'rgba(255,255,255,0.3)',
   },
   segmentoBadgeTexto: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 10,
     fontWeight: '800',
   },
   segmentoBadgeTextoActivo: {
-    color: '#FFFFFF',
+    color: color.blanco,
   },
   filaAcciones: {
     flexDirection: 'row',
@@ -648,37 +650,37 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   metaResumen: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 13,
     fontWeight: '700',
   },
   enlaceAccion: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 13,
     fontWeight: '700',
   },
   tarjeta: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E7DDEC',
+    borderColor: color.borde,
     padding: 16,
     gap: 8,
   },
   tarjetaSinLeer: {
-    borderColor: '#B695C0',
+    borderColor: color.accion,
     borderWidth: 1.5,
   },
   tarjetaPermisoSistema: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: '#D8CADF',
+    borderColor: color.borde,
     padding: 16,
     gap: 10,
   },
   botonPermiso: {
-    backgroundColor: '#81638B',
+    backgroundColor: color.accion,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -686,22 +688,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   textoBotonPermiso: {
-    color: '#FFFFFF',
+    color: color.blanco,
     fontSize: 13,
     fontWeight: '800',
   },
   botonPermisoSecundario: {
-    backgroundColor: '#FAF7FC',
+    backgroundColor: color.fondo,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#D8CADF',
+    borderColor: color.borde,
     paddingHorizontal: 14,
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textoBotonPermisoSecundario: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -715,7 +717,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#EFE7F2',
+    backgroundColor: color.lavanda,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
@@ -724,30 +726,30 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 999,
-    backgroundColor: '#81638B',
+    backgroundColor: color.accion,
   },
   textoChipTipo: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 11,
     fontWeight: '800',
   },
   fechaTexto: {
-    color: '#B4ACBD',
+    color: color.secundario,
     fontSize: 11,
     fontWeight: '600',
   },
   tituloItem: {
-    color: '#2B2531',
+    color: color.tinta,
     fontSize: 15,
     fontWeight: '800',
   },
   cuerpoItem: {
-    color: '#4C4556',
+    color: color.tinta,
     fontSize: 13,
     lineHeight: 19,
   },
   toqueMarcar: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -757,33 +759,33 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#E7DDEC',
+    borderTopColor: color.borde,
   },
   nombrePref: {
-    color: '#2B2531',
+    color: color.tinta,
     fontSize: 13,
     fontWeight: '700',
   },
   codigoPref: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 11,
   },
   toggleBtn: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: '#ECE3F0',
+    backgroundColor: color.menta,
   },
   toggleBtnActivo: {
-    backgroundColor: '#81638B',
+    backgroundColor: color.accion,
   },
   toggleTexto: {
-    color: '#6F5B76',
+    color: color.accion,
     fontSize: 11,
     fontWeight: '700',
   },
   toggleTextoActivo: {
-    color: '#FFFFFF',
+    color: color.blanco,
   },
   vacio: {
     alignItems: 'center',
@@ -794,7 +796,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#ECE3F0',
+    backgroundColor: color.menta,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -802,34 +804,34 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   vacioTitulo: {
-    color: '#2B2531',
+    color: color.tinta,
     fontSize: 17,
     fontWeight: '800',
   },
   vacioSubtitulo: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 13,
     textAlign: 'center',
     maxWidth: 260,
     lineHeight: 19,
   },
   avisoError: {
-    backgroundColor: '#F7E3E1',
+    backgroundColor: color.rosa,
     borderRadius: 14,
     padding: 12,
   },
   textoAvisoError: {
-    color: '#C0564F',
+    color: color.rosaTexto,
     fontSize: 13,
     fontWeight: '700',
   },
   avisoOk: {
-    backgroundColor: '#DCF0E8',
+    backgroundColor: color.menta,
     borderRadius: 14,
     padding: 12,
   },
   textoAvisoOk: {
-    color: '#2F9E82',
+    color: color.accion,
     fontSize: 13,
     fontWeight: '700',
   },
