@@ -93,6 +93,10 @@ describe("Room_Link API health", () => {
         email === admin.email ? admin : email === seeker.email ? seeker : null,
       create: async (user) => user,
       update: async () => {},
+      grantHostRole: async (id) => {
+        if (id === seeker.id) seeker.grantHostRole();
+        if (id === admin.id) admin.grantHostRole();
+      },
       delete: async () => {},
     };
     const analyticsRepo: IAnalyticsRepository = {

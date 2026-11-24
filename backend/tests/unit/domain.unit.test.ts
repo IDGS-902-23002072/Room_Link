@@ -120,10 +120,11 @@ describe("Domain Entities & Business Rules", () => {
       expect(() => room.publish()).toThrow(/al menos 3 fotografías/);
     });
 
-    it("allows publishing when listing has 3 or more photos", () => {
+    it("allows publishing when listing has 3 or more photos and a location", () => {
       const room = new RoomListing({
         id: "r-4",
         hostId: "u-1",
+        locationId: "loc-1",
         title: "Habitación completa",
         monthlyRent: 2500,
         status: "draft",
@@ -135,6 +136,21 @@ describe("Domain Entities & Business Rules", () => {
       expect(room.canPublish()).toBe(true);
       room.publish();
       expect(room.status).toBe("published");
+    });
+
+    it("rejects publishing when listing has no location", () => {
+      const room = new RoomListing({
+        id: "r-5",
+        hostId: "u-1",
+        title: "Habitación sin ubicación",
+        monthlyRent: 2500,
+        status: "draft",
+        photoCount: 3,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(() => room.publish()).toThrow(/ubicación/);
     });
   });
 

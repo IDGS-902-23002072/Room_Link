@@ -13,8 +13,19 @@ const PHOTO_EXTENSIONS: Record<string, string> = {
 };
 const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
 
+export interface ProfileControllerDependencies {
+  /**
+   * HU-02 — Indica si existe una conexión aceptada entre espectador y dueño.
+   * Inyectado desde `app.ts` para no acoplar el perfil al módulo de conexiones.
+   */
+  areConnected: (viewerId: string, ownerId: string) => Promise<boolean>;
+}
+
 export class ProfileController {
-  constructor(private profileService: ProfileService) {}
+  constructor(
+    private profileService: ProfileService,
+    private readonly deps?: ProfileControllerDependencies,
+  ) {}
 
   getProfile = async (c: Context) => {
     try {
@@ -23,7 +34,24 @@ export class ProfileController {
         return c.json({ error: "userId es obligatorio" }, 400);
       }
       const profile = await this.profileService.getProfile(userId);
-      return c.json(ProfileView.toPublicProfile(profile), 200);
+
+      // HU-02 — Oculta contacto/redes salvo al dueño o a conexiones autorizadas.
+      const viewerId = (c.get("auth") as { userId?: string } | undefined)?.userId;
+      const isOwner = viewerId === userId;
+      let visibility;
+      if (isOwner) {
+        visibility = { isOwner: true, isConnected: false, privacy: null };
+      } else {
+        const privacy = await this.profileService
+          .getContactPrivacy(userId)
+          .catch(() => null);
+        const isConnected =
+          viewerId && this.deps
+            ? await this.deps.areConnected(viewerId, userId)
+            : false;
+        visibility = { isOwner: false, isConnected, privacy };
+      }
+      return c.json(ProfileView.toPublicProfile(profile, visibility), 200);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Perfil no encontrado";
       return c.json({ error: msg }, 404);

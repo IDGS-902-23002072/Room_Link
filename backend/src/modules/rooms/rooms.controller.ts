@@ -541,6 +541,55 @@ export class RoomsController {
   };
 
   // ==========================================
+  // FEED DE HABITACIONES PUBLICADAS (HU-04)
+  // ==========================================
+
+  feed = async (c: Context) => {
+    const numero = (nombre: string): number | undefined | null => {
+      const valor = c.req.query(nombre);
+      if (valor === undefined || valor === "") return undefined;
+      const n = Number(valor);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    const page = numero("page") ?? 1;
+    const pageSize = numero("pageSize") ?? 12;
+    const minRent = numero("minRent");
+    const maxRent = numero("maxRent");
+
+    if (page === null || pageSize === null || minRent === null || maxRent === null) {
+      return c.json({ error: "Los parámetros numéricos son inválidos" }, 400);
+    }
+
+    try {
+      const resultado = await this.roomsService.listFeed(
+        {
+          search: c.req.query("q")?.trim() || undefined,
+          minRent,
+          maxRent,
+          excludeHostId: c.req.query("excludeHostId")?.trim() || undefined,
+        },
+        page,
+        pageSize
+      );
+
+      return c.json(
+        {
+          page,
+          pageSize,
+          hasMore: resultado.hasMore,
+          items: resultado.items.map((item) => RoomView.toFeedItem(item)),
+        },
+        200
+      );
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Error al obtener el feed";
+      return c.json({ error: message }, 400);
+    }
+  };
+
+  // ==========================================
   // PUBLICACIONES DE UN ANFITRIÓN
   // ==========================================
 
@@ -601,9 +650,11 @@ export class RoomsController {
 
       const room = await this.roomsService.getById(id);
 
-      const [location, photos] = await Promise.all([
+      const [location, photos, rules, costItems] = await Promise.all([
         this.roomsService.getLocation(id),
         this.roomsService.getPhotos(id),
+        this.roomsService.getRules(id),
+        this.roomsService.getCostItems(id),
       ]);
 
       return c.json(
@@ -611,6 +662,8 @@ export class RoomsController {
           ...RoomView.toDetail(room),
           location,
           photos,
+          rules,
+          costItems,
         },
         200
       );
@@ -804,10 +857,13 @@ export class RoomsController {
         photos: resultadoFotos.photos ?? [],
       });
 
+      const detail = RoomView.toDetail(room);
+
       return c.json(
         {
+          ...detail,
           message: "Borrador de habitación creado correctamente.",
-          room: RoomView.toDetail(room),
+          room: detail,
         },
         201
       );
@@ -1084,10 +1140,13 @@ export class RoomsController {
         }
       );
 
+      const detail = RoomView.toDetail(room);
+
       return c.json(
         {
+          ...detail,
           message: "Publicación actualizada correctamente.",
-          room: RoomView.toDetail(room),
+          room: detail,
         },
         200
       );
@@ -1186,10 +1245,13 @@ export class RoomsController {
 
       const room = await this.roomsService.publishListing(id);
 
+      const detail = RoomView.toDetail(room);
+
       return c.json(
         {
+          ...detail,
           message: "Habitación publicada correctamente.",
-          room: RoomView.toDetail(room),
+          room: detail,
         },
         200
       );
@@ -1240,10 +1302,13 @@ export class RoomsController {
 
       const room = await this.roomsService.pauseListing(id);
 
+      const detail = RoomView.toDetail(room);
+
       return c.json(
         {
+          ...detail,
           message: "Publicación pausada correctamente.",
-          room: RoomView.toDetail(room),
+          room: detail,
         },
         200
       );
@@ -1294,10 +1359,13 @@ export class RoomsController {
 
       const room = await this.roomsService.closeListing(id);
 
+      const detail = RoomView.toDetail(room);
+
       return c.json(
         {
+          ...detail,
           message: "Publicación cerrada correctamente. La renta ha sido concretada.",
-          room: RoomView.toDetail(room),
+          room: detail,
         },
         200
       );
@@ -1379,10 +1447,13 @@ export class RoomsController {
 
       const room = await this.roomsService.reactivateListing(id);
 
+      const detail = RoomView.toDetail(room);
+
       return c.json(
         {
+          ...detail,
           message: "Publicación reactivada correctamente.",
-          room: RoomView.toDetail(room),
+          room: detail,
         },
         200
       );
@@ -1392,6 +1463,97 @@ export class RoomsController {
           ? err.message
           : "Error al reactivar la publicación.";
 
+      return c.json({ error: message }, 400);
+    }
+  };
+
+  // ==========================================
+  // REGLAS DE LA CASA (HU-06 / M08)
+  // ==========================================
+
+  getRules = async (c: Context) => {
+    try {
+      const id = c.req.param("id");
+      if (!id?.trim()) return c.json({ error: "El ID es obligatorio." }, 400);
+      const rules = await this.roomsService.getRules(id);
+      return c.json({ listingId: id, rules }, 200);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Error al consultar las reglas.";
+      return c.json({ error: message }, 404);
+    }
+  };
+
+  updateRules = async (c: AuthContext) => {
+    try {
+      const id = c.req.param("id");
+      if (!id?.trim()) return c.json({ error: "El ID es obligatorio." }, 400);
+
+      const existing = await this.roomsService.getById(id);
+      const principal = c.get("auth");
+      if (
+        existing.hostId !== principal.userId &&
+        !principal.roles.includes("admin")
+      ) {
+        return c.json(
+          { error: "No tienes permiso para modificar las reglas de esta habitación." },
+          403,
+        );
+      }
+
+      const body = await c.req.json();
+      const rules = await this.roomsService.saveRules(id, body);
+      return c.json({ listingId: id, rules }, 200);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Error al guardar las reglas.";
+      return c.json({ error: message }, 400);
+    }
+  };
+
+  // ==========================================
+  // DESGLOSE DE COSTOS (HU-06 / M08)
+  // ==========================================
+
+  getCostItems = async (c: Context) => {
+    try {
+      const id = c.req.param("id");
+      if (!id?.trim()) return c.json({ error: "El ID es obligatorio." }, 400);
+      const items = await this.roomsService.getCostItems(id);
+      return c.json({ listingId: id, items }, 200);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Error al consultar los costos.";
+      return c.json({ error: message }, 404);
+    }
+  };
+
+  updateCostItems = async (c: AuthContext) => {
+    try {
+      const id = c.req.param("id");
+      if (!id?.trim()) return c.json({ error: "El ID es obligatorio." }, 400);
+
+      const existing = await this.roomsService.getById(id);
+      const principal = c.get("auth");
+      if (
+        existing.hostId !== principal.userId &&
+        !principal.roles.includes("admin")
+      ) {
+        return c.json(
+          { error: "No tienes permiso para modificar los costos de esta habitación." },
+          403,
+        );
+      }
+
+      const body = await c.req.json();
+      const items = await this.roomsService.saveCostItems(
+        id,
+        Array.isArray(body) ? body : body?.items ?? [],
+      );
+      return c.json({ listingId: id, items }, 200);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Error al guardar los costos.";
       return c.json({ error: message }, 400);
     }
   };

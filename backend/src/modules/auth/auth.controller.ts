@@ -18,7 +18,6 @@ export class AuthController {
         email: body.email ?? "",
         password: body.password ?? "",
         termsAccepted: body.termsAccepted === true,
-        role: body.role,
       });
       return context.json(
         AuthView.toAuthResponse(user, undefined, undefined, "Usuario registrado exitosamente"),
@@ -105,6 +104,22 @@ export class AuthController {
       await this.authService.logout(context.get("auth"));
       deleteCookie(context, "roomlink_session", { path: "/", secure: this.secureCookies });
       return context.json({ message: "Sesión cerrada." });
+    } catch (error) {
+      return this.failure(context, error);
+    }
+  };
+
+  // Registro exhaustivo de arrendador: otorga el rol host al usuario autenticado.
+  becomeHost = async (context: Context<{ Variables: AuthVariables }>) => {
+    try {
+      const body = (await context.req.json().catch(() => ({}))) as {
+        acceptedTerms?: boolean;
+      };
+      const roles = await this.authService.becomeHost(
+        context.get("auth").userId,
+        body.acceptedTerms === true,
+      );
+      return context.json({ roles });
     } catch (error) {
       return this.failure(context, error);
     }

@@ -46,15 +46,46 @@ export interface RoomLocationInput {
   longitude: number;
 }
 
+export type RoomCostKind =
+  | "rent"
+  | "service"
+  | "deposit"
+  | "maintenance"
+  | "other";
+
+export interface RoomRulesRecord {
+  visitsPolicy: string | null;
+  partiesAllowed: boolean;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+  petsAllowed: boolean;
+  smokingAllowed: boolean;
+  commonAreasNotes: string | null;
+  extraRules: string | null;
+}
+
+export interface RoomCostItemInput {
+  kind: RoomCostKind;
+  concept: string;
+  amount: number;
+  isIncluded: boolean;
+  isProrated: boolean;
+}
+
+export interface RoomCostItemRecord extends RoomCostItemInput {
+  id: string;
+  listingId: string;
+}
+
 // ======================================================
 // FILTROS DEL CATÁLOGO DE PUBLICACIONES
 // ======================================================
 
 export interface RoomFeedFilters {
-  minRent?: number;
-  maxRent?: number;
-  excludeHostId?: string;
-  search?: string;
+  minRent?: number | undefined;
+  maxRent?: number | undefined;
+  excludeHostId?: string | undefined;
+  search?: string | undefined;
 }
 
 // ======================================================
@@ -83,6 +114,13 @@ export interface RoomFeedItem {
 export interface IRoomListingRepository {
   // Consultar una publicación por su ID.
   findById(id: string): Promise<RoomListing | null>;
+
+  // Habitaciones publicadas, de la más reciente a la más antigua (HU-04).
+  findPublishedFeed(
+    filters: RoomFeedFilters,
+    limit: number,
+    offset: number
+  ): Promise<RoomFeedItem[]>;
 
   // Consultar publicaciones publicadas.
   findPublished(
@@ -143,4 +181,15 @@ export interface IRoomListingRepository {
     expectedStatus: "draft" | "published" | "paused",
     newStatus: "published" | "paused" | "closed"
   ): Promise<boolean>;
+
+  // Reglas de la casa (HU-06 / M08).
+  findRulesByListingId?(listingId: string): Promise<RoomRulesRecord | null>;
+  upsertRules?(listingId: string, rules: RoomRulesRecord): Promise<RoomRulesRecord>;
+
+  // Desglose de costos: servicios, depósito, mantenimiento (HU-06 / M08).
+  findCostItemsByListingId?(listingId: string): Promise<RoomCostItemRecord[]>;
+  replaceCostItems?(
+    listingId: string,
+    items: RoomCostItemInput[]
+  ): Promise<RoomCostItemRecord[]>;
 }

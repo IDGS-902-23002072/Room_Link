@@ -35,6 +35,9 @@ import {
   type RoomLocationInput,
   type RoomPhotoMetadata,
   type RoomPhotoUpdateItem,
+  type RoomRulesRecord,
+  type RoomCostItemInput,
+  type RoomCostItemRecord,
   type CompatibilityFeedCandidate,
   type ConnectionRequest,
   type ActivityLogFilter,
@@ -76,6 +79,9 @@ export class InMemoryUserRepository implements IUserRepository {
   async update(user: User) {
     this.users.set(user.id, user);
   }
+  async grantHostRole(id: string): Promise<void> {
+    this.users.get(id)?.grantHostRole();
+  }
   async delete(id: string) {
     this.users.delete(id);
   }
@@ -91,6 +97,31 @@ export class InMemoryRoomRepository implements IRoomListingRepository {
   readonly rooms = new Map<string, RoomListing>();
   readonly photos = new Map<string, RoomPhotoRecord[]>();
   readonly locations = new Map<string, RoomLocationInput>();
+  readonly rules = new Map<string, RoomRulesRecord>();
+  readonly costItems = new Map<string, RoomCostItemRecord[]>();
+
+  async findRulesByListingId(listingId: string) {
+    return this.rules.get(listingId) ?? null;
+  }
+
+  async upsertRules(listingId: string, rules: RoomRulesRecord) {
+    this.rules.set(listingId, rules);
+    return rules;
+  }
+
+  async findCostItemsByListingId(listingId: string) {
+    return this.costItems.get(listingId) ?? [];
+  }
+
+  async replaceCostItems(listingId: string, items: RoomCostItemInput[]) {
+    const created: RoomCostItemRecord[] = items.map((item) => ({
+      ...item,
+      id: randomUUID(),
+      listingId,
+    }));
+    this.costItems.set(listingId, created);
+    return created;
+  }
 
   // ======================================================
   // CONSULTAR PUBLICACIONES
@@ -98,6 +129,47 @@ export class InMemoryRoomRepository implements IRoomListingRepository {
 
   async findById(id: string) {
     return this.rooms.get(id) ?? null;
+  }
+
+  async findPublishedFeed(
+    filters: RoomFeedFilters,
+    limit: number,
+    offset: number,
+  ): Promise<RoomFeedItem[]> {
+    const term = filters.search?.toLocaleLowerCase("es");
+    return Array.from(this.rooms.values())
+      .filter((room) => room.status === "published")
+      .filter((room) => filters.minRent === undefined || room.monthlyRent >= filters.minRent)
+      .filter((room) => filters.maxRent === undefined || room.monthlyRent <= filters.maxRent)
+      .filter((room) => !filters.excludeHostId || room.hostId !== filters.excludeHostId)
+      .filter((room) => {
+        if (!term) return true;
+        const address = room.locationId ? this.locations.get(room.locationId)?.address : "";
+        return `${room.title} ${room.description ?? ""} ${address ?? ""}`
+          .toLocaleLowerCase("es")
+          .includes(term);
+      })
+      .sort(
+        (a, b) =>
+          (b.publishedAt?.getTime() ?? b.createdAt.getTime()) -
+          (a.publishedAt?.getTime() ?? a.createdAt.getTime()),
+      )
+      .slice(offset, offset + limit)
+      .map((room) => ({
+        id: room.id,
+        hostId: room.hostId,
+        hostName: null,
+        title: room.title,
+        description: room.description ?? null,
+        monthlyRent: room.monthlyRent,
+        availableFrom: room.availableFrom ?? null,
+        maxRoommates: room.maxRoommates ?? null,
+        photoCount: room.photoCount,
+        address: room.locationId ? (this.locations.get(room.locationId)?.address ?? null) : null,
+        zone: null,
+        city: null,
+        publishedAt: room.publishedAt ?? null,
+      }));
   }
 
   async findPublished(limit = 20, offset = 0) {

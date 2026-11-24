@@ -113,6 +113,7 @@ async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
 
+  if (response.status === 204 && init?.method === 'DELETE') return undefined as T;
   const body = (await response.json().catch(() => null)) as
     | (T & { error?: string })
     | null;
@@ -198,16 +199,13 @@ export async function reordenarGaleria(
 
 /** Elimina una foto y devuelve la galería restante ya compactada. */
 export async function eliminarFoto(id: string): Promise<FotoPerfil[]> {
-  const { userId, baseUrl } = configuracionApi();
-  const data = await solicitud<{ photos: FotoRemota[] }>(
+  const { userId } = configuracionApi();
+  await solicitud<void>(
     `${rutaFotos(userId)}/${encodeURIComponent(id)}`,
     { method: 'DELETE' },
   );
 
-  return data.photos
-    .slice()
-    .sort((a, b) => a.position - b.position)
-    .map((foto) => mapearFoto(baseUrl, foto));
+  return obtenerGaleria();
 }
 
 export function normalizarTipoFoto(

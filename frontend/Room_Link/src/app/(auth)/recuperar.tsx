@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Text } from 'react-native';
 
@@ -8,7 +8,8 @@ import { Aviso, BotonPrimario, Campo, Enlace, PantallaAuth, paleta } from '@/aut
 export default function Recuperar() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [token, setToken] = useState('');
+  const params = useLocalSearchParams<{ token?: string }>();
+  const [token, setToken] = useState(params.token ?? '');
   const [password, setPassword] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [error, setError] = useState('');

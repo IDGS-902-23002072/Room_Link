@@ -35,6 +35,9 @@ export const createRoomsRoutes = (
   // Consultar publicaciones activas.
   router.get("/", controller.list);
 
+  // Feed de habitaciones publicadas (HU-04).
+  router.get("/feed", controller.feed);
+
   // ====================================================
   // RUTAS PRIVADAS DE CONSULTA
   // ====================================================
@@ -51,6 +54,12 @@ export const createRoomsRoutes = (
 
   // Obtener una fotografía específica.
   router.get("/:id/photos/:photoId", controller.getPhoto);
+
+  // Reglas de la casa y desglose de costos (HU-06 / M08).
+  router.get("/:id/rules", controller.getRules);
+  router.put("/:id/rules", authenticate, controller.updateRules);
+  router.get("/:id/costs", controller.getCostItems);
+  router.put("/:id/costs", authenticate, controller.updateCostItems);
 
   // Consultar una publicación por su ID.
   router.get("/:id", controller.getById);

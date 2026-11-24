@@ -5,5 +5,6 @@ export interface IUserRepository {
   findByEmail(email: string): Promise<User | null>;
   create(user: User): Promise<User>;
   update(user: User): Promise<void>;
+  grantHostRole(id: string): Promise<void>;
   delete(id: string): Promise<void>;
 }

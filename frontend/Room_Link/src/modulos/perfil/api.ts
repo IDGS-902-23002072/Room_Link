@@ -11,6 +11,7 @@ export interface PerfilPublico {
   occupation: string | null;
   bio: string | null;
   phone: string | null;
+  instagram?: string | null;
   identityStatus: string;
   isVerified: boolean;
 }
@@ -19,6 +20,7 @@ export interface DatosPerfil {
   fullName: string;
   occupation: string | null;
   bio: string | null;
+  phone?: string | null;
 }
 
 export interface PerfilFormulario {
@@ -29,6 +31,9 @@ export interface PerfilFormulario {
   zona: string;
   presupuestoMin: string;
   presupuestoMax: string;
+  ciudad?: string;
+  telefono?: string;
+  instagram?: string;
 }
 
 // Fotografías que devuelve el backend.
@@ -42,6 +47,13 @@ export interface FotoPerfil {
   isMain: boolean;
 }
 
+export class PerfilNoEncontrado extends Error {
+  constructor(mensaje = 'Perfil no encontrado') {
+    super(mensaje);
+    this.name = 'PerfilNoEncontrado';
+  }
+}
+
 const CAMPOS_PERFIL: (keyof PerfilFormulario)[] = [
   'nombre',
   'edad',
@@ -51,6 +63,8 @@ const CAMPOS_PERFIL: (keyof PerfilFormulario)[] = [
   'presupuestoMin',
   'presupuestoMax',
 ];
+
+//const imagenPredeterminada = '';
 
 function configuracionApi() {
   const baseUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
@@ -72,11 +86,13 @@ function configuracionApi() {
 // Evita duplicar /api/v1 si ya está incluido en el .env.
 function rutaApi(ruta: string) {
   const { baseUrl } = configuracionApi();
-  const prefijo = baseUrl.endsWith('/api/v1')
-    ? ''
-    : '/api/v1';
+  const prefijo = baseUrl.endsWith('/api/v1') ? '' : '/api/v1';
 
   return `${prefijo}${ruta}`;
+}
+
+function rutaPerfil(userId: string) {
+  return rutaApi(`/profiles/${encodeURIComponent(userId)}`);
 }
 
 // Convierte la URL relativa de una fotografía en una URL absoluta.
@@ -123,6 +139,13 @@ async function solicitud<T>(
     | null;
 
   if (!response.ok) {
+    if (
+      response.status === 404 &&
+      body?.error?.startsWith('Perfil no encontrado')
+    ) {
+      throw new PerfilNoEncontrado(body.error);
+    }
+
     throw new Error(
       body?.error ?? `La API respondió con estado ${response.status}.`,
     );
@@ -139,9 +162,12 @@ async function solicitud<T>(
 // PERFIL DEL USUARIO ACTUAL
 // ==========================================
 
-export function obtenerPerfil() {
+export async function obtenerPerfil() {
   const { userId } = configuracionApi();
-  return solicitud<PerfilPublico>(rutaApi(`/profiles/${encodeURIComponent(userId)}`));
+
+  return solicitud<PerfilPublico>(
+    rutaPerfil(userId),
+  );
 }
 
 // ==========================================
@@ -154,7 +180,7 @@ export function obtenerPerfilPublicoPorId(userId: string) {
   }
 
   return solicitud<PerfilPublico>(
-    rutaApi(`/profiles/${encodeURIComponent(userId)}`),
+    rutaPerfil(userId),
   );
 }
 
@@ -171,7 +197,7 @@ export async function obtenerFotosPerfil(userId: string) {
     items?: FotoPerfil[];
     photos?: FotoPerfil[];
   }>(
-    rutaApi(`/profiles/${encodeURIComponent(userId)}/photos`),
+    `${rutaPerfil(userId)}/photos`,
   );
 
   return (respuesta.items ?? respuesta.photos ?? []).map((foto) => ({
@@ -191,17 +217,64 @@ export async function obtenerFotoPrincipal(userId: string) {
 }
 
 // ==========================================
+// CREAR PERFIL
+// ==========================================
+
+export function crearPerfil(
+  datos: DatosPerfil & {
+    birthDate: string;
+    instagram?: string;
+  },
+) {
+  return solicitud<PerfilPublico>(rutaApi('/profiles'), {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  });
+}
+
+// ==========================================
 // ACTUALIZAR PERFIL PROPIO
 // ==========================================
 
-export function actualizarPerfil(datos: DatosPerfil) {
+export async function actualizarPerfil(datos: DatosPerfil) {
   const { userId } = configuracionApi();
 
   return solicitud<PerfilPublico>(
-    rutaApi(`/profiles/${encodeURIComponent(userId)}`),
+    rutaPerfil(userId),
     {
       method: 'PUT',
       body: JSON.stringify(datos),
+    },
+  );
+}
+
+// ==========================================
+// ACTUALIZAR INSTAGRAM
+// ==========================================
+
+export async function actualizarInstagram(instagram: string) {
+  const { userId } = configuracionApi();
+
+  return solicitud<PerfilPublico>(
+    `${rutaPerfil(userId)}/socials`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ instagram }),
+    },
+  );
+}
+
+// ==========================================
+// SOLICITAR VERIFICACIÓN DE IDENTIDAD
+// ==========================================
+
+export async function solicitarVerificacionIdentidad() {
+  const { userId } = configuracionApi();
+
+  return solicitud<PerfilPublico>(
+    `${rutaPerfil(userId)}/verification/request`,
+    {
+      method: 'POST',
     },
   );
 }
@@ -219,6 +292,8 @@ export function perfilDesdeApi(perfil: PerfilPublico): PerfilFormulario {
     zona: '',
     presupuestoMin: '',
     presupuestoMax: '',
+    telefono: perfil.phone ?? '',
+    instagram: perfil.instagram ?? '',
   };
 }
 

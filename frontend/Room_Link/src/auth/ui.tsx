@@ -60,8 +60,10 @@ export function Campo({
   secure,
   keyboardType,
   autoCapitalize = 'none',
+  testID,
 }: {
   etiqueta: string;
+  testID?: string;
   valor: string;
   onChangeText: (v: string) => void;
   placeholder?: string;
@@ -73,6 +75,8 @@ export function Campo({
     <View style={estilos.campo}>
       <Text style={estilos.etiqueta}>{etiqueta}</Text>
       <TextInput
+        accessibilityLabel={etiqueta}
+        testID={testID}
         style={estilos.input}
         value={valor}
         onChangeText={onChangeText}

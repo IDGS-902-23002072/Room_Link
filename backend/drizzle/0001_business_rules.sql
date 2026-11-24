@@ -5,7 +5,8 @@ INSERT INTO `compat_dimension_weights` (`dimension`, `weight`) VALUES
   ('pets', 1.00),
   ('smoking', 1.50),
   ('visits', 1.00),
-  ('gender_pref', 0.50);
+  ('gender_pref', 0.50)
+ON DUPLICATE KEY UPDATE `weight` = `compat_dimension_weights`.`weight`;
 --> statement-breakpoint
 CREATE TRIGGER `trg_profile_minimum_age_insert`
 BEFORE INSERT ON `profile_profiles`

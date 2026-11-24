@@ -18,7 +18,7 @@ export interface AcuerdoDto {
   createdAt: string;
 }
 
-export function listarAcuerdosUsuario(): Promise<{ items: AcuerdoDto[] }> {
+export async function listarAcuerdosUsuario(): Promise<{ items: AcuerdoDto[] }> {
   const { userId } = configuracionApi();
   return solicitud<{ items: AcuerdoDto[] }>(
     `/api/v1/agreements/by-user/${encodeURIComponent(userId)}`,
@@ -39,7 +39,7 @@ export function obtenerAcuerdo(agreementId: string): Promise<AcuerdoDto> {
   );
 }
 
-export function crearAcuerdoConvivencia(datos: {
+export async function crearAcuerdoConvivencia(datos: {
   listingId: string;
   roomieId: string;
   hostId?: string;

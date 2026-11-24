@@ -210,7 +210,12 @@ export class AuthService {
       expiresAt,
       createdAt: now,
     });
-    await this.dependencies.emailNotifier.sendPasswordReset({ email: user.email, token, expiresAt });
+    try {
+      await this.dependencies.emailNotifier.sendPasswordReset({ email: user.email, token, expiresAt });
+    } catch {
+      // Mantiene la respuesta pública idéntica para cuentas existentes y desconocidas.
+      console.error("No se pudo entregar el correo de recuperación.");
+    }
   }
 
   async resetPassword(token: string, password: string): Promise<void> {
@@ -261,6 +266,39 @@ export class AuthService {
     const user = await this.userRepo.findById(id);
     if (!user) throw new AppError("Usuario no encontrado.", 404, "USER_NOT_FOUND");
     return user;
+  }
+
+  /**
+   * Registro exhaustivo de arrendador (RNF-03.4): otorga el rol `host` al
+   * usuario autenticado tras validar que (1) aceptó los términos de
+   * responsabilidad y (2) su identidad NO está sin verificar — consultada por
+   * el puerto `identityProvider` (vive en el módulo de perfil, sin acoplar
+   * auth a profile). Idempotente. Devuelve los roles resultantes.
+   */
+  async becomeHost(userId: string, acceptedTerms: boolean): Promise<UserRole[]> {
+    if (!acceptedTerms) {
+      throw new AppError(
+        "Debes aceptar los términos de responsabilidad del arrendador.",
+        400,
+        "TERMS_NOT_ACCEPTED",
+      );
+    }
+    const { identityProvider } = this.dependencies;
+    if (identityProvider) {
+      const estado = await identityProvider.getIdentityStatus(userId);
+      if (!estado || estado === "unverified") {
+        throw new AppError(
+          "Debes solicitar la verificación de identidad antes de registrarte como arrendador.",
+          403,
+          "IDENTITY_NOT_VERIFIED",
+        );
+      }
+    }
+    const user = await this.userRepo.findById(userId);
+    if (!user) throw new AppError("Usuario no encontrado.", 404, "USER_NOT_FOUND");
+    await this.userRepo.grantHostRole(user.id);
+    user.grantHostRole(this.clock.now());
+    return user.roles;
   }
 
   private async issueSession(

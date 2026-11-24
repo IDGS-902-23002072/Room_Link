@@ -75,6 +75,14 @@
 
 ## [QUÉ SE HIZO HOY (Today's Diff)]
 
+### 2026-11-21 · Despliegue en Azure
+- Producción en línea: API + sitio web `web/` (Vite) en https://roomlink-prod-xdg80v.canadacentral.cloudapp.azure.com; la app Expo ya no se publica como web.
+- APK Android compilado en local y servido en `/descargas/roomlink.apk` (nunca pasa por GitHub). Procedimiento en `infra/terraform/DEPLOY.md`.
+- MySQL de producción: `log_bin_trust_function_creators=1` e `innodb_buffer_pool_size=128M` con `SET PERSIST`; las 7 migraciones aplicadas.
+- VM redimensionada a `Standard_B2pts_v2` (free tier de estudiantes).
+- Pendiente: commitear los cambios del workflow/backend/deploy; llevar los ajustes de MySQL al `custom_data` de Terraform (recrea la VM).
+
+
 - 12 fases del plan de backend-sin-deuda ejecutadas en orden: F0 baseline, F1 blindaje auth, F2 connections, F3 notifications, F4 moderación extendida, F5 sanctions, F6 activity log, F7 agreements, F8 analytics, F9 hardening DTOs + security headers, F10 smoke end-to-end, F11 workflow de regresión, F12 docs y cierre.
 - 6 módulos nuevos añadidos al monolito modular con el mismo patrón ya establecido (service/controller/routes/view/index + repositorio Drizzle).
 - 2 nuevos puertos transversales: `SessionGuard` (auth consulta sanciones sin acoplarse) y `AgreementPolicies` (acuerdos consulta rooms/applications sin acoplarse).

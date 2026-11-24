@@ -5,6 +5,7 @@ import { AppLink } from '../../components/AppLink.jsx'
 import { goBack, push } from '../../routes/navigation.js'
 import { useAuth } from '../../hooks/useAuth.js'
 import { asyncEffect } from '../../hooks/asyncEffect.js'
+import { useRoomLinkQuery } from '../../hooks/useRoomLinkQuery.js'
 import {
   getCandidate,
   getRecommendationFeed,
@@ -102,6 +103,14 @@ function CandidateDetail({ candidateId }) {
   const [requestError, setRequestError] = useState('')
   const [sending, setSending] = useState(false)
   const [requestSent, setRequestSent] = useState(false)
+  const [connectionAttempt, setConnectionAttempt] = useState(0)
+  const connections = useRoomLinkQuery('/api/v1/connections', session.token, connectionAttempt)
+  const activeConnection = connections.data?.find(({ requesterId, addresseeId, status }) =>
+    (requesterId === candidateId || addresseeId === candidateId) && ['pending', 'accepted'].includes(status),
+  )
+  const connectionLabel = activeConnection?.status === 'accepted' ? 'Conexión aceptada'
+    : activeConnection?.requesterId === candidateId ? 'Solicitud recibida'
+    : activeConnection || requestSent ? 'Solicitud enviada' : null
 
   useEffect(
     () => asyncEffect(async (isActive) => {
@@ -122,7 +131,7 @@ function CandidateDetail({ candidateId }) {
   )
 
   async function requestConnection() {
-    if (sending || requestSent) return
+    if (sending || connectionLabel || connections.loading || connections.error) return
     setSending(true)
     setRequestError('')
     try {
@@ -182,14 +191,15 @@ function CandidateDetail({ candidateId }) {
               </div>
             )}
             {requestError && <p className="form-error" role="alert">{requestError}</p>}
-            {requestSent && <p className="inline-notice" role="status">Solicitud de conexión enviada.</p>}
+            {connections.error && <p className="form-error" role="alert">No se pudo consultar el estado de la conexión.</p>}
+            {connections.error && <button className="button button-secondary" type="button" onClick={() => setConnectionAttempt((value) => value + 1)}>Reintentar</button>}
             <button
               className="button button-primary button-wide"
-              disabled={sending || requestSent}
+              disabled={sending || Boolean(connectionLabel) || connections.loading || Boolean(connections.error)}
               onClick={requestConnection}
               type="button"
             >
-              {requestSent ? 'Solicitud enviada' : sending ? 'Enviando…' : 'Enviar solicitud'}
+              {connectionLabel || (sending ? 'Enviando…' : connections.loading ? 'Consultando…' : 'Enviar solicitud')}
             </button>
             <button className="button button-secondary button-wide" onClick={() => goBack(navigate, '/recomendados')} type="button">
               Volver a roomies
@@ -306,7 +316,7 @@ export default function Recommendations() {
     setPage(nextPage)
   }
 
-  if (candidateId) return <CandidateDetail candidateId={decodeURIComponent(candidateId)} />
+  if (candidateId) return <CandidateDetail key={candidateId} candidateId={decodeURIComponent(candidateId)} />
 
   return (
     <section className="recommendations-page">

@@ -13,11 +13,7 @@ export type Publicacion = {
   id: string;
   titulo: string;
   precio: string;
-  estado:
-  | "Activa"
-  | "Pausada"
-  | "Cerrada"
-  | "Borrador";
+  estado: "Activa" | "Pausada" | "Cerrada" | "Borrador";
   imagen?: string;
   detalle?: string;
   fotosCount?: number;
@@ -33,6 +29,7 @@ type Props = {
   onPausar?: (id: string) => void;
   onReactivar?: (id: string) => void;
   onCerrar?: (id: string) => void;
+  onVerPostulaciones?: (publicacion: Publicacion) => void;
 };
 
 export default function TarjetaPublicacion({
@@ -42,6 +39,7 @@ export default function TarjetaPublicacion({
   onPausar,
   onReactivar,
   onCerrar,
+  onVerPostulaciones,
 }: Props) {
   const [imagenConError, setImagenConError] = useState<string | null>(null);
 
@@ -114,6 +112,17 @@ export default function TarjetaPublicacion({
             </>
           )}
         </View>
+
+        {!borrador && onVerPostulaciones ? (
+          <Pressable
+            style={styles.postulaciones}
+            onPress={() => onVerPostulaciones(publicacion)}
+          >
+            <Text style={styles.postulacionesTexto}>
+              Ver postulaciones ›
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -180,5 +189,18 @@ const styles = StyleSheet.create({
   separador: {
     color: "#B7A8BA",
     fontSize: 11,
+  },
+
+  postulaciones: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#EDE5EE",
+  },
+
+  postulacionesTexto: {
+    color: "#84658D",
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

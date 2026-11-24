@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
 import { iniciarSesion } from '@/auth/api-auth';
+import { entrarConGoogle, googleDisponible } from '@/auth/google-sign-in';
 import { Aviso, BotonPrimario, Campo, Enlace, PantallaAuth } from '@/auth/ui';
 
 export default function Login() {
@@ -24,6 +25,19 @@ export default function Login() {
     }
   }
 
+  async function google() {
+    if (cargando) return;
+    setError('');
+    setCargando(true);
+    try {
+      await entrarConGoogle(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo continuar con Google.');
+    } finally {
+      setCargando(false);
+    }
+  }
+
   return (
     <PantallaAuth
       kicker="Bienvenido a RoomLink"
@@ -32,6 +46,7 @@ export default function Login() {
     >
       <Campo
         etiqueta="Correo electrónico"
+        testID="login-email"
         valor={email}
         onChangeText={setEmail}
         placeholder="cesar@correo.com"
@@ -39,6 +54,7 @@ export default function Login() {
       />
       <Campo
         etiqueta="Contraseña"
+        testID="login-password"
         valor={password}
         onChangeText={setPassword}
         placeholder="••••••••"
@@ -46,6 +62,7 @@ export default function Login() {
       />
       <Aviso texto={error} tono="error" />
       <BotonPrimario etiqueta="Iniciar sesión" onPress={entrar} cargando={cargando} />
+      {googleDisponible && <BotonPrimario etiqueta="Continuar con Google" onPress={google} cargando={cargando} variante="contorno" />}
       <Enlace
         etiqueta="¿Olvidaste tu contraseña?"
         onPress={() => router.push('/(auth)/recuperar')}

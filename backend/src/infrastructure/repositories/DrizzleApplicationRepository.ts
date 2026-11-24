@@ -1,4 +1,5 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { AppError } from "../../shared/AppError.js";
 import type { MySql2Database } from "drizzle-orm/mysql2";
 import { Application, type IApplicationRepository } from "../../domain/index.js";
 import {
@@ -84,7 +85,24 @@ export class DrizzleApplicationRepository implements IApplicationRepository {
       compatibilityScore: app.compatibilityScore ? app.compatibilityScore.toFixed(2) : null,
     };
 
-    await this.db.insert(appApplications).values(newRecord);
+    try {
+      await this.db.insert(appApplications).values(newRecord);
+    } catch (error) {
+      const cause = (error as { cause?: { code?: string } })?.cause ?? (error as { code?: string });
+      if (cause?.code === "ER_SIGNAL_EXCEPTION") {
+        throw new AppError("Solo puedes postularte a anuncios publicados de otros anfitriones.");
+      }
+      if (cause?.code === "ER_DUP_ENTRY") {
+        const [existing] = await this.db.select({ id: appApplications.id })
+          .from(appApplications)
+          .where(and(eq(appApplications.listingId, app.listingId), eq(appApplications.applicantId, app.applicantId)))
+          .limit(1);
+        if (existing) {
+          throw new AppError("Ya enviaste una postulación a esta habitación.", 409, "APPLICATION_ALREADY_SENT");
+        }
+      }
+      throw error;
+    }
     return app;
   }
 

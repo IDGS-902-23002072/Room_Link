@@ -1,3 +1,4 @@
+import { configureSmtp } from "./modules/auth/smtp-mailer.js";
 import { Hono } from "hono";
 import { db, checkDatabase as defaultCheckDatabase } from "./db/client.js";
 import { config } from "./config.js";
@@ -201,6 +202,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   );
 
   // 1. Auth Module
+  const smtp = dependencies.authDependencies ? undefined : configureSmtp();
   const authDependencies =
     dependencies.authDependencies ??
     ({
@@ -210,20 +212,42 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
       resetRepository: new DrizzlePasswordResetRepository(db),
       oauthIdentityRepository: new DrizzleOAuthIdentityRepository(db),
       oauthProvider: new GoogleOAuthProfileProvider(config.auth.googleClientId),
-      emailNotifier: new ConsoleEmailNotifier(),
+      emailNotifier: smtp ?? new ConsoleEmailNotifier(),
       eventPublisher: resolvedBus,
       sessionGuard: {
         isBlocked: async (userId: string) =>
           (await sanctionsService.findBlockingSession(userId)) !== null,
+      },
+      // Registro exhaustivo de arrendador: auth consulta la verificación de
+      // identidad (que vive en el módulo de perfil) sin acoplarse a él.
+      identityProvider: {
+        getIdentityStatus: async (userId: string) => {
+          const perfil = await profileRepo.findByUserId(userId);
+          return perfil ? perfil.identityStatus : null;
+        },
       },
     } satisfies AuthServiceDependencies);
   const authService = new AuthService(userRepo, authDependencies);
   const authController = new AuthController(authService, config.auth.secureCookies);
   app.route("/api/v1/auth", createAuthRoutes(authController, authService));
 
+  // Repositorio de conexiones compartido (perfil HU-02 + módulo de conexiones).
+  const connectionRepo =
+    dependencies.connectionRepo ?? new DrizzleConnectionRepository(db);
+
   // 2. Profile Module
   const profileService = new ProfileService(profileRepo);
-  const profileController = new ProfileController(profileService);
+  const profileController = new ProfileController(profileService, {
+    // HU-02 — hay conexión si existe una aceptada entre ambos.
+    areConnected: async (viewerId: string, ownerId: string) => {
+      const conns = await connectionRepo.listForUser(viewerId, "all");
+      return conns.some(
+        (conn) =>
+          conn.status === "accepted" &&
+          (conn.requesterId === ownerId || conn.addresseeId === ownerId),
+      );
+    },
+  });
   app.route("/api/v1/profiles", createProfileRoutes(profileController, authService));
 
   // 3. Rooms Module
@@ -232,11 +256,20 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   app.route("/api/v1/rooms", createRoomsRoutes(roomsController, authService));
 
   // 4. Applications Module (resuelve el host del listing para autorizar decide/getByListing)
-  const applicationsService = new ApplicationsService(appRepo);
+  const applicationsService = new ApplicationsService(appRepo, authDependencies.eventPublisher);
   const applicationsController = new ApplicationsController(applicationsService, {
     resolveListingHostId: async (listingId: string) => {
       const room = await roomRepo.findById(listingId);
       return room ? room.hostId : null;
+    },
+    // HU-07 — afinidad calculada en el servidor (postulante como viewer, host como candidato).
+    resolveCompatibilityScore: async (applicantId: string, hostId: string) => {
+      try {
+        const candidate = await compatibilityRepo.findCandidate(applicantId, hostId);
+        return candidate?.compatibilityScore ?? null;
+      } catch {
+        return null;
+      }
     },
   });
   app.route(
@@ -245,7 +278,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   );
 
   // 5. Compatibility and affinity modules
-  const compatibilityService = new CompatibilityService(compatibilityRepo);
+  const compatibilityService = new CompatibilityService(compatibilityRepo, authDependencies.eventPublisher);
   const compatibilityController = new CompatibilityController(compatibilityService);
   app.route(
     "/api/v1/compatibility",
@@ -276,7 +309,7 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
 
   // 8. Connections Module (accept/reject/cancel)
   const connectionsService = new ConnectionsService(
-    dependencies.connectionRepo ?? new DrizzleConnectionRepository(db),
+    connectionRepo,
     authDependencies.eventPublisher,
   );
   const connectionsController = new ConnectionsController(connectionsService);
@@ -296,6 +329,10 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
       const room = await roomRepo.findById(listingId);
       return room ? room.hostId : null;
     },
+    smtp ? async (userId, title) => {
+      const user = await userRepo.findById(userId);
+      if (user?.emailVerifiedAt && user.isActive()) await smtp.sendNotification(user.email, title);
+    } : undefined,
   );
   // Suscribe el consumer al bus compartido (solo si el publisher soporta subscribe).
   const subscribable = resolvedBus as unknown as InProcessEventBus;
@@ -370,6 +407,18 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
         503,
       );
     }
+  });
+
+  // Sirve el build estático del sitio web (web/, Vite) desde ./public.
+  // public/descargas enlaza a la carpeta persistente con el APK.
+  app.use("/*", async (c, next) => {
+    if (c.req.path.startsWith("/api/")) return next();
+    return serveStatic({ root: "./public" })(c, next);
+  });
+  // Fallback SPA: las rutas de BrowserRouter resuelven a index.html.
+  app.get("/*", async (c, next) => {
+    if (c.req.path.startsWith("/api/")) return next();
+    return serveStatic({ path: "./public/index.html" })(c, next);
   });
 
   return app;

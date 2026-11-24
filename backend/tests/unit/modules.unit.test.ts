@@ -50,6 +50,9 @@ class InMemoryUserRepository implements IUserRepository {
     this.users.set(user.id, user);
   }
 
+  async grantHostRole(id: string): Promise<void> {
+    this.users.get(id)?.grantHostRole();
+  }
   async delete(id: string): Promise<void> {
     this.users.delete(id);
   }
@@ -131,27 +134,44 @@ class InMemoryRoomRepository implements IRoomListingRepository {
 
   async createWithLocationAndPhotos(
     room: RoomListing,
-    location: RoomLocationInput,
+    location: RoomLocationInput | null,
     photos: RoomPhotoInput[]
   ): Promise<RoomListing> {
-    room.setPhotoCount(photos.length);
-    this.rooms.set(room.id, room);
+    const locationId = location ? (room.locationId ?? crypto.randomUUID()) : null;
+    const savedRoom = new RoomListing({
+      id: room.id,
+      hostId: room.hostId,
+      locationId,
+      title: room.title,
+      description: room.description,
+      monthlyRent: room.monthlyRent,
+      status: room.status,
+      availableFrom: room.availableFrom,
+      maxRoommates: room.maxRoommates,
+      publishedAt: room.publishedAt,
+      closedAt: room.closedAt,
+      photoCount: photos.length,
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt,
+    });
 
-    if (room.locationId) {
-      this.locations.set(room.locationId, location);
+    this.rooms.set(savedRoom.id, savedRoom);
+
+    if (locationId && location) {
+      this.locations.set(locationId, location);
     }
 
     this.photos.set(
-      room.id,
+      savedRoom.id,
       photos.map((photo, index) => ({
         id: crypto.randomUUID(),
-        listingId: room.id,
+        listingId: savedRoom.id,
         position: index + 1,
         ...photo,
       }))
     );
 
-    return room;
+    return savedRoom;
   }
 
   async update(room: RoomListing): Promise<void> {
@@ -435,6 +455,7 @@ describe("Modular Monolith MVC API", () => {
       formData.append("ubicacion", "Calle de prueba 123, León, Guanajuato");
       formData.append("latitude", "21.1221");
       formData.append("longitude", "-101.683");
+      formData.append("availableFrom", "2027-01-15");
 
       const res = await app.request("/api/v1/rooms", {
         method: "POST",
@@ -480,6 +501,8 @@ describe("Modular Monolith MVC API", () => {
         body: JSON.stringify({
           listingId: "listing-abc",
           message: "Hola, me interesa mucho el cuarto.",
+          // HU-07 — El cliente intenta inyectar un score; el servidor debe ignorarlo
+          // y calcularlo él mismo (sin datos de compatibilidad aquí ⇒ null).
           compatibilityScore: 92.5,
         }),
       });
@@ -489,7 +512,8 @@ describe("Modular Monolith MVC API", () => {
       const data = await res.json();
 
       expect(data.status).toBe("pending");
-      expect(data.compatibilityScore).toBe(92.5);
+      // El 92.5 enviado por el cliente NO se persiste: el score es server-authoritative.
+      expect(data.compatibilityScore).toBeNull();
     });
 
     it("rejects application without session", async () => {

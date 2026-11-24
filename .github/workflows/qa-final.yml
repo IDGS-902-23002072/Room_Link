@@ -1,0 +1,108 @@
+name: QA final RoomLink
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: roomlink_root
+          MYSQL_DATABASE: roomlink
+          MYSQL_USER: roomlink_app
+          MYSQL_PASSWORD: roomlink_school
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proomlink_root --silent"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      mailpit:
+        image: axllent/mailpit:v1.27.4
+        ports: ["1025:1025", "8025:8025"]
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: roomlink_app
+      DB_PASSWORD: roomlink_school
+      DB_NAME: roomlink
+      SMTP_URL: smtp://127.0.0.1:1025
+      SMTP_FROM: RoomLink QA <qa@roomlink.test>
+      PUBLIC_WEB_ORIGIN: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Instalar dependencias
+        run: |
+          npm --prefix backend ci
+          npm --prefix web ci
+          npm --prefix frontend ci
+      - name: Preparar MySQL
+        env:
+          MYSQL_PWD: roomlink_root
+          DB_USER: root
+          DB_PASSWORD: roomlink_root
+        run: |
+          docker exec -e MYSQL_PWD "${{ job.services.mysql.id }}" mysql -uroot -e 'SET GLOBAL log_bin_trust_function_creators = 1'
+          npm --prefix backend run db:migrate
+      - name: Compilar y servir web y API
+        run: |
+          npm --prefix backend run build
+          npm --prefix web run build
+          cp -R web/dist backend/public
+          cd backend
+          node dist/src/server.js > /tmp/roomlink-qa-api.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/ready >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/roomlink-qa-api.log
+          exit 1
+      - name: Compilar y servir Expo para el E2E móvil
+        env:
+          EXPO_PUBLIC_API_URL: http://localhost:3000
+        run: |
+          npm --prefix frontend/Room_Link ci
+          cd frontend/Room_Link
+          npx expo export --platform web
+          python3 ../tests/e2e/serve-expo.py dist &
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://localhost:8081/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Instalar navegador de QA
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: E2E web y móvil por rol, SMTP y PWA
+        working-directory: frontend
+        env:
+          E2E_QA_MOBILE_URL: http://localhost:8081
+        run: npx playwright test --config=playwright.qa.config.mjs
+      - name: Verificar backup, restauración y carga
+        run: |
+          docker exec -e MYSQL_PWD "${{ job.services.mysql.id }}" mysql -uroot -e 'CREATE DATABASE roomlink_qa_restore'
+          docker exec -i -e MYSQL_PWD -e DB_USER=root "${{ job.services.mysql.id }}" bash -s -- roomlink roomlink_qa_restore < scripts/verify-mysql-restore.sh
+          node scripts/qa-availability.mjs
+          npm --prefix backend run test:integration
+        env:
+          MYSQL_PWD: roomlink_root
+      - name: Publicar evidencias de fallo
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: roomlink-qa
+          path: |
+            /tmp/roomlink-qa-api.log
+            frontend/test-results/

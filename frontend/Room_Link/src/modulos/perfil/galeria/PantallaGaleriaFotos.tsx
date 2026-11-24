@@ -24,6 +24,7 @@ import {
 } from './api';
 import { TarjetaFoto } from './componentes/TarjetaFoto';
 import { seleccionarFotos } from './seleccionFotos';
+import { VerificacionIdentidad } from './VerificacionIdentidad';
 
 function pedirConfirmacion(mensaje: string): Promise<boolean> {
   if (Platform.OS === 'web') {
@@ -287,7 +288,7 @@ export function PantallaGaleriaFotos() {
         <View style={styles.encabezado}>
           <View style={styles.encabezadoTexto}>
             <Text style={styles.marca}>ROOMLINK / 05 · GALERÍA</Text>
-            <Text style={styles.titulo}>Galería de fotos</Text>
+            <Text style={styles.titulo}>Fotos y verificación</Text>
             <Text style={styles.subtitulo}>
               Hasta 6 fotos. La primera es tu foto principal.
             </Text>
@@ -300,6 +301,8 @@ export function PantallaGaleriaFotos() {
             </Text>
           </View>
         </View>
+
+        <VerificacionIdentidad />
 
         <View style={styles.tarjeta}>
           <View style={styles.filaTituloSeccion}>

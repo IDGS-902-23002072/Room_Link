@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { errorResponse } from "../../shared/AppError.js";
 import type { AuthVariables } from "../auth/index.js";
 import type { ApplicationsService } from "./applications.service.js";
 import { ApplicationView } from "./applications.view.js";
@@ -11,6 +12,15 @@ export interface ApplicationsControllerDependencies {
    * Inyectado desde `app.ts` para no acoplar el controller al `RoomListingRepository`.
    */
   resolveListingHostId: (listingId: string) => Promise<string | null>;
+  /**
+   * HU-07 — Calcula en el servidor el % de afinidad entre postulante y anfitrión.
+   * Inyectado desde `app.ts` (módulo de compatibilidad) para que el cliente no
+   * pueda falsear el score. Devuelve `null` si no se puede calcular (sin test, etc.).
+   */
+  resolveCompatibilityScore: (
+    applicantId: string,
+    hostId: string,
+  ) => Promise<number | null>;
 }
 
 export class ApplicationsController {
@@ -22,21 +32,45 @@ export class ApplicationsController {
   apply = async (c: AuthContext) => {
     try {
       const body = await c.req.json();
-      if (!body.listingId) {
+      if (typeof body.listingId !== "string" || !body.listingId.trim()) {
         return c.json({ error: "listingId es obligatorio" }, 400);
       }
 
+      const applicantId = c.get("auth").userId;
+      // #8 — No puedes postularte a tu propia publicación.
+      const hostId = await this.deps.resolveListingHostId(body.listingId);
+      if (hostId && hostId === applicantId) {
+        return c.json(
+          { error: "No puedes postularte a tu propia publicación." },
+          400,
+        );
+      }
+
+      // HU-07 — El % de afinidad lo calcula el servidor; se ignora el valor del cliente.
+      const compatibilityScore = hostId
+        ? await this.deps.resolveCompatibilityScore(applicantId, hostId)
+        : null;
+
       const app = await this.applicationsService.apply({
         listingId: body.listingId,
-        applicantId: c.get("auth").userId,
+        applicantId,
         message: body.message ?? null,
-        compatibilityScore:
-          body.compatibilityScore != null ? Number(body.compatibilityScore) : null,
+        compatibilityScore,
       });
 
       return c.json(ApplicationView.toResponse(app), 201);
-    } catch (err: any) {
-      return c.json({ error: err.message ?? "Error al enviar solicitud" }, 400);
+    } catch (err: unknown) {
+      const { error, code, status } = errorResponse(err);
+      return c.json({ error, code }, status as 400 | 409 | 500);
+    }
+  };
+
+  getMine = async (c: AuthContext) => {
+    try {
+      const applications = await this.applicationsService.getByApplicant(c.get("auth").userId);
+      return c.json(ApplicationView.toList(applications));
+    } catch {
+      return c.json({ error: "No se pudieron obtener tus postulaciones." }, 500);
     }
   };
 

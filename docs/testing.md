@@ -65,3 +65,30 @@ Para correrlo **localmente** necesitás, en paralelo:
 Regla: lo **rápido** (lint, typecheck, unit) corre en cada PR vía `ci.yml`; lo
 **pesado** (integración MySQL, smoke, E2E de navegador) corre en el gate
 `regression.yml` **solo al llegar a `main`**.
+
+## QA final por rol
+
+El workflow `QA final RoomLink` ejecuta MySQL 8.4, Mailpit, la web Vite de producción y el cliente Expo exportado. Las pruebas crean usuarios y anuncios sintéticos en servicios de loopback. El administrador se aprovisiona en la base aislada de QA y solo para el ID creado por la prueba.
+
+La suite [qa-roles.spec.mjs](../frontend/tests/e2e/qa-roles.spec.mjs) cubre arrendador persistente, solicitudes después de recargar, permisos, chat entre cuentas, lectura, reconexión, moderación, recuperación de sesión por correo, navegación con teclado y PWA offline. Ejecutar con el entorno arrancado y `E2E_API_URL`, `E2E_QA_WEB_URL`, `E2E_QA_MOBILE_URL`, `E2E_MAILPIT_URL` y `DB_*` del entorno QA:
+
+```bash
+cd frontend
+npx playwright test --config=playwright.qa.config.mjs
+```
+
+La prueba SMTP usa el enlace entregado a Mailpit. La prueba unitaria de autenticación comprueba también la caducidad de 30 minutos. En web offline se sirve una pantalla local y se reintenta al recuperar red. Los datos privados, los tokens y las respuestas de API quedan fuera del caché del service worker.
+
+Para validar el **APK instalado**, usa el flujo nativo [login-por-rol.yaml](../frontend/tests/maestro/login-por-rol.yaml) en un dispositivo Android conectado. Ejecuta una vez por cada cuenta de QA usando credenciales por variables y un título que identifique la pantalla esperada para su rol.
+
+```bash
+maestro test -e QA_EMAIL="$QA_EMAIL" -e QA_PASSWORD="$QA_PASSWORD" \
+  -e QA_EXPECTED_SCREEN="$QA_EXPECTED_SCREEN" frontend/tests/maestro/login-por-rol.yaml
+```
+
+El ensayo de restauración requiere una base separada vacía con sufijo `_qa_restore`, un origen QA sin escrituras durante el ensayo y cliente MySQL 8. Compara tablas, vistas, triggers y conteos de usuarios, anuncios y postulaciones. El ensayo de disponibilidad ejecuta 40 lecturas locales con concurrencia 4 y registra p95.
+
+```bash
+bash scripts/verify-mysql-restore.sh roomlink roomlink_qa_restore
+node scripts/qa-availability.mjs
+```

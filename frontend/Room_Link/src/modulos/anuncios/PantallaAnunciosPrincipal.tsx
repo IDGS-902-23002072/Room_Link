@@ -6,6 +6,8 @@ import React, {
   useState,
 } from "react";
 
+import { useRouter } from "expo-router";
+
 import {
   View,
   Text,
@@ -18,8 +20,6 @@ import {
   RefreshControl,
   Alert,
 } from "react-native";
-
-import BarraInferior from "./componentes/BarraInferior";
 
 import TarjetaPublicacion, {
   type Publicacion,
@@ -104,6 +104,8 @@ export default function PantallaAnunciosPrincipal({
   onEditarPublicacion,
   onVerDetalles,
 }: Props) {
+  const router = useRouter();
+
   const [publicaciones, setPublicaciones] =
     useState<Publicacion[]>([]);
 
@@ -484,6 +486,12 @@ export default function PantallaAnunciosPrincipal({
               onPausar={confirmarPausar}
               onReactivar={confirmarReactivar}
               onCerrar={confirmarCerrar}
+              onVerPostulaciones={(pub) =>
+                router.push({
+                  pathname: '/postulaciones',
+                  params: { listingId: pub.id, titulo: pub.titulo },
+                })
+              }
             />
           ))
         ) : (
@@ -504,8 +512,6 @@ export default function PantallaAnunciosPrincipal({
           </Text>
         </Pressable>
       </ScrollView>
-
-      <BarraInferior activa="Anuncios" />
     </SafeAreaView>
   );
 }

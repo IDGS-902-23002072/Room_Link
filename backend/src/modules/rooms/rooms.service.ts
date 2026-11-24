@@ -4,10 +4,16 @@ import { randomUUID } from "node:crypto";
 import {
   RoomListing,
   type IRoomListingRepository,
+  type RoomFeedFilters,
+  type RoomFeedItem,
   type RoomPhotoInput,
   type RoomPhotoRecord,
   type RoomPhotoUpdateItem,
   type RoomLocationInput,
+  type RoomRulesRecord,
+  type RoomCostItemInput,
+  type RoomCostItemRecord,
+  type RoomCostKind,
 } from "../../domain/index.js";
 
 // ======================================================
@@ -376,6 +382,37 @@ export class RoomsService {
   // CONSULTAS
   // ====================================================
 
+  async listFeed(
+    filters: RoomFeedFilters,
+    page = 1,
+    pageSize = 12
+  ): Promise<{ items: RoomFeedItem[]; hasMore: boolean }> {
+    if (!Number.isInteger(page) || page < 1) {
+      throw new Error("La página debe ser un entero mayor o igual a 1.");
+    }
+    if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 50) {
+      throw new Error("El tamaño de página debe estar entre 1 y 50.");
+    }
+    if (
+      filters.minRent !== undefined &&
+      filters.maxRent !== undefined &&
+      filters.minRent > filters.maxRent
+    ) {
+      throw new Error("La renta mínima no puede ser mayor que la máxima.");
+    }
+
+    const rows = await this.roomRepo.findPublishedFeed(
+      filters,
+      pageSize + 1,
+      (page - 1) * pageSize
+    );
+
+    return {
+      items: rows.slice(0, pageSize),
+      hasMore: rows.length > pageSize,
+    };
+  }
+
   async getById(id: string): Promise<RoomListing> {
     if (!id?.trim()) {
       throw new Error("El ID de la habitación es obligatorio.");
@@ -410,6 +447,107 @@ export class RoomsService {
     await this.getById(id);
 
     return await this.roomRepo.findPhotosByListingId(id);
+  }
+
+  // Obtener reglas de la casa (HU-06 / M08).
+  async getRules(listingId: string): Promise<RoomRulesRecord | null> {
+    await this.getById(listingId);
+    if (!this.roomRepo.findRulesByListingId) return null;
+    return await this.roomRepo.findRulesByListingId(listingId);
+  }
+
+  // Guardar reglas de la casa (HU-06 / M08).
+  async saveRules(
+    listingId: string,
+    input: Partial<RoomRulesRecord>,
+  ): Promise<RoomRulesRecord> {
+    const room = await this.getById(listingId);
+    if (room.status === "closed") {
+      throw new Error("Una publicación cerrada no puede modificarse.");
+    }
+
+    const horaRegex = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+    const normalizarHora = (val: string | null | undefined): string | null => {
+      if (!val || !val.trim()) return null;
+      const t = val.trim();
+      if (!horaRegex.test(t)) {
+        throw new Error("El horario de silencio debe tener formato HH:MM.");
+      }
+      return t.length === 5 ? `${t}:00` : t;
+    };
+
+    const rules: RoomRulesRecord = {
+      visitsPolicy: input.visitsPolicy?.trim() || null,
+      partiesAllowed: Boolean(input.partiesAllowed),
+      quietHoursStart: normalizarHora(input.quietHoursStart),
+      quietHoursEnd: normalizarHora(input.quietHoursEnd),
+      petsAllowed: Boolean(input.petsAllowed),
+      smokingAllowed: Boolean(input.smokingAllowed),
+      commonAreasNotes: input.commonAreasNotes?.trim() || null,
+      extraRules: input.extraRules?.trim() || null,
+    };
+
+    if (!this.roomRepo.upsertRules) return rules;
+    return await this.roomRepo.upsertRules(listingId, rules);
+  }
+
+  // Obtener desglose de costos (HU-06 / M08).
+  async getCostItems(listingId: string): Promise<RoomCostItemRecord[]> {
+    await this.getById(listingId);
+    if (!this.roomRepo.findCostItemsByListingId) return [];
+    return await this.roomRepo.findCostItemsByListingId(listingId);
+  }
+
+  // Reemplazar desglose de costos (servicios, depósito, mantenimiento).
+  async saveCostItems(
+    listingId: string,
+    items: RoomCostItemInput[],
+  ): Promise<RoomCostItemRecord[]> {
+    const room = await this.getById(listingId);
+    if (room.status === "closed") {
+      throw new Error("Una publicación cerrada no puede modificarse.");
+    }
+    if (!Array.isArray(items) || items.length > 20) {
+      throw new Error("Se permiten máximo 20 conceptos de costo.");
+    }
+
+    const tiposValidos: RoomCostKind[] = [
+      "rent",
+      "service",
+      "deposit",
+      "maintenance",
+      "other",
+    ];
+
+    const normalizados: RoomCostItemInput[] = items.map((item) => {
+      if (!tiposValidos.includes(item.kind)) {
+        throw new Error(`Tipo de costo inválido: ${String(item.kind)}`);
+      }
+      const concept = typeof item.concept === "string" ? item.concept.trim() : "";
+      if (!concept || concept.length > 160) {
+        throw new Error("Cada concepto de costo debe tener entre 1 y 160 caracteres.");
+      }
+      const amount = Number(item.amount);
+      if (!Number.isFinite(amount) || amount < 0) {
+        throw new Error("El monto de cada costo debe ser un número mayor o igual a 0.");
+      }
+      const isIncluded = Boolean(item.isIncluded);
+      const isProrated = Boolean(item.isProrated);
+      if (isIncluded && isProrated) {
+        throw new Error("Un costo no puede ser incluido y prorrateado al mismo tiempo.");
+      }
+      return { kind: item.kind, concept, amount, isIncluded, isProrated };
+    });
+
+    if (!this.roomRepo.replaceCostItems) {
+      return normalizados.map((item) => ({
+        ...item,
+        id: randomUUID(),
+        listingId,
+      }));
+    }
+
+    return await this.roomRepo.replaceCostItems(listingId, normalizados);
   }
 
   // Obtener fotografía específica.

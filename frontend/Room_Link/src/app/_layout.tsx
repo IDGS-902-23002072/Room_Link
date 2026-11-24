@@ -11,51 +11,58 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { SesionProvider, useSesion } from '@/auth/SesionContext';
+import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import {
+  configurarCanalAndroid,
+  sincronizarNotificacionesSistema,
+  solicitarPermisoNotificacionesSistema,
+} from '@/modulos/notificaciones/permisosSistema';
 
 SplashScreen.preventAutoHideAsync();
 
-function NavegacionPrincipal() {
+function Navegacion() {
+  const colorScheme = useColorScheme();
   const { sesion, cargando } = useSesion();
+  const segmentos = useSegments();
   const router = useRouter();
-  const segments = useSegments();
-  const scheme = useColorScheme();
 
   useEffect(() => {
     if (cargando) return;
-
-    const enAuth = segments[0] === '(auth)';
-    const enPestanas = segments[0] === '(pestanas)';
-
+    const enAuth = segmentos[0] === '(auth)';
     if (!sesion && !enAuth) {
       router.replace('/(auth)/login');
-      return;
+    } else if (sesion && enAuth) {
+      router.replace('/anuncios');
     }
-
-    if (sesion && !enPestanas) {
-      router.replace('/(pestanas)/explorar');
-    }
-  }, [sesion, cargando, segments, router]);
+  }, [sesion, cargando, segmentos, router]);
 
   useEffect(() => {
-    if (!cargando) {
-      SplashScreen.hideAsync();
-    }
-  }, [cargando]);
-
-  if (cargando) return null;
+    if (!sesion) return;
+    let activo = true;
+    void configurarCanalAndroid();
+    void solicitarPermisoNotificacionesSistema().then(() => {
+      if (activo) void sincronizarNotificacionesSistema();
+    });
+    const intervalo = setInterval(() => {
+      if (activo) void sincronizarNotificacionesSistema();
+    }, 20000);
+    return () => {
+      activo = false;
+      clearInterval(intervalo);
+    };
+  }, [sesion]);
 
   return (
-    <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <AnimatedSplashOverlay />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(pestanas)" />
-        <Stack.Screen name="index" />
-        <Stack.Screen name="acuerdos" />
-        <Stack.Screen name="conexiones" />
         <Stack.Screen name="encuesta" />
-        <Stack.Screen name="galeria-fotos" />
         <Stack.Screen name="moderacion" />
         <Stack.Screen name="notificaciones" />
+        <Stack.Screen name="acuerdos" />
+        <Stack.Screen name="conexiones" />
         <Stack.Screen name="sanciones" />
       </Stack>
     </ThemeProvider>
@@ -65,7 +72,7 @@ function NavegacionPrincipal() {
 export default function RootLayout() {
   return (
     <SesionProvider>
-      <NavegacionPrincipal />
+      <Navegacion />
     </SesionProvider>
   );
 }

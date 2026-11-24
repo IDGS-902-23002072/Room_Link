@@ -306,7 +306,7 @@ export class RoomListing {
       Math.round(rent * 100) !== rent * 100
     ) {
       throw new Error(
-        "La renta mensual debe ser positiva y tener máximo dos decimales."
+        "La renta mensual debe ser un valor positivo y tener máximo dos decimales."
       );
     }
   }
