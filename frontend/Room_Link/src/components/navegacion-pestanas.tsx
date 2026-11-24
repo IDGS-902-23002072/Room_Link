@@ -1,46 +1,30 @@
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
-import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { useColorScheme } from "react-native";
-
-import { Colors } from "@/constants/theme";
+import { color } from '@/constants/roomlink';
 
 export default function NavegacionPestanas() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme ?? "light"];
-
   return (
-
     <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
+      backgroundColor={color.blanco}
+      indicatorColor={color.menta}
+      labelStyle={{ default: { color: color.secundario }, selected: { color: color.accion } }}
+      iconColor={{ default: color.secundario, selected: color.accion }}
     >
       <NativeTabs.Trigger name="explorar">
-        <NativeTabs.Trigger.Label>
-          Descubrir
-        </NativeTabs.Trigger.Label>
-
-        <NativeTabs.Trigger.Icon
-          src={require("@/assets/images/tabIcons/explore.png")}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/compass.png')} renderingMode="template" />
+        <NativeTabs.Trigger.Label>Descubrir</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-
       <NativeTabs.Trigger name="anuncios">
-        <NativeTabs.Trigger.Label>
-          Anuncios
-        </NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/home-outline.png')} renderingMode="template" />
+        <NativeTabs.Trigger.Label>Anuncios</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-
       <NativeTabs.Trigger name="chats">
-        <NativeTabs.Trigger.Label>
-          Chats
-        </NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/chat.png')} renderingMode="template" />
+        <NativeTabs.Trigger.Label>Chats</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-
       <NativeTabs.Trigger name="perfil">
-        <NativeTabs.Trigger.Label>
-          Perfil
-        </NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/profile.png')} renderingMode="template" />
+        <NativeTabs.Trigger.Label>Perfil</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
