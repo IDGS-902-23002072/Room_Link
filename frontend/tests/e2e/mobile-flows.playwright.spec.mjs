@@ -172,8 +172,8 @@ test.describe("Flujo 1 · Auth cross-origin, Onboarding y Navegación móvil", (
 
     // Pantalla apilada: Búsqueda de roomies (M05 / HU-05)
     await page.locator('a[href*="/buscar-roomies"]').first().click();
-    await expect(page.getByText("Buscar roomies")).toBeVisible();
-    await expect(page.getByText("Filtros generales")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Buscar roomies", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Filtros generales", exact: true })).toBeVisible();
 
     // Pantallas apiladas: Notificaciones (HU-14), Conexiones (HU-08), Acuerdos (HU-12), M06
     await page.goto(`${WEB_URL}/notificaciones`, { waitUntil: "networkidle" });
@@ -200,7 +200,7 @@ test.describe("Flujo 2 · HU-01 Registro, bloqueo y recuperación", () => {
     await inputs.nth(0).fill(`${uniq("noterms")}@roomlink.test`);
     await inputs.nth(1).fill("Password123!");
     await page.getByText("Crear mi cuenta", { exact: true }).click();
-    await expect(page.getByText(/términos/i)).toBeVisible();
+    await expect(page.getByText(/aceptar los términos de servicio/i)).toBeVisible();
 
     // Contraseña < 8 caracteres
     const shortPwd = await apiJson("/auth/register", {
@@ -232,7 +232,7 @@ test.describe("Flujo 2 · HU-01 Registro, bloqueo y recuperación", () => {
     expect([403, 423, 429]).toContain(locked.status);
 
     // Solicitud de reset (30 min)
-    const forgot = await apiJson("/auth/forgot-password", {
+    const forgot = await apiJson("/auth/password/forgot", {
       method: "POST",
       body: { email: acc.email },
     });
@@ -248,28 +248,28 @@ test.describe("Flujo 3 · HU-02 Perfil personal y privacidad", () => {
     const a = await createAccount("prof-a");
     const b = await createAccount("prof-b");
 
-    const minor = await apiJson(`/profile/${a.userId}`, {
+    const minor = await apiJson("/profiles", {
       method: "POST",
       token: a.token,
       body: { fullName: "Menor Prueba", birthDate: "2015-01-01" },
     });
     expect(minor.status).toBe(400);
 
-    const longBio = await apiJson(`/profile/${a.userId}`, {
+    const longBio = await apiJson("/profiles", {
       method: "POST",
       token: a.token,
       body: { fullName: "Ana Prueba", birthDate: "2000-03-15", bio: "x".repeat(301) },
     });
     expect(longBio.status).toBe(400);
 
-    const ok = await apiJson(`/profile/${a.userId}`, {
+    const ok = await apiJson("/profiles", {
       method: "POST",
       token: a.token,
       body: { fullName: "Ana Prueba", birthDate: "2000-03-15", occupation: "Ingeniería", bio: "Ordenada." },
     });
     expect([200, 201]).toContain(ok.status);
 
-    const priv = await apiJson(`/profile/${a.userId}/privacy`, {
+    const priv = await apiJson(`/profiles/${a.userId}/privacy`, {
       method: "PUT",
       token: a.token,
       body: { showPhoneToConnections: true, showEmailToConnections: false, showSocialsToConnections: true },
@@ -277,7 +277,7 @@ test.describe("Flujo 3 · HU-02 Perfil personal y privacidad", () => {
     expect(priv.status).toBe(200);
     expect(priv.data.showEmailToConnections).toBe(false);
 
-    const forbidden = await apiJson(`/profile/${a.userId}/privacy`, {
+    const forbidden = await apiJson(`/profiles/${a.userId}/privacy`, {
       method: "GET",
       token: b.token,
     });
@@ -484,50 +484,44 @@ test.describe("Flujo 7 · HU-08 Conexiones, Chat habilitado al aceptar y Notific
     const a = await createAccount("conn-a", { withProfile: true, withTest: true });
     const b = await createAccount("conn-b", { withProfile: true, withTest: true });
 
-    // Negativo: auto-solicitud
-    expect(
-      (await apiJson("/connections", { method: "POST", token: a.token, body: { addresseeId: a.userId } })).status,
-    ).toBe(400);
+    const requestConnection = (candidateId, introMessage = null) =>
+      apiJson(`/compatibility/${a.userId}/connections`, {
+        method: "POST", token: a.token, body: { candidateId, introMessage },
+      });
 
-    // Positivo: enviar solicitud
-    const sent = await apiJson("/connections", {
-      method: "POST",
-      token: a.token,
-      body: { addresseeId: b.userId, message: "Hola, ¿buscas roomie?" },
-    });
+    expect((await requestConnection(a.userId)).status).toBe(400);
+    const sent = await requestConnection(b.userId, "Hola, ¿buscas roomie?");
     expect(sent.status).toBe(201);
     const connId = sent.data.id;
+    const retry = await requestConnection(b.userId);
+    expect(retry.status).toBe(201);
+    expect(retry.data.id).toBe(connId);
 
-    // Negativo: duplicado pendiente
-    expect([400, 409]).toContain(
-      (await apiJson("/connections", { method: "POST", token: a.token, body: { addresseeId: b.userId } })).status,
-    );
-
-    // Negativo: chat antes de aceptar
-    expect([400, 403, 409]).toContain(
-      (await apiJson("/messages/conversations", { method: "POST", token: a.token, body: { connectionId: connId } })).status,
-    );
-
-    // Positivo: B acepta -> se habilita chat -> envían mensaje -> genera notificación
-    expect((await apiJson(`/connections/${connId}/accept`, { method: "PATCH", token: b.token })).status).toBe(200);
-
-    const conv = await apiJson("/messages/conversations", {
-      method: "POST",
-      token: a.token,
-      body: { connectionId: connId },
+    const open = () => apiJson("/messages/rooms", {
+      method: "POST", token: a.token, body: { connectionId: connId },
     });
-    expect([200, 201]).toContain(conv.status);
-    const convId = conv.data.id ?? conv.data.conversation?.id;
-    expect(convId).toBeTruthy();
+    expect([400, 403, 409]).toContain((await open()).status);
 
-    const msg = await apiJson(`/messages/conversations/${convId}/messages`, {
-      method: "POST",
-      token: a.token,
-      body: { content: "¡Hola! Qué gusto conectar." },
+    const accepted = await apiJson(`/connections/${connId}`, {
+      method: "PATCH", token: b.token, body: { decision: "accept" },
+    });
+    expect(accepted.status).toBe(200);
+    expect(accepted.data.status).toBe("accepted");
+
+    const room = await open();
+    expect(room.status).toBe(201);
+    const msg = await apiJson(`/messages/rooms/${room.data.id}/messages`, {
+      method: "POST", token: a.token, body: { body: "¡Hola! Qué gusto conectar." },
     });
     expect(msg.status).toBe(201);
 
-    const notifs = await apiJson("/notifications", { token: a.token });
-    expect(notifs.status).toBe(200);
+    const senderNotifs = await apiJson("/notifications", { token: a.token });
+    expect(senderNotifs.data.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "connection_accepted" }),
+    ]));
+    const receiverNotifs = await apiJson("/notifications", { token: b.token });
+    expect(receiverNotifs.data.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "new_message" }),
+    ]));
   });
 });

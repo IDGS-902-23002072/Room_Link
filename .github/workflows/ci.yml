@@ -12,10 +12,8 @@ concurrency:
 
 jobs:
   lint-and-unit-frontend:
-    name: Frontend · lint + unit tests
+    name: Frontend móvil · pruebas unitarias
     runs-on: ubuntu-latest
-    # Hasta que exista frontend/package.json este job se saltea solo.
-    if: ${{ hashFiles('frontend/package.json') != '' }}
     defaults:
       run:
         working-directory: frontend
@@ -26,15 +24,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Lint
-        run: npm run lint --if-present
 
       - name: Unit tests (vitest)
         run: npm test
@@ -50,8 +45,6 @@ jobs:
   lint-and-unit-backend:
     name: Backend · lint + unit tests
     runs-on: ubuntu-latest
-    # Hasta que exista backend/package.json este job se saltea solo.
-    if: ${{ hashFiles('backend/package.json') != '' }}
     defaults:
       run:
         working-directory: backend
@@ -95,7 +88,6 @@ jobs:
   node-compat-backend:
     name: Backend · Node.js compatibility
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('backend/package.json') != '' }}
     defaults:
       run:
         working-directory: backend
@@ -119,9 +111,20 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
-  bootstrap-notice:
-    name: Nothing initialized yet
+  web:
+    name: Web Vite · lint, pruebas y build
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('frontend/package.json') == '' && hashFiles('backend/package.json') == '' }}
+    defaults:
+      run:
+        working-directory: web
     steps:
-      - run: echo "::notice::Ni frontend/package.json ni backend/package.json existen. CI pasa en modo bootstrap hasta que se inicialicen los proyectos."
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
