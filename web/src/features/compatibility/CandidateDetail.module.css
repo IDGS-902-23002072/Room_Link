@@ -47,6 +47,15 @@
   line-height: var(--leading-normal);
 }
 
+.verification {
+  padding: 5px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--teal-soft);
+  color: var(--success);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
 .score {
   display: grid;
   justify-items: center;
@@ -117,6 +126,58 @@
 .answers {
   display: grid;
   gap: var(--space-4);
+}
+
+.photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3);
+}
+
+.photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  object-fit: cover;
+}
+
+.contact {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.contact div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.contact dt {
+  color: var(--muted);
+}
+
+.contact dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.contact a {
+  color: var(--plum-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.contact a:hover {
+  color: var(--plum-hover);
+}
+
+.contact a:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
 }
 
 .answer {

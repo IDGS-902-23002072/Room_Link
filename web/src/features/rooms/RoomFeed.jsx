@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getCandidate } from '../compatibility/compatibility.js'
 import Button from '../../components/Button/Button.jsx'
 import EmptyState from '../../components/EmptyState/EmptyState.jsx'
 import Field from '../../components/Field/Field.jsx'
@@ -11,7 +12,6 @@ import { push } from '../../routes/navigation.js'
 import RoomCard from './RoomCard.jsx'
 import {
   RENT_FILTERS,
-  getHostCompatibility,
   getMyApplications,
   getRoomFeed,
   indexApplications,
@@ -28,7 +28,7 @@ export default function RoomFeed() {
   const [search, setSearch] = useState('')
   const [rentId, setRentId] = useState('any')
   const [feedState, setFeedState] = useState({ key: '', result: null, error: '' })
-  const [scores, setScores] = useState({})
+  const [hostProfiles, setHostProfiles] = useState({})
   const [applications, setApplications] = useState({})
 
   const maxRent = RENT_FILTERS.find((filter) => filter.id === rentId)?.maxRent
@@ -80,19 +80,31 @@ export default function RoomFeed() {
     [token],
   )
 
-  // Afinidad con cada anfitrión (usuario ↔ usuario); es opcional y falla en silencio.
+  // El candidato incluye foto y resumen de afinidad, además del puntaje.
   useEffect(
     () => asyncEffect(async (isActive) => {
       const hostIds = [...new Set(items.map((room) => room.hostId))].filter(
-        (hostId) => !(hostId in scores),
+        (hostId) => !(hostId in hostProfiles),
       )
       if (hostIds.length === 0) return
       const entries = await Promise.all(
-        hostIds.map(async (hostId) => [hostId, await getHostCompatibility(userId, hostId, token)]),
+        hostIds.map(async (hostId) => {
+          try {
+            return [hostId, { profile: await getCandidate(userId, hostId, token), error: '' }]
+          } catch (cause) {
+            return [
+              hostId,
+              {
+                profile: null,
+                error: cause instanceof Error ? cause.message : 'No se pudo consultar el perfil.',
+              },
+            ]
+          }
+        }),
       )
-      if (isActive()) setScores((current) => ({ ...current, ...Object.fromEntries(entries) }))
+      if (isActive()) setHostProfiles((current) => ({ ...current, ...Object.fromEntries(entries) }))
     }),
-    // `scores` se omite a propósito: solo se piden anfitriones que aún no están.
+    // `hostProfiles` se omite: solo se piden anfitriones que aún no están.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [items, token, userId],
   )
@@ -161,8 +173,10 @@ export default function RoomFeed() {
           {items.map((room) => (
             <RoomCard
               applicationStatus={applications[room.id]}
-              compatibility={scores[room.hostId] ?? undefined}
               key={room.id}
+              hostProfile={hostProfiles[room.hostId]?.profile ?? undefined}
+              hostProfileError={hostProfiles[room.hostId]?.error ?? ''}
+              hostProfileLoading={!(room.hostId in hostProfiles)}
               onOpen={() => push(navigate, `/habitacion/${encodeURIComponent(room.id)}`)}
               room={room}
             />

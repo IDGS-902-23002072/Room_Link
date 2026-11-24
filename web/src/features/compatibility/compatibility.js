@@ -171,10 +171,10 @@ export function getRecommendationFeed(userId, page, token, signal) {
   )
 }
 
-export function getCandidate(userId, candidateId, token) {
+export function getCandidate(userId, candidateId, token, signal) {
   return apiRequest(
     `/api/v1/compatibility/${encodeURIComponent(userId)}/candidates/${encodeURIComponent(candidateId)}`,
-    { token },
+    { token, signal },
   )
 }
 

@@ -6,6 +6,7 @@ import {
   describeApplicationStatus,
   describeRules,
   formatAvailability,
+  formatCostAmount,
   formatHostName,
   formatRent,
   formatRoomLocation,
@@ -19,6 +20,11 @@ const TODAY = new Date(2026, 10, 23) // 23 nov 2026, hora local
 test('la renta se muestra en pesos mensuales', () => {
   assert.equal(formatRent(3500), `$${(3500).toLocaleString('es-MX')} MXN/mes`)
   assert.equal(formatRent('abc'), 'Renta no indicada')
+})
+
+test('los costos se muestran en pesos sin asumir que son mensuales', () => {
+  assert.equal(formatCostAmount(1800), `$${(1800).toLocaleString('es-MX')} MXN`)
+  assert.equal(formatCostAmount(null), 'Monto no indicado')
 })
 
 test('las fechas se formatean sin desfase de zona horaria', () => {
@@ -55,6 +61,7 @@ test('los compañeros se muestran en singular y plural', () => {
 
 test('las reglas omiten lo que el anfitrión no indicó', () => {
   assert.deepEqual(describeRules(null), [])
+  assert.deepEqual(describeRules({ partiesAllowed: null, petsAllowed: undefined }), [])
   const rows = describeRules({
     partiesAllowed: false,
     petsAllowed: true,

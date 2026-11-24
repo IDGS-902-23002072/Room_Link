@@ -1,5 +1,4 @@
 import { API_URL, apiRequest } from '../../services/api.js'
-import { getCandidate } from '../compatibility/compatibility.js'
 
 export const FEED_PAGE_SIZE = 12
 
@@ -69,21 +68,6 @@ export function indexApplications(applications) {
   return byListing
 }
 
-/**
- * Afinidad (0-100) entre la persona en sesión y el anfitrión de la habitación.
- * Devuelve null si no hay test, si el anfitrión no tiene perfil o si falla.
- */
-export async function getHostCompatibility(userId, hostId, token) {
-  try {
-    const candidate = await getCandidate(userId, hostId, token)
-    return typeof candidate.compatibilityScore === 'number'
-      ? Math.round(candidate.compatibilityScore)
-      : null
-  } catch {
-    return null
-  }
-}
-
 export function roomCoverUrl(roomId) {
   return `${API_URL}/api/v1/rooms/${encodeURIComponent(roomId)}/photos/first`
 }
@@ -96,6 +80,13 @@ export function formatRent(amount) {
   const value = Number(amount)
   if (!Number.isFinite(value)) return 'Renta no indicada'
   return `$${value.toLocaleString('es-MX')} MXN/mes`
+}
+
+export function formatCostAmount(amount) {
+  if (amount === null || amount === undefined || amount === '') return 'Monto no indicado'
+  const value = Number(amount)
+  if (!Number.isFinite(value)) return 'Monto no indicado'
+  return `$${value.toLocaleString('es-MX')} MXN`
 }
 
 /** "YYYY-MM-DD" -> "1 dic 2026", sin depender de la zona horaria. */
@@ -147,9 +138,15 @@ export function formatCostKind(kind) {
 export function describeRules(rules) {
   if (!rules) return []
   const rows = []
-  rows.push({ label: 'Fiestas', value: rules.partiesAllowed ? 'Permitidas' : 'No permitidas' })
-  rows.push({ label: 'Mascotas', value: rules.petsAllowed ? 'Permitidas' : 'No permitidas' })
-  rows.push({ label: 'Fumar', value: rules.smokingAllowed ? 'Permitido' : 'No permitido' })
+  if (typeof rules.partiesAllowed === 'boolean') {
+    rows.push({ label: 'Fiestas', value: rules.partiesAllowed ? 'Permitidas' : 'No permitidas' })
+  }
+  if (typeof rules.petsAllowed === 'boolean') {
+    rows.push({ label: 'Mascotas', value: rules.petsAllowed ? 'Permitidas' : 'No permitidas' })
+  }
+  if (typeof rules.smokingAllowed === 'boolean') {
+    rows.push({ label: 'Fumar', value: rules.smokingAllowed ? 'Permitido' : 'No permitido' })
+  }
   if (rules.quietHoursStart && rules.quietHoursEnd) {
     rows.push({
       label: 'Horario de silencio',

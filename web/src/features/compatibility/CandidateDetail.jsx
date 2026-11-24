@@ -6,9 +6,12 @@ import Button from '../../components/Button/Button.jsx'
 import Card from '../../components/Card/Card.jsx'
 import Meter from '../../components/Meter/Meter.jsx'
 import Notice from '../../components/Notice/Notice.jsx'
+import { apiAssetUrl } from '../../services/api.js'
 import { useAuth } from '../../hooks/useAuth.js'
 import { asyncEffect } from '../../hooks/asyncEffect.js'
+import { useRoomLinkQuery } from '../../hooks/useRoomLinkQuery.js'
 import { goBack } from '../../routes/navigation.js'
+import { getPublicProfile } from '../roomlink/publicProfiles.js'
 import { getCandidate, sendConnectionRequest } from './compatibility.js'
 import { DIMENSIONS, formatBudget } from './format.js'
 import styles from './CandidateDetail.module.css'
@@ -32,32 +35,67 @@ export default function CandidateDetail({ candidateId }) {
   const [detail, setDetail] = useState({
     candidateId: null,
     profile: null,
+    publicProfile: null,
+    photos: [],
+    compatibilityError: '',
+    compatibilityUnavailable: false,
     error: '',
   })
   const [requestError, setRequestError] = useState('')
   const [sending, setSending] = useState(false)
   const [requestSent, setRequestSent] = useState(false)
+  const [connectionAttempt, setConnectionAttempt] = useState(0)
+  const connections = useRoomLinkQuery('/api/v1/connections', session.token, connectionAttempt)
+  const activeConnection = connections.data?.find(({ requesterId, addresseeId, status }) => (
+    (requesterId === candidateId || addresseeId === candidateId)
+    && ['pending', 'accepted'].includes(status)
+  ))
+  const connectionLabel = activeConnection?.status === 'accepted' ? 'Conexión aceptada'
+    : activeConnection?.requesterId === candidateId ? 'Solicitud recibida'
+    : activeConnection || requestSent ? 'Solicitud enviada' : null
 
   useEffect(
     () => asyncEffect(async (isActive) => {
-      try {
-        const result = await getCandidate(session.user.id, candidateId, session.token)
-        if (isActive()) setDetail({ candidateId, profile: result, error: '' })
-      } catch (cause) {
-        if (isActive()) {
-          setDetail({
-            candidateId,
-            profile: null,
-            error: cause instanceof Error ? cause.message : 'No se pudo cargar el perfil.',
-          })
-        }
+      const [publicResult, compatibilityResult] = await Promise.allSettled([
+        getPublicProfile(candidateId, session.token),
+        getCandidate(session.user.id, candidateId, session.token),
+      ])
+      if (!isActive()) return
+      if (publicResult.status === 'rejected') {
+        setDetail({
+          candidateId,
+          profile: null,
+          publicProfile: null,
+          photos: [],
+          compatibilityError: '',
+          compatibilityUnavailable: false,
+          error: publicResult.reason instanceof Error
+            ? publicResult.reason.message
+            : 'No se pudo cargar el perfil.',
+        })
+        return
       }
+      setDetail({
+        candidateId,
+        profile: compatibilityResult.status === 'fulfilled' ? compatibilityResult.value : null,
+        publicProfile: publicResult.value.profile,
+        photos: publicResult.value.photos,
+        compatibilityError: compatibilityResult.status === 'rejected'
+          && compatibilityResult.reason?.status !== 404
+          ? compatibilityResult.reason instanceof Error
+            ? compatibilityResult.reason.message
+            : 'No se pudo consultar la compatibilidad.'
+          : '',
+        compatibilityUnavailable: compatibilityResult.status === 'rejected'
+          && compatibilityResult.reason?.status === 404,
+        error: '',
+      })
     }),
     [candidateId, session.token, session.user.id],
   )
 
   async function requestConnection() {
-    if (sending || requestSent) return
+    if (sending || requestSent || connectionLabel || connections.loading || connections.error) return
     setSending(true)
     setRequestError('')
     try {
@@ -92,7 +130,20 @@ export default function CandidateDetail({ candidateId }) {
   }
 
   const profile = detail.profile
-  if (!profile) return null
+  const publicProfile = detail.publicProfile
+  if (!publicProfile) return null
+  const name = profile?.fullName ?? publicProfile.fullName
+  const age = profile?.age ?? publicProfile.age
+  const bio = profile?.bio ?? publicProfile.bio
+  const occupation = profile?.occupation ?? publicProfile.occupation
+  const mainPhoto = detail.photos.find((photo) => photo.isMain) ?? detail.photos[0]
+  const photoUrl = mainPhoto?.url
+    ? apiAssetUrl(mainPhoto.url)
+    : profile?.photoUrl
+      ? apiAssetUrl(profile.photoUrl)
+      : undefined
+  const hasSharedContact = publicProfile.phone || publicProfile.instagram || publicProfile.facebook
+  const phoneLink = publicProfile.phone?.replace(/[^\d+]/g, '')
 
   return (
     <section className={styles.page}>
@@ -100,14 +151,17 @@ export default function CandidateDetail({ candidateId }) {
 
       <Card className={styles.detail}>
         <div className={styles.identity}>
-          <Avatar name={profile.fullName} size="lg" src={profile.photoUrl} />
-          <h1 className={styles.name}>{profile.fullName}</h1>
+          <Avatar name={name} size="lg" src={photoUrl} />
+          <h1 className={styles.name}>{name}</h1>
           <p className={styles.meta}>
-            {profile.age} años · {profile.zone || 'Zona no indicada'}
-            {profile.city ? `, ${profile.city}` : ''}
+            {age != null ? `${age} años · ` : ''}
+            {[profile?.zone, profile?.city].filter(Boolean).join(' · ') || 'Zona no indicada'}
           </p>
+          {publicProfile.isVerified ? (
+            <span className={styles.verification}>Identidad verificada</span>
+          ) : null}
 
-          {typeof profile.compatibilityScore === 'number' ? (
+          {typeof profile?.compatibilityScore === 'number' ? (
             <div className={styles.score}>
               <span>Compatibilidad contigo</span>
               <strong>{Math.round(profile.compatibilityScore)}%</strong>
@@ -115,15 +169,29 @@ export default function CandidateDetail({ candidateId }) {
           ) : null}
 
           {requestError ? <Notice tone="error">{requestError}</Notice> : null}
+          {connections.error ? (
+            <Notice tone="error">No se pudo consultar el estado de la conexión.</Notice>
+          ) : null}
           {requestSent ? <Notice tone="success">Solicitud de conexión enviada.</Notice> : null}
 
           <div className={styles.actions}>
+            {connections.error ? (
+              <Button onClick={() => setConnectionAttempt((value) => value + 1)} variant="secondary">
+                Reintentar consulta
+              </Button>
+            ) : null}
             <Button
               aria-busy={sending}
-              disabled={sending || requestSent}
+              disabled={
+                sending
+                || requestSent
+                || Boolean(connectionLabel)
+                || connections.loading
+                || Boolean(connections.error)
+              }
               onClick={requestConnection}
             >
-              {requestSent ? 'Solicitud enviada' : sending ? 'Enviando…' : 'Enviar solicitud'}
+              {connectionLabel || (sending ? 'Enviando…' : connections.loading ? 'Consultando…' : 'Enviar solicitud')}
             </Button>
             <Button onClick={goToList} variant="secondary">
               Volver a roomies
@@ -134,15 +202,15 @@ export default function CandidateDetail({ candidateId }) {
         <div className={styles.content}>
           <section className={styles.section}>
             <h2>Sobre mí</h2>
-            <p>{profile.bio || 'Este perfil aún no tiene una descripción.'}</p>
+            <p>{bio || 'Este perfil aún no tiene una descripción.'}</p>
           </section>
 
           <section className={styles.section}>
             <h2>Estilo de vida</h2>
             <div className={styles.tags}>
-              <span>{formatBudget(profile.budgetMin, profile.budgetMax)}</span>
-              {profile.occupation ? <span>{profile.occupation}</span> : null}
-              {profile.compatibilitySummary?.slice(0, 4).map(({ dimension, level }) => (
+              {profile ? <span>{formatBudget(profile.budgetMin, profile.budgetMax)}</span> : null}
+              {occupation ? <span>{occupation}</span> : null}
+              {profile?.compatibilitySummary?.slice(0, 4).map(({ dimension, level }) => (
                 <span key={dimension}>
                   {DIMENSIONS[dimension] || dimension}: {level}
                 </span>
@@ -150,9 +218,26 @@ export default function CandidateDetail({ candidateId }) {
             </div>
           </section>
 
+          {detail.photos.length ? (
+            <section className={styles.section}>
+              <h2>Fotos del perfil</h2>
+              <div className={styles.photos}>
+                {detail.photos.map((photo, index) => (
+                  <img
+                    alt={`Foto ${index + 1} de ${name}`}
+                    className={styles.photo}
+                    key={photo.id}
+                    loading="lazy"
+                    src={apiAssetUrl(photo.url)}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           <section className={styles.section}>
             <h2>Respuestas del test</h2>
-            {profile.compatibilitySummary?.length ? (
+            {profile?.compatibilitySummary?.length ? (
               <div className={styles.answers}>
                 {profile.compatibilitySummary.map(({ dimension, percentage }) => (
                   <div className={styles.answer} key={dimension}>
@@ -165,8 +250,38 @@ export default function CandidateDetail({ candidateId }) {
                   </div>
                 ))}
               </div>
+            ) : detail.compatibilityUnavailable ? (
+              <p className={styles.emptyCopy}>
+                Este perfil aún no cuenta con información de compatibilidad disponible.
+              </p>
+            ) : detail.compatibilityError ? (
+              <p className={styles.emptyCopy}>
+                No se pudo consultar la compatibilidad: {detail.compatibilityError}
+              </p>
             ) : (
               <p className={styles.emptyCopy}>Este perfil aún no tiene un resumen de test.</p>
+            )}
+          </section>
+
+          <section className={styles.section}>
+            <h2>Datos compartidos</h2>
+            {hasSharedContact ? (
+              <dl className={styles.contact}>
+                {publicProfile.phone ? (
+                  <div>
+                    <dt>Teléfono</dt>
+                    <dd><a href={`tel:${phoneLink}`}>{publicProfile.phone}</a></dd>
+                  </div>
+                ) : null}
+                {publicProfile.instagram ? (
+                  <div><dt>Instagram</dt><dd>{publicProfile.instagram}</dd></div>
+                ) : null}
+                {publicProfile.facebook ? (
+                  <div><dt>Facebook</dt><dd>{publicProfile.facebook}</dd></div>
+                ) : null}
+              </dl>
+            ) : (
+              <p className={styles.emptyCopy}>No ha compartido datos de contacto para esta vista.</p>
             )}
           </section>
         </div>
