@@ -17,6 +17,12 @@ jobs:
   deploy-azure:
     name: Publicar API y sitio web en Azure
     runs-on: ubuntu-latest
+    # Registra el despliegue en el entorno "production" de GitHub: aparece en
+    # "Environments / Latest deployments" con la URL real de Azure y el estado
+    # (éxito/fallo) del job. Reemplaza la tarjeta que creaba Railway.
+    environment:
+      name: production
+      url: ${{ steps.production.outputs.api_url }}
     outputs:
       api_url: ${{ steps.production.outputs.api_url }}
     steps:
