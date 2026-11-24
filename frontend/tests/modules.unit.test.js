@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { normalizarHistorial, validarMensaje } from "../Room_Link/src/modulos/chats/logica";
 import { esDenunciaDeAnuncio, validarDecisionModeracion } from "../Room_Link/src/modulos/moderacion/logica";
 
@@ -119,5 +119,57 @@ describe("APIs sin sesión no tumban la app (Room_Link)", () => {
     }).not.toThrow();
     expect(resultado).toBeInstanceOf(Promise);
     await expect(resultado).rejects.toThrow();
+  });
+});
+
+describe("búsqueda paginada de habitaciones (Room_Link)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("envía el texto y el presupuesto al feed y conserva el anfitrión y la zona", async () => {
+    vi.stubEnv("EXPO_PUBLIC_API_URL", "https://roomlink.test");
+    const item = {
+      id: "room-13", hostId: "host-1", hostName: "Andrea", title: "Habitación en León",
+      zone: "Centro", city: "León", monthlyRent: 2900, photosCount: 3, availableFrom: null,
+    };
+    const fetch = vi.fn(async () => Response.json({ items: [item], hasMore: true }));
+    vi.stubGlobal("fetch", fetch);
+    const { obtenerHabitacionesPublicadas } = await import("../Room_Link/src/modulos/exploracion/api");
+    const { adaptarHabitacion } = await import("../Room_Link/src/modulos/exploracion/datos/habitaciones");
+    const signal = new AbortController().signal;
+
+    const resultado = await obtenerHabitacionesPublicadas(2, {
+      texto: "León", presupuestoMax: 3000, disponibleYa: false,
+    }, signal);
+
+    const [ruta, opciones] = fetch.mock.calls[0];
+    const { pathname, searchParams } = new URL(ruta);
+    expect(pathname).toBe("/api/v1/rooms/feed");
+    expect(Object.fromEntries(searchParams)).toEqual({ page: "2", pageSize: "12", q: "León", maxRent: "3000" });
+    expect(opciones.signal).toBe(signal);
+    expect(resultado.hayMas).toBe(true);
+    expect(adaptarHabitacion(resultado.items[0])).toMatchObject({
+      anfitrion: "Andrea", ubicacion: "Centro · León", fotos: 3,
+    });
+  });
+
+  it("filtra la disponibilidad antes de paginar y adapta photoCount del buscador", async () => {
+    vi.stubEnv("EXPO_PUBLIC_API_URL", "https://roomlink.test");
+    const fetch = vi.fn(async () => Response.json({
+      items: [{ id: "room-1", photoCount: 2 }], total: 1, totalPages: 1,
+    }));
+    vi.stubGlobal("fetch", fetch);
+    const { obtenerHabitacionesPublicadas } = await import("../Room_Link/src/modulos/exploracion/api");
+
+    const resultado = await obtenerHabitacionesPublicadas(1, {
+      texto: "", disponibleYa: true,
+    }, new AbortController().signal);
+
+    const { pathname, searchParams } = new URL(fetch.mock.calls[0][0]);
+    expect(pathname).toBe("/api/v1/search/listings");
+    expect(searchParams.get("availableNow")).toBe("true");
+    expect(resultado).toEqual({ items: [{ id: "room-1", photosCount: 2, locationId: null }], hayMas: false });
   });
 });
