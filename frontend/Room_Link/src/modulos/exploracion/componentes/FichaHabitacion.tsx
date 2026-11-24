@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -8,6 +10,7 @@ import {
 } from '@/modulos/moderacion/api';
 
 import type { HabitacionFeed } from '../datos/habitaciones';
+import { PortadaHabitacion } from './PortadaHabitacion';
 
 const MOTIVOS_DENUNCIA: { key: MotivoDenunciaAnuncio; label: string }[] = [
   { key: 'fraud', label: 'Fraude' },
@@ -63,13 +66,13 @@ export function FichaHabitacion({
   return (
     <View>
       <View style={styles.portada}>
-        <Text style={styles.iconoPortada}>⌂</Text>
-        <Text style={styles.fotos}>
+        <PortadaHabitacion id={habitacion.id} fotos={habitacion.fotos} />
+        {habitacion.fotos > 0 && <Text style={styles.fotos}>
           {habitacion.fotos} {habitacion.fotos === 1 ? 'foto' : 'fotos'}
-        </Text>
+        </Text>}
       </View>
 
-      <Text style={styles.titulo}>{habitacion.titulo}</Text>
+      <Text accessibilityRole="header" style={styles.titulo}>{habitacion.titulo}</Text>
       <Text style={styles.renta}>{habitacion.rentaTexto}</Text>
       {habitacion.compatibilidad !== null && (
         <Text style={styles.compatibilidad}>
@@ -139,7 +142,7 @@ export function FichaHabitacion({
             multiline
             onChangeText={setMensaje}
             placeholder="Preséntate brevemente…"
-            placeholderTextColor="#9A909E"
+            placeholderTextColor={color.secundario}
             style={styles.mensaje}
             value={mensaje}
           />
@@ -205,7 +208,7 @@ export function FichaHabitacion({
               value={detalleDenuncia}
               onChangeText={setDetalleDenuncia}
               placeholder="Describe el problema (opcional)"
-              placeholderTextColor="#9A909E"
+              placeholderTextColor={color.secundario}
               style={styles.mensaje}
               multiline
             />
@@ -246,33 +249,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 20,
-    backgroundColor: '#E9DAEC',
-  },
-  iconoPortada: {
-    color: '#84658D',
-    fontSize: 60,
-    lineHeight: 66,
+    overflow: 'hidden',
+    backgroundColor: color.mentaSuave,
   },
   fotos: {
-    color: '#6F5B76',
+    position: 'absolute', top: 12, right: 12, padding: 7, borderRadius: 10,
+    overflow: 'hidden', backgroundColor: color.blanco,
+    color: color.accion,
     fontSize: 12,
     fontWeight: '600',
   },
   titulo: {
-    color: '#28232D',
+    color: color.tinta,
     fontSize: 22,
     fontWeight: '700',
     marginTop: 16,
     lineHeight: 28,
   },
   renta: {
-    color: '#84658D',
+    color: color.accion,
     fontSize: 17,
     fontWeight: '700',
     marginTop: 4,
   },
   compatibilidad: {
-    color: '#84658D',
+    color: color.accion,
     fontSize: 13,
     fontWeight: '600',
     marginTop: 6,
@@ -286,21 +287,21 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
   },
   etiqueta: {
-    color: '#6B6372',
+    color: color.secundario,
     fontSize: 12,
     fontWeight: '600',
   },
   valor: {
-    color: '#28232D',
+    color: color.tinta,
     fontSize: 14,
     fontWeight: '600',
     marginTop: 4,
   },
   descripcion: {
-    color: '#4A4350',
+    color: color.secundario,
     fontSize: 14,
     lineHeight: 21,
     marginTop: 4,
@@ -313,10 +314,10 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 5,
     borderWidth: 1,
-    borderColor: '#EEE8F0',
+    borderColor: color.borde,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    color: '#28232D',
+    backgroundColor: color.blanco,
+    color: color.tinta,
     fontSize: 14,
     textAlignVertical: 'top',
   },
@@ -329,16 +330,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 16,
-    backgroundColor: '#84658D',
+    backgroundColor: color.accion,
   },
   botonDeshabilitado: {
-    backgroundColor: '#B9A6BF',
+    backgroundColor: color.lavanda,
   },
   presionado: {
     opacity: 0.75,
   },
   textoBotonPrincipal: {
-    color: '#FFFFFF',
+    color: color.blanco,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -347,10 +348,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 16,
-    backgroundColor: '#E9DAEC',
+    backgroundColor: color.menta,
   },
   textoBotonSecundario: {
-    color: '#6F5B76',
+    color: color.accion,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -359,16 +360,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   textoEnlaceReportar: {
-    color: '#8A8294',
+    color: color.secundario,
     fontSize: 12,
     fontWeight: '600',
   },
   cajaDenuncia: {
     padding: 12,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     borderWidth: 1,
-    borderColor: '#EEE8F0',
+    borderColor: color.borde,
     gap: 8,
     marginTop: 6,
   },
@@ -381,18 +382,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: '#ECE3F0',
+    backgroundColor: color.menta,
   },
   chipMotivoActivo: {
-    backgroundColor: '#84658D',
+    backgroundColor: color.accion,
   },
   textoChipMotivo: {
-    color: '#6F5B76',
+    color: color.accion,
     fontSize: 12,
     fontWeight: '600',
   },
   textoChipMotivoActivo: {
-    color: '#FFFFFF',
+    color: color.blanco,
   },
   filaAccionesDenuncia: {
     flexDirection: 'row',
@@ -405,10 +406,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    backgroundColor: '#C0564F',
+    backgroundColor: color.rosaTexto,
   },
   textoEnviarDenuncia: {
-    color: '#FFFFFF',
+    color: color.blanco,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -418,10 +419,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    backgroundColor: '#ECE3F0',
+    backgroundColor: color.menta,
   },
   textoCancelarDenuncia: {
-    color: '#6F5B76',
+    color: color.accion,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -431,17 +432,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#DCF0E8',
   },
   textoAvisoExito: {
-    color: '#2F9E82',
+    color: color.accion,
     fontSize: 12,
     fontWeight: '600',
   },
   avisoError: {
     padding: 10,
     borderRadius: 10,
-    backgroundColor: '#FCE8E8',
+    backgroundColor: color.rosa,
   },
   textoAvisoError: {
-    color: '#8A3030',
+    color: color.rosaTexto,
     fontSize: 12,
     fontWeight: '600',
   },
