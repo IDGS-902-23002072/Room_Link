@@ -40,16 +40,16 @@ export default function Login() {
 
   return (
     <PantallaAuth
-      kicker="Bienvenido a RoomLink"
+      portada
       titulo="Inicia sesión"
-      subtitulo="Qué gusto tenerte de vuelta."
+      subtitulo="Accede a tus búsquedas, postulaciones y conversaciones."
     >
       <Campo
         etiqueta="Correo electrónico"
         testID="login-email"
         valor={email}
         onChangeText={setEmail}
-        placeholder="cesar@correo.com"
+        placeholder="tu@correo.com"
         keyboardType="email-address"
       />
       <Campo
