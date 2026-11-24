@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 
 import React, { useState } from "react";
 
@@ -716,7 +718,7 @@ const validarDatos = (
 const styles = StyleSheet.create({
   pantalla: {
     flex: 1,
-    backgroundColor: "#F8F5F9",
+    backgroundColor: color.blanco,
   },
 
   contenido: {
@@ -726,7 +728,7 @@ const styles = StyleSheet.create({
   },
 
   marca: {
-    color: "#8A6C91",
+    color: color.accion,
     fontSize: 9,
     letterSpacing: 0.7,
     marginBottom: 8,
@@ -744,19 +746,19 @@ const styles = StyleSheet.create({
   },
 
   textoVolver: {
-    color: "#806487",
+    color: color.accion,
     fontSize: 30,
     lineHeight: 32,
   },
 
   tituloPrincipal: {
-    color: "#332A37",
+    color: color.tinta,
     fontSize: 21,
     fontWeight: "700",
   },
 
   subtitulo: {
-    color: "#948798",
+    color: color.secundario,
     fontSize: 10,
     marginTop: -4,
     marginBottom: 13,
@@ -774,7 +776,7 @@ const styles = StyleSheet.create({
 
   campoFecha: {
     minHeight: 48,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: color.blanco,
     borderWidth: 1,
     borderColor: "#E5DCE8",
     borderRadius: 10,
@@ -795,13 +797,13 @@ const styles = StyleSheet.create({
   },
 
   textoCambiarFecha: {
-    color: "#806487",
+    color: color.accion,
     fontSize: 12,
     fontWeight: "700",
   },
 
   contenedorCalendario: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: color.blanco,
     borderRadius: 12,
     padding: 10,
     marginTop: 10,
@@ -810,7 +812,7 @@ const styles = StyleSheet.create({
   },
 
   botonListoFecha: {
-    backgroundColor: "#806487",
+    backgroundColor: color.accion,
     borderRadius: 9,
     padding: 11,
     alignItems: "center",
@@ -818,7 +820,7 @@ const styles = StyleSheet.create({
   },
 
   textoBotonListo: {
-    color: "#FFFFFF",
+    color: color.blanco,
     fontWeight: "700",
   },
 
@@ -826,7 +828,7 @@ const styles = StyleSheet.create({
 
   botonBorrador: {
     height: 45,
-    backgroundColor: "#E9DDEA",
+    backgroundColor: color.menta,
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
@@ -834,14 +836,14 @@ const styles = StyleSheet.create({
   },
 
   textoBotonBorrador: {
-    color: "#654C6D",
+    color: color.accion,
     fontSize: 13,
     fontWeight: "700",
   },
 
   botonContinuar: {
     height: 45,
-    backgroundColor: "#806487",
+    backgroundColor: color.accion,
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
@@ -849,13 +851,13 @@ const styles = StyleSheet.create({
   },
 
   textoBoton: {
-    color: "#FFFFFF",
+    color: color.blanco,
     fontSize: 13,
     fontWeight: "700",
   },
 
   textoAyuda: {
-    color: "#948798",
+    color: color.secundario,
     fontSize: 10,
     textAlign: "center",
     lineHeight: 16,
