@@ -216,16 +216,31 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
         isBlocked: async (userId: string) =>
           (await sanctionsService.findBlockingSession(userId)) !== null,
       },
+      // Registro exhaustivo de arrendador: auth consulta la verificación de
+      // identidad (que vive en el módulo de perfil) sin acoplarse a él.
+      identityProvider: {
+        getIdentityStatus: async (userId: string) => {
+          const perfil = await profileRepo.findByUserId(userId);
+          return perfil ? perfil.identityStatus : null;
+        },
+      },
     } satisfies AuthServiceDependencies);
   const authService = new AuthService(userRepo, authDependencies);
   const authController = new AuthController(authService, config.auth.secureCookies);
   app.route("/api/v1/auth", createAuthRoutes(authController, authService));
 
+<<<<<<< HEAD
   const connectionRepo = dependencies.connectionRepo ?? new DrizzleConnectionRepository(db);
+=======
+  // Repositorio de conexiones compartido (perfil HU-02 + módulo de conexiones).
+  const connectionRepo =
+    dependencies.connectionRepo ?? new DrizzleConnectionRepository(db);
+>>>>>>> 6e2243ba004a596a2090f8f2a94a1b20ddc0391c
 
   // 2. Profile Module
   const profileService = new ProfileService(profileRepo);
   const profileController = new ProfileController(profileService, {
+<<<<<<< HEAD
     areConnected: async (viewerId, ownerId) => {
       const connections = await connectionRepo.listForUser(viewerId, "all");
       return connections.some((conn) =>
@@ -234,6 +249,17 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
       );
     },
     getEmail: async (userId) => (await userRepo.findById(userId))?.email ?? null,
+=======
+    // HU-02 — hay conexión si existe una aceptada entre ambos.
+    areConnected: async (viewerId: string, ownerId: string) => {
+      const conns = await connectionRepo.listForUser(viewerId, "all");
+      return conns.some(
+        (conn) =>
+          conn.status === "accepted" &&
+          (conn.requesterId === ownerId || conn.addresseeId === ownerId),
+      );
+    },
+>>>>>>> 6e2243ba004a596a2090f8f2a94a1b20ddc0391c
   });
   app.route("/api/v1/profiles", createProfileRoutes(profileController, authService));
 
@@ -248,6 +274,15 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     resolveListingHostId: async (listingId: string) => {
       const room = await roomRepo.findById(listingId);
       return room ? room.hostId : null;
+    },
+    // HU-07 — afinidad calculada en el servidor (postulante como viewer, host como candidato).
+    resolveCompatibilityScore: async (applicantId: string, hostId: string) => {
+      try {
+        const candidate = await compatibilityRepo.findCandidate(applicantId, hostId);
+        return candidate?.compatibilityScore ?? null;
+      } catch {
+        return null;
+      }
     },
   });
   app.route(
@@ -385,6 +420,18 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
         503,
       );
     }
+  });
+
+  // Sirve el build estático del sitio web (web/, Vite) desde ./public.
+  // public/descargas enlaza a la carpeta persistente con el APK.
+  app.use("/*", async (c, next) => {
+    if (c.req.path.startsWith("/api/")) return next();
+    return serveStatic({ root: "./public" })(c, next);
+  });
+  // Fallback SPA: las rutas de BrowserRouter resuelven a index.html.
+  app.get("/*", async (c, next) => {
+    if (c.req.path.startsWith("/api/")) return next();
+    return serveStatic({ path: "./public/index.html" })(c, next);
   });
 
   return app;

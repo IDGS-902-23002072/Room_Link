@@ -477,6 +477,19 @@ export function PantallaPerfil() {
                 </Pressable>
               </Link>
 
+              <Link href="/compatibilidad-detalle" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.botonSecundario,
+                    pressed && styles.botonPresionado,
+                  ]}>
+                  <Text style={styles.textoBotonSecundario}>
+                    Compatibilidad y perfiles guardados (M06)
+                  </Text>
+                </Pressable>
+              </Link>
+
               <Link href="/galeria-fotos" asChild>
                 <Pressable
                   accessibilityRole="button"

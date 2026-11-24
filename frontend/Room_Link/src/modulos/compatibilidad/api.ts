@@ -110,12 +110,12 @@ function rutaUsuario(userId: string, suffix = '') {
   return `/api/v1/compatibility/${encodeURIComponent(userId)}${suffix}`;
 }
 
-export function obtenerTestCompatibilidad() {
+export async function obtenerTestCompatibilidad() {
   const { userId } = configuracionApi();
   return solicitud<ResultadoTest>(rutaUsuario(userId));
 }
 
-export function guardarTestCompatibilidad(answers: RespuestasCompatibilidad) {
+export async function guardarTestCompatibilidad(answers: RespuestasCompatibilidad) {
   const { userId } = configuracionApi();
   return solicitud<ResultadoTest>(rutaUsuario(userId), {
     method: 'PUT',
@@ -123,21 +123,21 @@ export function guardarTestCompatibilidad(answers: RespuestasCompatibilidad) {
   });
 }
 
-export function obtenerFeedAfinidad(page: number) {
+export async function obtenerFeedAfinidad(page: number) {
   const { userId } = configuracionApi();
   return solicitud<FeedAfinidad>(
     `${rutaUsuario(userId, '/feed')}?page=${page}`,
   );
 }
 
-export function obtenerPerfilAfinidad(candidateId: string) {
+export async function obtenerPerfilAfinidad(candidateId: string) {
   const { userId } = configuracionApi();
   return solicitud<PerfilAfinidad>(
     rutaUsuario(userId, `/candidates/${encodeURIComponent(candidateId)}`),
   );
 }
 
-export function enviarSolicitudConexion(
+export async function enviarSolicitudConexion(
   candidateId: string,
   introMessage: string | null = null,
 ) {

@@ -67,7 +67,7 @@ export function obtenerHabitacion(id: string) {
  * El buscador (usuario actual) se postula a una habitación publicada.
  * compatibilityScore es la afinidad entre el buscador y el anfitrión.
  */
-export function postularseAHabitacion(
+export async function postularseAHabitacion(
   listingId: string,
   message: string | null = null,
   compatibilityScore: number | null = null,

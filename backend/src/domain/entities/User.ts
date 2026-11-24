@@ -92,6 +92,15 @@ export class User {
     return this.props.roles?.includes(role) ?? false;
   }
 
+  /** Otorga el rol de arrendador (host) de forma idempotente. */
+  public grantHostRole(at: Date = new Date()): void {
+    const actuales = this.props.roles ?? ["seeker"];
+    if (!actuales.includes("host")) {
+      this.props.roles = [...actuales, "host"];
+    }
+    this.props.updatedAt = at;
+  }
+
   public isLocked(at: Date = new Date()): boolean {
     return Boolean(this.props.lockedUntil && this.props.lockedUntil > at);
   }

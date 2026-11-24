@@ -87,6 +87,15 @@ export interface SessionGuard {
   isBlocked(userId: string): Promise<boolean>;
 }
 
+/**
+ * Puerto para que el registro exhaustivo de arrendador consulte el estado de
+ * verificación de identidad del usuario (vive en el módulo de perfil), sin que
+ * auth se acople a profile. Devuelve el `identityStatus` o null si no hay perfil.
+ */
+export interface IdentityProvider {
+  getIdentityStatus(userId: string): Promise<string | null>;
+}
+
 export interface AuthServiceDependencies {
   passwordHasher: PasswordHasher;
   tokenGenerator: SecureTokenGenerator;
@@ -98,6 +107,7 @@ export interface AuthServiceDependencies {
   eventPublisher: DomainEventPublisher;
   clock?: Clock;
   sessionGuard?: SessionGuard;
+  identityProvider?: IdentityProvider;
 }
 
 export interface AuthResult {

@@ -101,7 +101,7 @@ async function solicitud<T>(path: string, init?: RequestInit): Promise<T> {
 
 export class PerfilNoEncontrado extends Error {}
 
-export function obtenerPerfil() {
+export async function obtenerPerfil() {
   const { userId } = configuracionApi();
   return solicitud<PerfilPublico>(rutaPerfil(userId));
 }
@@ -113,7 +113,7 @@ export function crearPerfil(datos: DatosPerfil & { birthDate: string; instagram?
   });
 }
 
-export function actualizarPerfil(datos: DatosPerfil) {
+export async function actualizarPerfil(datos: DatosPerfil) {
   const { userId } = configuracionApi();
   return solicitud<PerfilPublico>(rutaPerfil(userId), {
     method: 'PUT',
@@ -121,7 +121,7 @@ export function actualizarPerfil(datos: DatosPerfil) {
   });
 }
 
-export function actualizarInstagram(instagram: string) {
+export async function actualizarInstagram(instagram: string) {
   const { userId } = configuracionApi();
   return solicitud<PerfilPublico>(`${rutaPerfil(userId)}/socials`, {
     method: 'PUT',
@@ -129,7 +129,7 @@ export function actualizarInstagram(instagram: string) {
   });
 }
 
-export function solicitarVerificacionIdentidad() {
+export async function solicitarVerificacionIdentidad() {
   const { userId } = configuracionApi();
   return solicitud<PerfilPublico>(`${rutaPerfil(userId)}/verification/request`, { method: 'POST' });
 }

@@ -52,6 +52,7 @@ export class SearchView {
       // HU-02 — En búsqueda/descubrimiento el espectador no es dueño ni conexión:
       // se ocultan teléfono y redes de todos los candidatos.
       items: result.items.map((profile) =>
+<<<<<<< HEAD
         ({
           ...ProfileView.toPublicProfile(profile, {
             isOwner: false,
@@ -59,6 +60,12 @@ export class SearchView {
             privacy: null,
           }),
           ...result.details?.get(profile.userId),
+=======
+        ProfileView.toPublicProfile(profile, {
+          isOwner: false,
+          isConnected: false,
+          privacy: null,
+>>>>>>> 6e2243ba004a596a2090f8f2a94a1b20ddc0391c
         }),
       ),
       page: result.page,
