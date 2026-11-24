@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import React from "react";
 import {
   View,
@@ -36,7 +38,7 @@ export default function CampoFormulario({
 
 const styles = StyleSheet.create({
   contenedor: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: color.blanco,
     borderWidth: 1,
     borderColor: "#E9E0EA",
     borderRadius: 13,
@@ -46,12 +48,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   etiqueta: {
-    color: "#88768D",
+    color: color.secundario,
     fontSize: 11,
     marginBottom: 4,
   },
   input: {
-    color: "#332A37",
+    color: color.tinta,
     fontSize: 14,
     padding: 0,
     minHeight: 23,
