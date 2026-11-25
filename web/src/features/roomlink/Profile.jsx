@@ -362,6 +362,7 @@ export function AccountPage() {
         <ResourceStatus label="Cargando tus preferencias…" resource={resource} />
         {resource.data && <AccountForm preferences={resource.data.preferences} token={token} user={user} />}
         <ContactPrivacy key={user.id} path={`${profilePath(user.id)}/privacy`} token={token} />
+        <HousingPreferences key={`housing-${user.id}`} userId={user.id} token={token} />
       </div>
     </>
   )
@@ -415,6 +416,78 @@ function ContactPrivacyForm({ initial, path, token }) {
     </fieldset>
     <Feedback error={error}>{message}</Feedback>
     <button className="button button-mint" disabled={busy || !dirty} type="submit">Guardar privacidad</button>
+  </form>
+}
+
+const noNumberKeys = (event) => { if (['e', 'E', '+', '-'].includes(event.key)) event.preventDefault() }
+
+function HousingPreferences({ userId, token }) {
+  const path = `${profilePath(userId)}/housing`
+  const loadPrefs = useCallback((signal) => apiRequest(path, { token, signal }), [path, token])
+  const prefs = useResource(loadPrefs)
+  const loadZones = useCallback((signal) => apiRequest('/api/v1/search/zones', { token, signal }), [token])
+  const zones = useResource(loadZones)
+  return <Panel title="Preferencias de vivienda">
+    <p className="muted">Indica tu presupuesto y zona deseada para que otros roomies te encuentren en la búsqueda avanzada.</p>
+    <ResourceStatus label="Cargando preferencias." resource={prefs} />
+    {prefs.data && <HousingForm initial={prefs.data} zones={zones.data ?? []} path={path} token={token} />}
+  </Panel>
+}
+
+function HousingForm({ initial, zones, path, token }) {
+  const start = {
+    budgetMin: initial.budgetMin ?? '',
+    budgetMax: initial.budgetMax ?? '',
+    desiredZoneId: initial.desiredZoneId ?? '',
+  }
+  const [saved, setSaved] = useState(start)
+  const [values, setValues] = useState(start)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const dirty = ['budgetMin', 'budgetMax', 'desiredZoneId'].some((key) => values[key] !== saved[key])
+
+  async function submit(event) {
+    event.preventDefault()
+    if (values.budgetMin && values.budgetMax && Number(values.budgetMin) > Number(values.budgetMax)) {
+      setError('El presupuesto mínimo no puede superar el máximo.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const result = await apiRequest(path, { token, ...json('PUT', {
+        budgetMin: values.budgetMin === '' ? null : Number(values.budgetMin),
+        budgetMax: values.budgetMax === '' ? null : Number(values.budgetMax),
+        desiredZoneId: values.desiredZoneId || null,
+      }) })
+      const next = {
+        budgetMin: result.budgetMin ?? '',
+        budgetMax: result.budgetMax ?? '',
+        desiredZoneId: result.desiredZoneId ?? '',
+      }
+      setSaved(next)
+      setValues(next)
+      setMessage('Preferencias de vivienda guardadas.')
+    } catch (cause) {
+      setError(cause.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return <form className="room-stack" onSubmit={submit}>
+    <fieldset disabled={busy}><legend>Presupuesto mensual · MXN</legend><div className="room-fields">
+      <label className="field">Mínimo<input min="0" type="number" value={values.budgetMin} onKeyDown={noNumberKeys} onChange={(event) => setValues({ ...values, budgetMin: event.target.value })} /></label>
+      <label className="field">Máximo<input min="0" type="number" value={values.budgetMax} onKeyDown={noNumberKeys} onChange={(event) => setValues({ ...values, budgetMax: event.target.value })} /></label>
+    </div></fieldset>
+    <label className="field">Zona deseada<select disabled={busy} value={values.desiredZoneId} onChange={(event) => setValues({ ...values, desiredZoneId: event.target.value })}>
+      <option value="">Sin preferencia</option>
+      {zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.name} · {zone.city}</option>)}
+    </select></label>
+    <Feedback error={error}>{message}</Feedback>
+    <button className="button button-mint" disabled={busy || !dirty} type="submit">Guardar preferencias</button>
   </form>
 }
 
