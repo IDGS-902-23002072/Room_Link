@@ -27,6 +27,16 @@ function CampoFormulario({
     // Enviamos el evento completo al componente padre.
     onChange: onChange,
 
+    // En campos numéricos, evita notación científica y signos (e, E, +, -).
+    onKeyDown:
+      tipo === "number"
+        ? (event) => {
+            if (["e", "E", "+", "-"].includes(event.key)) {
+              event.preventDefault();
+            }
+          }
+        : undefined,
+
     placeholder,
     required: requerido,
     disabled: deshabilitado,

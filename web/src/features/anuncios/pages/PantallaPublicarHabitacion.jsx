@@ -282,7 +282,7 @@ export default function PantallaPublicarHabitacion() {
             etiqueta="Título de tu publicación"
             nombre="titulo"
             valor={datos.titulo}
-            onChange={(valor) => actualizarCampo("titulo", valor)}
+            onChange={(evento) => actualizarCampo("titulo", evento.target.value)}
             placeholder="Ej. Habitación amueblada cerca del centro"
             requerido
             maximo={200}
@@ -295,7 +295,7 @@ export default function PantallaPublicarHabitacion() {
               etiqueta="Renta mensual (MXN)"
               nombre="renta"
               valor={datos.renta}
-              onChange={(valor) => actualizarCampo("renta", valor)}
+              onChange={(evento) => actualizarCampo("renta", evento.target.value)}
               placeholder="Ej. 3500.00"
               requerido
               tipo="number"
@@ -309,8 +309,8 @@ export default function PantallaPublicarHabitacion() {
               etiqueta="Máximo de compañeros"
               nombre="maxRoommates"
               valor={datos.maxRoommates}
-              onChange={(valor) =>
-                actualizarCampo("maxRoommates", valor)
+              onChange={(evento) =>
+                actualizarCampo("maxRoommates", evento.target.value)
               }
               placeholder="Ej. 2"
               tipo="number"
@@ -326,8 +326,8 @@ export default function PantallaPublicarHabitacion() {
             etiqueta="Descripción"
             nombre="descripcion"
             valor={datos.descripcion}
-            onChange={(valor) =>
-              actualizarCampo("descripcion", valor)
+            onChange={(evento) =>
+              actualizarCampo("descripcion", evento.target.value)
             }
             placeholder="Describe la habitación, sus características, servicios incluidos y cualquier detalle importante..."
             tipo="textarea"
@@ -340,8 +340,8 @@ export default function PantallaPublicarHabitacion() {
             etiqueta="¿A partir de cuándo estará disponible?"
             nombre="availableFrom"
             valor={datos.availableFrom}
-            onChange={(valor) =>
-              actualizarCampo("availableFrom", valor)
+            onChange={(evento) =>
+              actualizarCampo("availableFrom", evento.target.value)
             }
             tipo="date"
             minimo={obtenerFechaMexico()}

@@ -42,11 +42,13 @@ const iconoUbicacion = L.icon({
 
 const CENTRO_INICIAL = [21.019, -101.2574];
 
+// Carto sirve los datos de OSM desde un CDN apto para navegador sin API key;
+// OpenStreetMap bloquea (403) el hotlinking directo de sus tiles.
 const URL_MAPA =
-  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
 
 const ATRIBUCION_MAPA =
-  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors';
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a>';
 
 const CLAVE_EDICION = (listingId) =>
   `roomlink:edicion:${listingId}`;

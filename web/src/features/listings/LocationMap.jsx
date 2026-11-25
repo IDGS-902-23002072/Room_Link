@@ -14,10 +14,14 @@ export default function LocationMap({ location, onPick, places, selected }) {
   useEffect(() => {
     const instance = L.map(container.current, { scrollWheelZoom: false, zoomControl: false })
     L.control.zoom({ zoomInTitle: 'Acercar', zoomOutTitle: 'Alejar' }).addTo(instance)
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
+    // Carto basemaps: CDN gratuito apto para uso en navegador sin API key.
+    // OpenStreetMap bloquea (403) el hotlinking directo de sus tiles por su
+    // tile usage policy; Carto sirve los mismos datos de OSM sin ese bloqueo.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 20,
+      subdomains: 'abcd',
       referrerPolicy: 'origin',
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
     }).addTo(instance)
     map.current = instance
     return () => {

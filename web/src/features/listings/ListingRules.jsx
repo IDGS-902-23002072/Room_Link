@@ -120,7 +120,7 @@ export function EditListingTerms({ room, token, onSaved, onEdit }) {
                 {Object.entries(costKinds).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
               </select></label>
               <label>Nombre del concepto<input required maxLength={160} value={item.concept} onChange={(event) => changeCost(item.id, { concept: event.target.value })} /></label>
-              <label>Monto en MXN<input required min="0" max="99999999.99" step="0.01" type="number" value={item.amount} onChange={(event) => changeCost(item.id, { amount: event.target.value })} /></label>
+              <label>Monto en MXN<input required min="0" max="99999999.99" step="0.01" type="number" value={item.amount} onKeyDown={(event) => { if (['e', 'E', '+', '-'].includes(event.key)) event.preventDefault() }} onChange={(event) => changeCost(item.id, { amount: event.target.value })} /></label>
               <label>Cómo se paga<select value={item.mode} onChange={(event) => changeCost(item.id, { mode: event.target.value })}>
                 {Object.entries(costModes).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
               </select></label>
