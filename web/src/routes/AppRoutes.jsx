@@ -35,7 +35,8 @@ import PantallaPublicarHabitacion from "../features/anuncios/pages/PantallaPubli
 import PantallaUbicacion from "../features/anuncios/pages/PantallaUbicacion.jsx";
 import PantallaFotos from "../features/anuncios/pages/PantallaFotos.jsx";
 import PantallaEditarPublicacion from "../features/anuncios/pages/PantallaEditarPublicacion.jsx";
-
+import ConexionesPage from "../features/conexiones/pages/ConexionesPage.jsx";
+import MisRoomiesPage from "../features/conexiones/pages/MisRoomiesPage.jsx";
 
 function Shell() {
   const { session, logout } = useAuth();
@@ -221,6 +222,8 @@ export default function AppRoutes() {
             path="/anuncios/:listingId/fotos"
             element={<PantallaFotos />}
           />
+          <Route element={<ConexionesPage />} path="/conexiones" />
+          <Route path="/mis-roomies" element={<MisRoomiesPage />} />
           <Route
             element={<Recommendations />}
             path="/perfil/candidato/:candidateId"
