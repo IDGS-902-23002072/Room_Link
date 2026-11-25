@@ -30,6 +30,9 @@ function loopback(url) {
 }
 
 test.beforeEach(({ baseURL }) => {
+  // E2E_ALLOW_REMOTE=1 habilita correr contra un entorno remoto (p.ej. prod)
+  // para pruebas que solo usan la API HTTP; por defecto se exige loopback.
+  if (process.env.E2E_ALLOW_REMOTE === '1') return
   if (![api.href, baseURL, smtpInbox].every((url) => url && loopback(url))) {
     throw new Error('Las pruebas con fixtures requieren servicios QA locales.')
   }
