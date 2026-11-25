@@ -38,11 +38,89 @@
   display: none;
 }
 
-.main-nav,
 .account-menu {
   display: flex;
   align-items: center;
   gap: 22px;
+}
+
+.nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 70%);
+  cursor: pointer;
+}
+
+.nav-toggle-bars,
+.nav-toggle-bars::before,
+.nav-toggle-bars::after {
+  display: block;
+  width: 20px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ink);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.nav-toggle-bars {
+  position: relative;
+}
+
+.nav-toggle-bars::before,
+.nav-toggle-bars::after {
+  position: absolute;
+  left: 0;
+  content: '';
+}
+
+.nav-toggle-bars::before {
+  top: -6px;
+}
+
+.nav-toggle-bars::after {
+  top: 6px;
+}
+
+.nav-toggle[aria-expanded='true'] .nav-toggle-bars {
+  background: transparent;
+}
+
+.nav-toggle[aria-expanded='true'] .nav-toggle-bars::before {
+  top: 0;
+  transform: rotate(45deg);
+}
+
+.nav-toggle[aria-expanded='true'] .nav-toggle-bars::after {
+  top: 0;
+  transform: rotate(-45deg);
+}
+
+.main-nav {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 8px);
+  right: max(5vw, calc((100vw - 1380px) / 2));
+  left: max(5vw, calc((100vw - 1380px) / 2));
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 26px;
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgb(255 255 255 / 98%);
+  box-shadow: 0 18px 44px rgb(40 35 45 / 14%);
+  backdrop-filter: blur(14px);
+}
+
+.main-nav-open {
+  display: flex;
 }
 
 .main-nav a,
@@ -228,13 +306,6 @@
     flex-wrap: wrap;
     gap: 10px;
     padding: 12px 20px;
-  }
-
-  .main-nav {
-    order: 3;
-    width: 100%;
-    justify-content: center;
-    gap: 24px;
   }
 
   .account-name {

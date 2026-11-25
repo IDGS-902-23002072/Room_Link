@@ -77,7 +77,14 @@ async function login(page, user) {
   const response = page.waitForResponse((res) => res.url().endsWith('/auth/login') && res.request().method() === 'POST')
   await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click()
   expect((await response).status()).toBe(200)
-  await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible()
+}
+
+// La navegación vive tras un menú hamburguesa; ábrelo antes de pulsar un enlace.
+async function irA(target, name) {
+  const toggle = target.getByRole('button', { name: 'Menú de navegación' })
+  if (await toggle.isVisible().catch(() => false)) await toggle.click()
+  await target.getByRole('link', { name, exact: true }).click()
 }
 
 async function listing(token, { publish = true } = {}) {
@@ -179,6 +186,8 @@ test('web publica con reglas y costos, conserva la postulación y permite cerrar
   await Promise.all([
     page.route('https://tile.openstreetmap.org/**', (route) => route.fulfill(tile)),
     hostPage.route('https://tile.openstreetmap.org/**', (route) => route.fulfill(tile)),
+    page.route('https://*.basemaps.cartocdn.com/**', (route) => route.fulfill(tile)),
+    hostPage.route('https://*.basemaps.cartocdn.com/**', (route) => route.fulfill(tile)),
   ])
   try {
     await Promise.all([login(page, seeker), login(hostPage, host)])
@@ -186,7 +195,7 @@ test('web publica con reglas y costos, conserva la postulación y permite cerrar
     await hostPage.goto('/perfil/cuenta')
     await hostPage.getByRole('checkbox', { name: /términos de responsabilidad/ }).check()
     await hostPage.getByRole('button', { name: 'Convertirme en arrendador' }).click()
-    await hostPage.getByRole('link', { name: 'Mis habitaciones' }).click()
+    await irA(hostPage, 'Mis habitaciones')
     await hostPage.getByRole('link', { name: 'Nueva habitación' }).click()
     await hostPage.getByLabel('Título').fill(title)
     await hostPage.getByLabel('Renta mensual en MXN').fill('3800')
@@ -244,7 +253,7 @@ test('web publica con reglas y costos, conserva la postulación y permite cerrar
     await expect(hostPage.getByRole('button', { name: 'Pausar anuncio' })).toBeVisible()
     const listingId = new URL(hostPage.url()).pathname.split('/').at(-1)
 
-    await page.getByRole('link', { name: 'Habitaciones', exact: true }).click()
+    await irA(page, 'Habitaciones')
     await page.getByRole('searchbox').fill(title)
     await page.getByRole('button', { name: 'Buscar', exact: true }).click()
     await page.getByRole('link', { name: title, exact: true }).click()
@@ -333,14 +342,14 @@ test('Explorar de Omar refleja el estado de anuncios de Avril y conserva la post
   try {
     const hostPage = await hostContext.newPage()
     await Promise.all([login(page, seeker), login(hostPage, host)])
-    await hostPage.getByRole('link', { name: 'Mis anuncios', exact: true }).click()
+    await irA(hostPage, 'Mis anuncios')
     const ad = hostPage.getByRole('article').filter({ has: hostPage.getByRole('heading', { name: room.title, exact: true }) })
     await ad.getByRole('button', { name: 'Ver', exact: true }).click()
     await expect(hostPage).toHaveURL(new URL(`/anuncios/${room.id}`, baseURL).href)
     await expect(hostPage.getByRole('heading', { name: room.title, exact: true })).toBeVisible()
     await hostPage.getByRole('button', { name: 'Volver a mis anuncios' }).click()
 
-    await page.getByRole('link', { name: 'Explorar', exact: true }).click()
+    await irA(page, 'Explorar')
     await expect(page.getByRole('heading', { name: 'Encuentra tu habitación' })).toBeVisible()
     const search = page.getByRole('searchbox', { name: 'Buscar habitaciones' })
     const rent = page.getByLabel('Renta', { exact: true })
@@ -383,7 +392,7 @@ test('Explorar de Omar refleja el estado de anuncios de Avril y conserva la post
       await expect(ad.getByRole('button', { name: 'Activar', exact: true })).toBeVisible()
       const closedWhilePaused = await call(`/rooms/${room.id}/close`, { method: 'PATCH', token: host.token, want: 409 })
       expect(closedWhilePaused.error).toMatch(/publicación activa/)
-      await page.getByRole('link', { name: 'Explorar', exact: true }).click()
+      await irA(page, 'Explorar')
       const [pausedFeed] = await Promise.all([
         page.waitForResponse((response) => {
           const url = new URL(response.url())
@@ -474,7 +483,7 @@ test('HU-03 y HU-04 guardan las siete respuestas y ordenan los perfiles por afin
     method: 'POST', token: high.token, body: photo, want: 201,
   })
   await login(page, viewer)
-  await page.getByRole('link', { name: 'Recomendados', exact: true }).click()
+  await irA(page, 'Recomendados')
   await expect(page.getByRole('link', { name: 'Hacer mi test' })).toBeVisible()
   await expect(page.locator('.compatibility-badge')).toHaveCount(0)
   await page.getByRole('link', { name: 'Hacer mi test' }).click()
@@ -497,7 +506,7 @@ test('HU-03 y HU-04 guardan las siete respuestas y ordenan los perfiles por afin
   await page.getByRole('button', { name: 'Finalizar y guardar test' }).click()
   await expect(schedules).toHaveAttribute('aria-valuenow', '100')
   await expect(page.getByText('Tus respuestas se guardaron correctamente.')).toBeVisible()
-  await page.getByRole('link', { name: 'Recomendados', exact: true }).click()
+  await irA(page, 'Recomendados')
   const cards = page.locator('.candidate-card')
   const featured = cards.filter({ hasText: 'RoomLink QA ' + featuredTag })
   await expect(featured.getByRole('heading')).toHaveText(new RegExp(`^RoomLink QA ${featuredTag}, [0-9]+$`))
@@ -520,7 +529,7 @@ test('HU-03 y HU-04 guardan las siete respuestas y ordenan los perfiles por afin
   await expect(page.getByRole('table', { name: 'Comparación de hábitos' })).toBeVisible()
   await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Guardar perfil', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('link', { name: 'Recomendados', exact: true }).click()
+  await irA(page, 'Recomendados')
   await page.getByRole('button', { name: 'Guardados', exact: true }).click()
   await expect(page.getByRole('link', { name: 'RoomLink QA ' + featuredTag, exact: true })).toBeVisible()
 })
@@ -594,13 +603,13 @@ test('Conexiones de Avril acepta una solicitud y Mis roomies abre el chat persis
   try {
     const incoming = await context.newPage()
     await Promise.all([login(page, sender), login(incoming, receiver)])
-    await page.getByRole('link', { name: 'Conexiones', exact: true }).click()
+    await irA(page, 'Conexiones')
     const outgoing = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'RoomLink QA chat-receptor' }) })
     await expect(outgoing.getByText('Solicitud enviada', { exact: true })).toBeVisible()
     await page.getByRole('link', { name: 'Mis roomies', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Aún no tienes roomies' })).toBeVisible()
 
-    await incoming.getByRole('link', { name: 'Conexiones', exact: true }).click()
+    await irA(incoming, 'Conexiones')
     await incoming.getByRole('button', { name: /^Recibidas/ }).click()
     const request = incoming.getByRole('article').filter({ has: incoming.getByRole('heading', { name: 'RoomLink QA chat-origen' }) })
     await expect(request.getByText('Solicitud recibida', { exact: true })).toBeVisible()
@@ -643,7 +652,7 @@ test('HU-08 conserva el rechazo y mantiene bloqueado el chat para ambos particip
   try {
     const recipientPage = await context.newPage()
     await Promise.all([login(page, sender), login(recipientPage, recipient)])
-    await recipientPage.getByRole('link', { name: 'Conexiones', exact: true }).click()
+    await irA(recipientPage, 'Conexiones')
     const request = recipientPage.getByRole('article').filter({
       has: recipientPage.getByRole('heading', { name: 'RoomLink QA rechazo-origen', exact: true }),
     })
@@ -653,7 +662,7 @@ test('HU-08 conserva el rechazo y mantiene bloqueado el chat para ambos particip
     await recipientPage.reload()
     await expect(recipientPage.getByRole('heading', empty)).toBeVisible()
 
-    await page.getByRole('link', { name: 'Conexiones', exact: true }).click()
+    await irA(page, 'Conexiones')
     await expect(page.getByRole('heading', empty)).toBeVisible()
     expect(await call('/connections?direction=incoming', { token: recipient.token })).toEqual([
       expect.objectContaining({ id: connection.id, status: 'rejected' }),
@@ -933,7 +942,7 @@ test('Bitácora de Omar protege el acceso y exporta solo los registros filtrados
   await expect(page).toHaveURL(/\/login$/)
 
   await login(page, admin)
-  await page.getByRole('link', { name: 'Bitácora', exact: true }).click()
+  await irA(page, 'Bitácora')
   await expect(page.getByRole('heading', { name: 'Bitácora', exact: true })).toBeVisible()
   await page.getByLabel('Evento').selectOption('UserRegisteredEvent')
   await page.getByLabel('Usuario (ID)', { exact: true }).fill(viewer.id)

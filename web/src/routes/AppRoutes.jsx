@@ -34,6 +34,7 @@ function Shell() {
   const { session, logout } = useAuth()
   const location = useLocation()
   const [signingOut, setSigningOut] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const isAdmin = session?.user.roles?.includes('admin')
   const accountInitial = session?.user.email?.[0]?.toUpperCase() ?? 'U'
 
@@ -53,7 +54,17 @@ function Shell() {
       <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <header className="topbar">
         <Brand />
-        <nav aria-label="Navegación principal" className="main-nav">
+        <button
+          aria-controls="menu-principal"
+          aria-expanded={menuOpen}
+          aria-label="Menú de navegación"
+          className="nav-toggle"
+          onClick={() => setMenuOpen((open) => !open)}
+          type="button"
+        >
+          <span aria-hidden="true" className="nav-toggle-bars" />
+        </button>
+        <nav aria-label="Navegación principal" className={menuOpen ? 'main-nav main-nav-open' : 'main-nav'} id="menu-principal" onClick={() => setMenuOpen(false)}>
           <NavLink to="/explorar">Explorar</NavLink>
           <NavLink to="/recomendados">Recomendados</NavLink>
           <NavLink to="/habitaciones">Habitaciones</NavLink>
