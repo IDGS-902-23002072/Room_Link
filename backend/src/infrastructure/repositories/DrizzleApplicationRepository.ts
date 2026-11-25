@@ -116,4 +116,11 @@ export class DrizzleApplicationRepository implements IApplicationRepository {
       .where(and(eq(appApplications.id, app.id), eq(appApplications.status, previousStatus)));
     return result.affectedRows === 1;
   }
+
+  async deleteById(id: string): Promise<boolean> {
+    const [result] = await this.db
+      .delete(appApplications)
+      .where(eq(appApplications.id, id));
+    return result.affectedRows > 0;
+  }
 }

@@ -17,6 +17,7 @@ export const createApplicationsRoutes = (
   router.get("/me", controller.getMine);
   router.get("/listing/:listingId", controller.getByListing);
   router.patch("/:id/decide", controller.decide);
+  router.delete("/:id", controller.cancel);
 
   return router;
 };

@@ -269,8 +269,6 @@ export default function Messages() {
   const [inboxRefresh, setInboxRefresh] = useState(0)
   const [openError, setOpenError] = useState('')
   const [opening, setOpening] = useState(false)
-  const [applicationId, setApplicationId] = useState('')
-  const [showApplication, setShowApplication] = useState(false)
   const refreshInbox = useCallback(() => setInboxRefresh((value) => value + 1), [])
   const { data: inbox, loading, error } = useRoomLinkQuery(messagesPath, session.token, inboxRefresh)
   const { data: connections, error: connectionsError } = useRoomLinkQuery('/api/v1/connections', session.token, inboxRefresh)
@@ -296,8 +294,6 @@ export default function Messages() {
       const room = await apiRequest(`${messagesPath}/rooms`, {
         token: session.token, method: 'POST', body: JSON.stringify(origin),
       })
-      setApplicationId('')
-      setShowApplication(false)
       refreshInbox()
       navigate(`/mensajes/${makeKey(room.id)}`)
     } catch (cause) {
@@ -323,18 +319,7 @@ export default function Messages() {
             <h3>Nueva conversación</h3>
             {connectionsError && <FeatureNotice error={connectionsError} retry={refreshInbox} />}
             {eligible.map((connection) => <AcceptedConnection key={connection.id} connection={connection} token={session.token} userId={session.user.id} open={open} opening={opening} />)}
-            <button className="button button-subtle" type="button" aria-expanded={showApplication} onClick={() => setShowApplication((value) => !value)}>Abrir desde una postulación</button>
-            {showApplication && (
-              <form className="feature-form" onSubmit={(event) => {
-                event.preventDefault()
-                if (applicationId.trim()) void open({ applicationId: applicationId.trim() })
-              }}>
-                <label className="field">ID de la postulación aceptada
-                  <input required value={applicationId} onChange={(event) => setApplicationId(event.target.value)} />
-                </label>
-                <button className="button button-mint" disabled={opening || !applicationId.trim()}>Abrir chat</button>
-              </form>
-            )}
+            <p className="muted">Para escribirle a alguien que aceptó tu postulación, usa «Abrir conversación» desde Mis postulaciones o Postulaciones recibidas.</p>
             {openError && <FeatureNotice error={openError} />}
           </section>
         </aside>

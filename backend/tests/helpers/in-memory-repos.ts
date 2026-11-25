@@ -489,6 +489,9 @@ export class InMemoryApplicationRepository implements IApplicationRepository {
     this.items.set(app.id, app);
     return true;
   }
+  async deleteById(id: string) {
+    return this.items.delete(id);
+  }
 }
 
 export class InMemoryCompatibilityRepository implements ICompatibilityRepository {
