@@ -17,6 +17,14 @@ import { AgreementsPage } from '../features/roomlink/Agreements.jsx'
 import { ListingDetail, ListingDirectory } from '../features/listings/ListingDirectory.jsx'
 import { HostApplications, MyApplications } from '../features/listings/Applications.jsx'
 import { HostListings, ManageListingPage, NewListing } from '../features/listings/HostListings.jsx'
+import PantallaAnunciosPrincipal from '../features/anuncios/pages/PantallaAnunciosPrincipal.jsx'
+import PantallaDetallePublicacion from '../features/anuncios/pages/PantallaDetallePublicacion.jsx'
+import PantallaPublicarHabitacion from '../features/anuncios/pages/PantallaPublicarHabitacion.jsx'
+import PantallaUbicacion from '../features/anuncios/pages/PantallaUbicacion.jsx'
+import PantallaFotos from '../features/anuncios/pages/PantallaFotos.jsx'
+import PantallaEditarPublicacion from '../features/anuncios/pages/PantallaEditarPublicacion.jsx'
+import ConexionesPage from '../features/conexiones/pages/ConexionesPage.jsx'
+import MisRoomiesPage from '../features/conexiones/pages/MisRoomiesPage.jsx'
 import '../features/listings/listings.css'
 
 function Shell() {
@@ -49,6 +57,8 @@ function Shell() {
           {session?.user.roles?.includes('host') && <NavLink to="/anfitrion">Mis habitaciones</NavLink>}
           <NavLink to="/buscar">Buscar roomies</NavLink>
           <NavLink to="/cuestionario">Mi test</NavLink>
+          <NavLink to="/anuncios">Mis anuncios</NavLink>
+          <NavLink to="/conexiones">Conexiones</NavLink>
           <NavLink to="/mensajes">Mensajes</NavLink>
           <NavLink to="/notificaciones">Notificaciones</NavLink>
           <NavLink to="/acuerdos">Acuerdos</NavLink>
@@ -145,6 +155,14 @@ export default function AppRoutes() {
           <Route element={<NewListing />} path="/anfitrion/habitaciones/nueva" />
           <Route element={<ManageListingPage />} path="/anfitrion/habitaciones/:listingId" />
           <Route element={<HostApplications />} path="/anfitrion/habitaciones/:listingId/postulaciones" />
+          <Route element={<PantallaAnunciosPrincipal />} path="/anuncios" />
+          <Route element={<PantallaPublicarHabitacion />} path="/anuncios/publicar" />
+          <Route element={<PantallaDetallePublicacion />} path="/anuncios/:listingId" />
+          <Route element={<PantallaEditarPublicacion />} path="/anuncios/:listingId/editar" />
+          <Route element={<PantallaUbicacion />} path="/anuncios/:listingId/ubicacion" />
+          <Route element={<PantallaFotos />} path="/anuncios/:listingId/fotos" />
+          <Route element={<ConexionesPage />} path="/conexiones" />
+          <Route element={<MisRoomiesPage />} path="/mis-roomies" />
           <Route element={<Questionnaire />} path="/cuestionario" />
           <Route element={<Questionnaire />} path="/resultados/test" />
           <Route element={<Workspace module="profile" />} path="/perfil">

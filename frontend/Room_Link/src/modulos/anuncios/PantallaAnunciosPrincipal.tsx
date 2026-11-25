@@ -50,6 +50,7 @@ type Filtro =
 type Props = {
   onCrearPublicacion?: () => void;
   onEditarPublicacion?: (id: string) => void;
+  onVerDetalles?: (id: string) => void;
 };
 
 type EstadoBD = "draft" | "published" | "paused" | "closed";
@@ -105,6 +106,7 @@ function convertirFiltro(
 export default function PantallaAnunciosPrincipal({
   onCrearPublicacion,
   onEditarPublicacion,
+  onVerDetalles,
 }: Props) {
   const router = useRouter();
 
@@ -484,6 +486,7 @@ export default function PantallaAnunciosPrincipal({
             <TarjetaPublicacion
               key={publicacion.id}
               publicacion={publicacion}
+              onVerDetalles={onVerDetalles}
               onEditar={onEditarPublicacion}
               onPausar={confirmarPausar}
               onReactivar={confirmarReactivar}

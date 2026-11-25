@@ -1,11 +1,11 @@
 import { color } from '@/constants/roomlink';
 
-
-import React, { useState } from "react";
-
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
+  BackHandler,
   SafeAreaView,
   StatusBar,
   StyleSheet,
@@ -17,6 +17,7 @@ import PantallaPublicarHabitacion, {
 } from "./PantallaPublicarHabitacion";
 
 import PantallaUbicacion from "./PantallaUbicacion";
+import PantallaDetallePublicacion from "./PantallaDetallePublicacion";
 
 import PantallaFotos, {
   type Foto,
@@ -43,7 +44,8 @@ type Vista =
   | "ubicacion"
   | "fotos"
   | "reglasCostos"
-  | "cargandoEdicion";
+  | "cargandoEdicion"
+  | "detalle";
 
 type Coordenadas = {
   latitude: number;
@@ -95,6 +97,38 @@ export function PantallaAnuncios() {
 
   // Fotografías existentes en el servidor.
   const [fotosIniciales, setFotosIniciales] = useState<Foto[]>([]);
+
+  const [anuncioSeleccionado, setAnuncioSeleccionado] =
+    useState<string | null>(null);
+
+  useFocusEffect(useCallback(() => {
+    const suscripcion = BackHandler.addEventListener("hardwareBackPress", () => {
+      switch (vista) {
+        case "reglasCostos":
+          setVista("fotos");
+          return true;
+        case "fotos":
+          setVista("ubicacion");
+          return true;
+        case "ubicacion":
+          setVista("publicar");
+          return true;
+        case "detalle":
+          setAnuncioSeleccionado(null);
+          setVista("anuncios");
+          return true;
+        case "publicar":
+          setVista("anuncios");
+          return true;
+        case "cargandoEdicion":
+          return true;
+        case "anuncios":
+          return false;
+      }
+    });
+
+    return () => suscripcion.remove();
+  }, [vista]));
 
   // ====================================================
   // REINICIAR FORMULARIO
@@ -187,6 +221,15 @@ export function PantallaAnuncios() {
       Alert.alert("Error al editar", mensaje);
       setVista("anuncios");
     }
+  };
+
+  // ====================================================
+  // VER DETALLES DE UNA PUBLICACIÓN
+  // ====================================================
+
+  const verDetallesPublicacion = (id: string) => {
+    setAnuncioSeleccionado(id);
+    setVista("detalle");
   };
 
   // ====================================================
@@ -539,6 +582,22 @@ export function PantallaAnuncios() {
   }
 
   // ====================================================
+  // PANTALLA DE DETALLES
+  // ====================================================
+
+  if (vista === "detalle" && anuncioSeleccionado) {
+    return (
+      <PantallaDetallePublicacion
+        anuncioId={anuncioSeleccionado}
+        onVolver={() => {
+          setAnuncioSeleccionado(null);
+          setVista("anuncios");
+        }}
+      />
+    );
+  }
+
+  // ====================================================
   // PANTALLA PRINCIPAL
   // ====================================================
 
@@ -546,6 +605,7 @@ export function PantallaAnuncios() {
     <PantallaAnunciosPrincipal
       onCrearPublicacion={iniciarNuevaPublicacion}
       onEditarPublicacion={editarPublicacion}
+      onVerDetalles={verDetallesPublicacion}
     />
   );
 }

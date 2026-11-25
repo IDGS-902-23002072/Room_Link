@@ -1,6 +1,6 @@
 import { color } from '@/constants/roomlink';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useFocusEffect } from 'expo-router';
 import {
   ActivityIndicator,
@@ -95,7 +95,7 @@ function formatearHora(iso?: string): string {
   }
 }
 
-export function PantallaChats() {
+export function PantallaChats({ roomIdInicial }: { roomIdInicial?: string }) {
   const { sesion } = useSesion();
   const userId = sesion?.usuario.id ?? null;
   const { width } = useWindowDimensions();
@@ -123,6 +123,7 @@ export function PantallaChats() {
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
   const cargaSala = useRef(0);
+  const salaInicialAbierta = useRef<string | undefined>(undefined);
 
   const ejecutar = useCallback(async (operacion: () => Promise<void>) => {
     if (!sesion) {
@@ -149,10 +150,10 @@ export function PantallaChats() {
     }), [ejecutar]);
 
   useFocusEffect(useCallback(() => {
-    if (sesion && !cargadaBandeja) void cargarBandeja();
-  }, [sesion, cargadaBandeja, cargarBandeja]));
+    if (sesion && !roomIdInicial && !cargadaBandeja) void cargarBandeja();
+  }, [sesion, roomIdInicial, cargadaBandeja, cargarBandeja]));
 
-  const abrirSala = (entrada: ElementoBandejaChat | string) => {
+  const abrirSala = useCallback((entrada: ElementoBandejaChat | string) => {
     const roomId = typeof entrada === 'string' ? entrada.trim() : idSala(entrada);
     if (!roomId) {
       setError('No se encontró el identificador de la sala.');
@@ -180,7 +181,15 @@ export function PantallaChats() {
       if (carga === cargaSala.current) setMensajes(normalizarHistorial(historial));
       await marcarSalaLeida(roomId).catch(() => undefined);
     });
-  };
+  }, [ejecutar]);
+
+  useEffect(() => {
+    if (!roomIdInicial) salaInicialAbierta.current = undefined;
+    if (sesion && roomIdInicial && salaInicialAbierta.current !== roomIdInicial) {
+      salaInicialAbierta.current = roomIdInicial;
+      abrirSala(roomIdInicial);
+    }
+  }, [sesion, roomIdInicial, abrirSala]);
 
   const abrirPorIdManual = () => {
     const limpio = idManual.trim();

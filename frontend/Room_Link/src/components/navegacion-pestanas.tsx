@@ -18,6 +18,10 @@ export default function NavegacionPestanas() {
         <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/home-outline.png')} renderingMode="template" />
         <NativeTabs.Trigger.Label>Anuncios</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="solicitudes">
+        <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/profile.png')} renderingMode="template" />
+        <NativeTabs.Trigger.Label>Conexiones</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="chats">
         <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/chat.png')} renderingMode="template" />
         <NativeTabs.Trigger.Label>Chats</NativeTabs.Trigger.Label>

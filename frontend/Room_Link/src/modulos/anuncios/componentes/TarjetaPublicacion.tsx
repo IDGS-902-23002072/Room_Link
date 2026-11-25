@@ -1,3 +1,4 @@
+import { PortadaHabitacion } from "../../exploracion/componentes/PortadaHabitacion";
 
 import {
   View,
@@ -6,25 +7,18 @@ import {
   StyleSheet,
 } from "react-native";
 
-import { color } from '@/constants/roomlink';
-import { PortadaHabitacion } from '../../exploracion/componentes/PortadaHabitacion';
-
 export type Publicacion = {
   id: string;
   titulo: string;
   precio: string;
-  estado:
-  | "Activa"
-  | "Pausada"
-  | "Cerrada"
-  | "Borrador";
+  estado: "Activa" | "Pausada" | "Cerrada" | "Borrador";
   detalle?: string;
   fotosCount?: number;
 };
 
-
 type Props = {
   publicacion: Publicacion;
+  onVerDetalles?: (id: string) => void;
   onEditar?: (id: string) => void;
   onPausar?: (id: string) => void;
   onReactivar?: (id: string) => void;
@@ -34,6 +28,7 @@ type Props = {
 
 export default function TarjetaPublicacion({
   publicacion,
+  onVerDetalles,
   onEditar,
   onPausar,
   onReactivar,
@@ -49,8 +44,9 @@ export default function TarjetaPublicacion({
       <View style={styles.imagen}>
         <PortadaHabitacion id={publicacion.id} fotos={publicacion.fotosCount ?? 0} />
       </View>
+
       <View style={styles.contenido}>
-        <Text style={[styles.estado, activa ? styles.activa : cerrada ? styles.cerrada : borrador ? styles.borrador : styles.pausada]}>
+        <Text style={styles.estado}>
           {publicacion.estado}
         </Text>
 
@@ -63,39 +59,52 @@ export default function TarjetaPublicacion({
           {publicacion.detalle ? ` · ${publicacion.detalle}` : ""}
         </Text>
 
-        {!cerrada && (
-          <View style={styles.acciones}>
-            <Pressable accessibilityRole="button" style={styles.boton} onPress={() => onEditar?.(publicacion.id)}>
-              <Text style={styles.accion}>Editar</Text>
-            </Pressable>
+        <View style={styles.acciones}>
+          <Pressable accessibilityRole="button" onPress={() => onVerDetalles?.(publicacion.id)}>
+            <Text style={styles.accion}>Ver detalles</Text>
+          </Pressable>
 
-            {!borrador && (
-              <>
-                {activa ? (
-                  <Pressable accessibilityRole="button" style={styles.boton} onPress={() => onPausar?.(publicacion.id)}>
-                    <Text style={styles.accion}>Pausar</Text>
-                  </Pressable>
-                ) : (
-                  <Pressable accessibilityRole="button" style={styles.boton} onPress={() => onReactivar?.(publicacion.id)}>
-                    <Text style={styles.accion}>Reactivar</Text>
-                  </Pressable>
-                )}
+          {!cerrada && (
+            <>
+              <Text style={styles.separador}> · </Text>
 
-                <Pressable accessibilityRole="button" style={[styles.boton, styles.cerrada]} onPress={() => onCerrar?.(publicacion.id)}>
-                  <Text style={styles.accionCerrar}>Cerrar</Text>
+              <Pressable onPress={() => onEditar?.(publicacion.id)}>
+                <Text style={styles.accion}>Editar</Text>
+              </Pressable>
+            </>
+          )}
+
+          {!cerrada && !borrador && (
+            <>
+              <Text style={styles.separador}> · </Text>
+
+              {activa ? (
+                <Pressable onPress={() => onPausar?.(publicacion.id)}>
+                  <Text style={styles.accion}>Pausar</Text>
                 </Pressable>
-              </>
-            )}
-          </View>
-        )}
+              ) : (
+                <Pressable onPress={() => onReactivar?.(publicacion.id)}>
+                  <Text style={styles.accion}>Reactivar</Text>
+                </Pressable>
+              )}
+
+              <Text style={styles.separador}> · </Text>
+
+              <Pressable onPress={() => onCerrar?.(publicacion.id)}>
+                <Text style={styles.accionCerrar}>Cerrar</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
 
         {!borrador && onVerPostulaciones ? (
           <Pressable
-            accessibilityRole="button"
             style={styles.postulaciones}
             onPress={() => onVerPostulaciones(publicacion)}
           >
-            <Text style={styles.postulacionesTexto}>Ver postulaciones ›</Text>
+            <Text style={styles.postulacionesTexto}>
+              Ver postulaciones ›
+            </Text>
           </Pressable>
         ) : null}
       </View>
@@ -104,20 +113,78 @@ export default function TarjetaPublicacion({
 }
 
 const styles = StyleSheet.create({
-  tarjeta: { backgroundColor: color.blanco, borderRadius: 22, overflow: 'hidden', marginBottom: 14, borderWidth: 1, borderColor: color.borde },
-  imagen: { height: 142, backgroundColor: color.mentaSuave, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  contenido: { padding: 16, gap: 7 },
-  estado: { alignSelf: 'flex-start', fontSize: 12, fontWeight: '800', paddingVertical: 5, paddingHorizontal: 9, borderRadius: 9, overflow: 'hidden' },
-  activa: { color: color.accion, backgroundColor: color.menta },
-  pausada: { color: color.cremaTexto, backgroundColor: color.crema },
-  cerrada: { color: color.rosaTexto, backgroundColor: color.rosa },
-  borrador: { color: color.lavandaTexto, backgroundColor: color.lavanda },
-  titulo: { color: color.tinta, fontWeight: '800', fontSize: 20, letterSpacing: -0.35 },
-  detalle: { color: color.secundario, fontSize: 14 },
-  acciones: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  boton: { minHeight: 44, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 12, backgroundColor: color.mentaSuave },
-  accion: { color: color.accion, fontSize: 13, fontWeight: '700' },
-  accionCerrar: { color: color.rosaTexto, fontSize: 13, fontWeight: '700' },
-  postulaciones: { minHeight: 44, justifyContent: 'center', marginTop: 4, borderTopWidth: 1, borderTopColor: color.borde },
-  postulacionesTexto: { color: color.accion, fontSize: 14, fontWeight: '700' },
+  tarjeta: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 13,
+    overflow: "hidden",
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#EDE5EE",
+  },
+
+  imagen: {
+    width: "100%",
+    height: 105,
+    backgroundColor: "#E9DDEB",
+  },
+
+  contenido: {
+    padding: 12,
+  },
+
+  estado: {
+    color: "#8A6C91",
+    fontSize: 9,
+    marginBottom: 5,
+    letterSpacing: 0.3,
+  },
+
+  titulo: {
+    color: "#332A37",
+    fontWeight: "700",
+    fontSize: 14,
+    marginBottom: 4,
+  },
+
+  detalle: {
+    color: "#88768D",
+    fontSize: 11,
+  },
+
+  acciones: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginTop: 7,
+  },
+
+  accion: {
+    color: "#806487",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+
+  accionCerrar: {
+    color: "#A33D4D",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+
+  separador: {
+    color: "#B7A8BA",
+    fontSize: 11,
+  },
+
+  postulaciones: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#EDE5EE",
+  },
+
+  postulacionesTexto: {
+    color: "#84658D",
+    fontSize: 13,
+    fontWeight: "700",
+  },
 });
