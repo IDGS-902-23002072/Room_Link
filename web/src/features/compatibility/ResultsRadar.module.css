@@ -1,0 +1,55 @@
+.radar {
+  display: grid;
+  min-height: 420px;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-5);
+  padding: var(--space-6);
+}
+
+.radar svg {
+  width: min(100%, 340px);
+  overflow: visible;
+}
+
+.grid,
+.axis {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.result {
+  fill: color-mix(in srgb, var(--data-mint) 18%, transparent);
+  stroke: var(--data-mint);
+  stroke-width: 2.5;
+}
+
+.point {
+  fill: var(--data-mint);
+  stroke: var(--paper);
+  stroke-width: 1.5;
+}
+
+.labels {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.labels span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.labels strong {
+  color: var(--ink);
+  font-size: var(--text-xs);
+}

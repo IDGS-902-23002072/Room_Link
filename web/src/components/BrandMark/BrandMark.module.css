@@ -1,0 +1,37 @@
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--ink);
+}
+
+.symbol {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+}
+
+.frame {
+  fill: var(--canvas);
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+.roof,
+.walls {
+  fill: none;
+  stroke: var(--ink);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.sun {
+  fill: var(--teal);
+}
+
+.wordmark {
+  font-size: var(--text-brand);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.7px;
+}

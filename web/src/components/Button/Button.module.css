@@ -1,0 +1,72 @@
+.button {
+  display: inline-flex;
+  min-height: var(--control-height);
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease),
+    transform var(--duration-fast) var(--ease);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+/* El proceso mantiene el contraste completo del texto: el estado lo
+   comunican la etiqueta y aria-busy, no la opacidad. */
+.button[aria-busy='true'] {
+  cursor: progress;
+  opacity: 1;
+}
+
+.primary {
+  background: var(--plum);
+  color: var(--paper);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--plum-hover);
+}
+
+.secondary {
+  border-color: var(--control-border);
+  background: var(--paper);
+  color: var(--plum);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: var(--plum);
+  background: var(--plum-wash);
+  color: var(--plum-strong);
+}
+
+.quiet {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  background: transparent;
+  color: var(--plum);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.quiet:hover:not(:disabled) {
+  background: var(--plum-wash);
+  color: var(--plum-strong);
+}
+
+.sm {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs);
+}

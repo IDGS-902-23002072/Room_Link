@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react'
-import { Navigate, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import ActivityLog from '../pages/ActivityLog/ActivityLog.jsx'
 import Dashboard from '../pages/Dashboard/Dashboard.jsx'
 import Login from '../pages/Login/Login.jsx'
 import { useAuth } from '../hooks/useAuth.js'
@@ -10,6 +11,8 @@ import Messages from '../features/messaging/Messages.jsx'
 import Moderation, { ModerationListing, ReportDirectory, ReportListing } from '../features/moderation/Moderation.jsx'
 import Questionnaire from '../features/compatibility/Questionnaire.jsx'
 import Recommendations from '../features/compatibility/Recommendations.jsx'
+import RoomDetail from '../features/rooms/RoomDetail.jsx'
+import RoomFeed from '../features/rooms/RoomFeed.jsx'
 import { Workspace } from '../features/roomlink/Workspace.jsx'
 import { AccountPage, IdentityReviewsPage, PhotosPage, ProfilePage } from '../features/roomlink/Profile.jsx'
 import { SearchPage } from '../features/roomlink/Search.jsx'
@@ -52,6 +55,7 @@ function Shell() {
         <Brand />
         <nav aria-label="Navegación principal" className="main-nav">
           <NavLink to="/explorar">Explorar</NavLink>
+          <NavLink to="/recomendados">Recomendados</NavLink>
           <NavLink to="/habitaciones">Habitaciones</NavLink>
           <NavLink to="/mis-postulaciones">Mis postulaciones</NavLink>
           {session?.user.roles?.includes('host') && <NavLink to="/anfitrion">Mis habitaciones</NavLink>}
@@ -67,6 +71,7 @@ function Shell() {
           {isAdmin && <NavLink to="/admin/moderacion">Moderación</NavLink>}
           {isAdmin && <NavLink to="/admin/dashboard">Dashboard</NavLink>}
           {isAdmin && <NavLink to="/admin/identidad">Identidad</NavLink>}
+          {isAdmin && <NavLink to="/admin/bitacora">Bitácora</NavLink>}
         </nav>
         <div className="account-menu">
           <span aria-hidden="true" className="account-avatar">{accountInitial}</span>
@@ -124,12 +129,17 @@ function AccessRoute({ mode }) {
   return <Login key={mode} mode={mode} />
 }
 
+function RoomDetailRoute() {
+  const { roomId } = useParams()
+  return <RoomDetail roomId={roomId} />
+}
+
 function NotFound() {
   return (
     <section className="page-heading">
       <p className="eyebrow">ROOMLINK</p>
       <h1>No encontramos esta página</h1>
-      <p className="muted">Vuelve a explorar los perfiles disponibles.</p>
+      <p className="muted">Vuelve a explorar las habitaciones disponibles.</p>
       <AppLink className="button button-primary" href="/explorar">Ir a explorar</AppLink>
     </section>
   )
@@ -144,8 +154,9 @@ export default function AppRoutes() {
         <Route element={<AccessRoute mode="forgot" />} path="/recuperar" />
         <Route element={<AccessRoute mode="reset" />} path="/restablecer" />
         <Route element={<ProtectedLayout />}>
-          <Route element={<Recommendations />} path="/" />
-          <Route element={<Recommendations />} path="/explorar" />
+          <Route element={<RoomFeed />} path="/" />
+          <Route element={<RoomFeed />} path="/explorar" />
+          <Route element={<RoomDetailRoute />} path="/habitacion/:roomId" />
           <Route element={<Recommendations />} path="/recomendados" />
           <Route element={<Recommendations />} path="/perfil/candidato/:candidateId" />
           <Route element={<ListingDirectory />} path="/habitaciones" />
@@ -187,6 +198,7 @@ export default function AppRoutes() {
           <Route element={<AdminLayout />} path="/admin">
             <Route element={<Dashboard />} path="dashboard" />
             <Route element={<IdentityReviewsPage />} path="identidad" />
+            <Route element={<ActivityLog />} path="bitacora" />
             <Route element={<Navigate replace to="cola" />} path="moderacion" />
             <Route element={<Moderation key="cola" tab="cola" />} path="moderacion/cola" />
             <Route element={<Moderation key="denuncias" tab="denuncias" />} path="moderacion/denuncias" />
