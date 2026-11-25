@@ -197,6 +197,22 @@ describe("AgreementsService (Roberto, HU-12)", () => {
       expect(next.acceptances).toHaveLength(0);
     });
 
+    it("conserva los detalles firmados y registra las ediciones en otra versión", async () => {
+      const details = {
+        title: "Reglas del hogar",
+        startDate: "2030-02-01",
+        rules: [{ category: "Pagos", title: "Fecha", description: "Pagar el primer día del mes." }],
+      };
+      const first = await service.generarAcuerdo({ listingId: listing, hostId: host, roomieId: roomie, details });
+      await service.aceptarAcuerdo(first.id, host);
+      const next = await service.crearNuevaVersion(first.id, { ...details, title: "Reglas actualizadas" });
+
+      expect((await service.getAgreement(first.id)).rulesSnapshot.details).toEqual(details);
+      expect((await service.getAgreement(first.id)).acceptances).toHaveLength(1);
+      expect(next.rulesSnapshot.details).toEqual({ ...details, title: "Reglas actualizadas" });
+      expect(next.acceptances).toHaveLength(0);
+    });
+
     it("re-snapshota las reglas actuales del listing", async () => {
       const first = await service.generarAcuerdo({
         listingId: listing,

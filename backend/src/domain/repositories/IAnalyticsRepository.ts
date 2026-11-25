@@ -6,6 +6,10 @@ export interface AnalyticsTotals {
   connectionsSent: number;
   connectionsAccepted: number;
   avgDaysToClose: number | null;
+  publishedListings?: number;
+  listingsWithAcceptedApplication?: number;
+  scoredApplications?: number;
+  avgApplicationAffinity?: number | null;
 }
 
 export interface MonthlyMetric {

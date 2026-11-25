@@ -1,4 +1,11 @@
+export interface AgreementDraftDetails {
+  title?: string;
+  startDate?: string;
+  rules: Array<{ category: string; title: string; description: string }>;
+}
+
 export interface AgreementRuleSet {
+  details?: AgreementDraftDetails;
   visitsPolicy?: string | null;
   partiesAllowed?: boolean;
   quietHoursStart?: string | null;

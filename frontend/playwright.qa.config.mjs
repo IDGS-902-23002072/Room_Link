@@ -5,6 +5,7 @@ export default defineConfig({
   ...mobile,
   testMatch: '**/qa-*.spec.mjs',
   forbidOnly: Boolean(process.env.CI),
+  reporter: process.env.GITHUB_ACTIONS ? [['list'], ['github']] : mobile.reporter,
   use: {
     ...mobile.use,
     baseURL: process.env.E2E_QA_WEB_URL ?? 'http://localhost:3000',

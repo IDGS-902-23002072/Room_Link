@@ -115,9 +115,29 @@ export class DrizzleAnalyticsRepository implements IAnalyticsRepository {
         ),
       );
 
+    const [[listingCohort], [affinity]] = await Promise.all([
+      this.db.select({
+        published: count(),
+        occupied: sql<number>`COALESCE(SUM(EXISTS (
+          SELECT 1 FROM ${appApplications}
+          WHERE ${appApplications.listingId} = ${roomListings.id}
+            AND ${appApplications.status} = 'accepted'
+            AND ${appApplications.decidedAt} <= ${end}
+        )), 0)`,
+      }).from(roomListings).where(and(gte(roomListings.publishedAt, start), lte(roomListings.publishedAt, end))),
+      this.db.select({
+        count: sql<number>`COUNT(${appApplications.compatibilityScore})`,
+        average: sql<number | null>`AVG(${appApplications.compatibilityScore})`,
+      }).from(appApplications).where(and(gte(appApplications.createdAt, start), lte(appApplications.createdAt, end))),
+    ]);
+
     return {
       usersRegistered: Number(users?.total ?? 0),
       activeRooms: Number(rooms?.total ?? 0),
+      publishedListings: Number(listingCohort?.published ?? 0),
+      listingsWithAcceptedApplication: Number(listingCohort?.occupied ?? 0),
+      scoredApplications: Number(affinity?.count ?? 0),
+      avgApplicationAffinity: affinity?.average == null ? null : Number(affinity.average),
       connectionsSent: Number(connections?.sent ?? 0),
       connectionsAccepted: Number(connections?.accepted ?? 0),
       avgDaysToClose:

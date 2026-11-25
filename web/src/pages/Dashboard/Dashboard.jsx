@@ -154,6 +154,16 @@ export default function Dashboard() {
                 </small>
               </Card>
               <Card className={styles.kpi}>
+                <span className={styles.kpiLabel}>Ocupación estimada</span>
+                <strong className={styles.kpiValue}>{kpis.estimatedOccupancyRate == null ? '—' : `${formatNumber(kpis.estimatedOccupancyRate, 2)}%`}</strong>
+                <small className={styles.kpiNote}>{formatNumber(kpis.listingsWithAcceptedApplication ?? 0)} de {formatNumber(kpis.publishedListings ?? 0)} anuncios del periodo con postulación aceptada</small>
+              </Card>
+              <Card className={styles.kpi}>
+                <span className={styles.kpiLabel}>Afinidad promedio de postulaciones</span>
+                <strong className={styles.kpiValue}>{kpis.avgApplicationAffinity == null ? '—' : `${formatNumber(kpis.avgApplicationAffinity, 2)}%`}</strong>
+                <small className={styles.kpiNote}>{formatNumber(kpis.scoredApplications ?? 0)} postulaciones con afinidad calculada en el periodo</small>
+              </Card>
+              <Card className={styles.kpi}>
                 <span className={styles.kpiLabel}>Tiempo promedio de cierre</span>
                 <strong className={styles.kpiValue}>
                   {formatNumber(kpis.avgDaysToClose, 1)} <small>días</small>

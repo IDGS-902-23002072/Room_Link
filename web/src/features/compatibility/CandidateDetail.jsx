@@ -12,7 +12,8 @@ import { asyncEffect } from '../../hooks/asyncEffect.js'
 import { useRoomLinkQuery } from '../../hooks/useRoomLinkQuery.js'
 import { goBack } from '../../routes/navigation.js'
 import { getPublicProfile } from '../roomlink/publicProfiles.js'
-import { getCandidate, sendConnectionRequest } from './compatibility.js'
+import { readLocal, writeLocal } from '../roomlink/storage.js'
+import { calculateSummary, getCandidate, isCompleteAnswers, sendConnectionRequest } from './compatibility.js'
 import { DIMENSIONS, formatBudget } from './format.js'
 import styles from './CandidateDetail.module.css'
 
@@ -45,6 +46,9 @@ export default function CandidateDetail({ candidateId }) {
   const [sending, setSending] = useState(false)
   const [requestSent, setRequestSent] = useState(false)
   const [connectionAttempt, setConnectionAttempt] = useState(0)
+  const [history, setHistory] = useState(() => readLocal(session.user.id, 'candidate-history', {}))
+  const [historyError, setHistoryError] = useState('')
+  const ownTest = useRoomLinkQuery(`/api/v1/compatibility/${encodeURIComponent(session.user.id)}`, session.token)
   const connections = useRoomLinkQuery('/api/v1/connections', session.token, connectionAttempt)
   const activeConnection = connections.data?.find(({ requesterId, addresseeId, status }) => (
     (requesterId === candidateId || addresseeId === candidateId)
@@ -136,6 +140,24 @@ export default function CandidateDetail({ candidateId }) {
   const age = profile?.age ?? publicProfile.age
   const bio = profile?.bio ?? publicProfile.bio
   const occupation = profile?.occupation ?? publicProfile.occupation
+  const ownAnswers = ownTest.data?.completed && isCompleteAnswers(ownTest.data.answers) ? calculateSummary(ownTest.data.answers) : []
+  const candidateAnswers = new Map((profile?.compatibilitySummary ?? []).map(({ dimension, percentage }) => [dimension, percentage]))
+  const comparison = ownAnswers.flatMap(({ dimension, category, percentage }) => candidateAnswers.has(dimension)
+    ? [{ dimension, category, mine: percentage, theirs: candidateAnswers.get(dimension), difference: Math.abs(percentage - candidateAnswers.get(dimension)) }]
+    : [])
+
+  function updateHistory(status) {
+    const next = { ...history }
+    if (next[candidateId]?.status === status) delete next[candidateId]
+    else next[candidateId] = { id: candidateId, name, status }
+    try {
+      writeLocal(session.user.id, 'candidate-history', next)
+      setHistory(next)
+      setHistoryError('')
+    } catch (error) {
+      setHistoryError(error.message)
+    }
+  }
   const mainPhoto = detail.photos.find((photo) => photo.isMain) ?? detail.photos[0]
   const photoUrl = mainPhoto?.url
     ? apiAssetUrl(mainPhoto.url)
@@ -235,6 +257,26 @@ export default function CandidateDetail({ candidateId }) {
             </section>
           ) : null}
 
+          <section className={styles.section}>
+            <h2>Comparación de hábitos</h2>
+            {comparison.length > 0 ? <>
+              <div className="candidate-comparison">
+                <table aria-label="Comparación de hábitos">
+                  <thead><tr><th scope="col">Hábito</th><th scope="col">Tú</th><th scope="col">{name}</th></tr></thead>
+                  <tbody>{comparison.map(({ dimension, category, mine, theirs }) => (
+                    <tr key={dimension}><th scope="row">{category}</th><td>{mine}%</td><td>{theirs}%</td></tr>
+                  ))}</tbody>
+                </table>
+              </div>
+              <p>Puntos en común: {comparison.filter(({ difference }) => difference <= 25).map(({ category }) => category).join(', ') || 'Sin coincidencias cercanas'}</p>
+              <p>Hábitos para conversar: {comparison.filter(({ difference }) => difference >= 50).map(({ category }) => category).join(', ') || 'Sin diferencias marcadas'}</p>
+            </> : <p>{ownTest.loading ? 'Consultando tu test…' : 'La comparación requiere respuestas de ambos perfiles.'}</p>}
+            <div className="feature-actions">
+              <button className="button button-secondary" type="button" aria-pressed={history[candidateId]?.status === 'saved'} onClick={() => updateHistory('saved')}>Guardar perfil</button>
+              <button className="button button-secondary" type="button" aria-pressed={history[candidateId]?.status === 'discarded'} onClick={() => updateHistory('discarded')}>Descartar perfil</button>
+            </div>
+            {historyError && <Notice tone="error">{historyError}</Notice>}
+          </section>
           <section className={styles.section}>
             <h2>Respuestas del test</h2>
             {profile?.compatibilitySummary?.length ? (

@@ -773,3 +773,20 @@
     grid-template-columns: 1fr;
   }
 }
+
+.candidate-preview {
+  width: min(32rem, calc(100% - 2rem));
+  padding: 1.5rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.candidate-preview::backdrop {
+  background: rgb(40 35 45 / 45%);
+}
+
+.candidate-comparison { overflow-x: auto; }
+.candidate-comparison table { width: 100%; border-collapse: collapse; }
+.candidate-comparison :is(th, td) { padding: .5rem; text-align: left; border-bottom: 1px solid var(--line); }

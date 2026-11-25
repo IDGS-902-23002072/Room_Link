@@ -131,6 +131,12 @@ function Applicant({ item, token, deciding, onDecision }) {
       </div>
       <p className="muted"><time dateTime={item.createdAt}>{formatMoment(item.createdAt)}</time> · {item.compatibilityScore == null ? 'Afinidad sin calcular' : `${Math.round(item.compatibilityScore)}% de afinidad`}</p>
       {item.message && <p className="listing-description">{item.message}</p>}
+      {candidate.data && <details className="listing-description">
+        <summary>Perfil del postulante</summary>
+        <p>{[candidate.data.age != null && `${candidate.data.age} años`, candidate.data.occupation].filter(Boolean).join(' · ')}</p>
+        <p>{candidate.data.bio || 'Este perfil aún no tiene biografía.'}</p>
+        <Link to={`/perfil/candidato/${encodeURIComponent(item.applicantId)}`}>Ver perfil y compatibilidad</Link>
+      </details>}
       <div className="feature-actions">
         {canDecide && <>
           <button className="button button-mint" disabled={deciding} type="button" onClick={() => onDecision(item.id, 'accept')}>Aceptar</button>
