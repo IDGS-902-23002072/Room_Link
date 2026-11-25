@@ -50,10 +50,11 @@ function AcceptedConnection({ connection, token, userId, open, opening }) {
   )
 }
 
-function ChatDetails({ context, name, token }) {
+function ChatDetails({ context, name, token, userId }) {
   const { data: listing } = useRoomLinkQuery(
     context.listingId ? `/api/v1/rooms/${makeKey(context.listingId)}` : null, token,
   )
+  const esDueno = listing?.hostId === userId
   return (
     <section className="chat-details">
       <h3>Detalles de la conversación</h3>
@@ -64,7 +65,7 @@ function ChatDetails({ context, name, token }) {
           <dt>Anuncio</dt><dd>{listing?.title || context.listingId}</dd>
         </>}
       </dl>
-      {context.listingId && <Link className="button button-rose" to={`/anuncios/${makeKey(context.listingId)}/denunciar`}>Denunciar anuncio</Link>}
+      {context.listingId && listing && !esDueno && <Link className="button button-rose" to={`/anuncios/${makeKey(context.listingId)}/denunciar`}>Denunciar anuncio</Link>}
     </section>
   )
 }
@@ -228,7 +229,7 @@ function Conversation({ roomId, session, refreshInbox }) {
           {showDetails ? 'Ocultar detalles' : 'Detalles'}
         </button>
       </header>
-      {showDetails && context && <ChatDetails context={context} name={name} token={token} />}
+      {showDetails && context && <ChatDetails context={context} name={name} token={token} userId={user.id} />}
       <div className="chat-scroll" ref={viewport}>
         {(error || contextError) && <FeatureNotice error={error || contextError} retry={() => {
           update()

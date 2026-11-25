@@ -213,7 +213,7 @@ function CreateAgreement() {
                   const next = { ...draft.rules }
                   delete next[category]
                   persist({ ...draft, rules: next })
-                }} type="button">Eliminar norma</button>
+                }} type="button">Limpiar</button>
                 <button className="button button-primary" disabled={!rule.title.trim() || !rule.description.trim()} onClick={() => persist(draft)} type="button">Guardar norma</button>
               </div>
               {Object.entries(draft.rules).filter(([name, value]) => name !== category && (value.title || value.description)).map(([name, value]) => (

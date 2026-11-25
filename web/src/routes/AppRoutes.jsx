@@ -4,6 +4,7 @@ import ActivityLog from '../pages/ActivityLog/ActivityLog.jsx'
 import Dashboard from '../pages/Dashboard/Dashboard.jsx'
 import Login from '../pages/Login/Login.jsx'
 import { useAuth } from '../hooks/useAuth.js'
+import { useRoomLinkQuery } from '../hooks/useRoomLinkQuery.js'
 import { AppLink } from '../components/AppLink.jsx'
 import { Brand, FeatureNotice } from '../features/cesar-ui.jsx'
 import Notifications from '../features/Notifications.jsx'
@@ -37,6 +38,8 @@ function Shell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const isAdmin = session?.user.roles?.includes('admin')
   const accountInitial = session?.user.email?.[0]?.toUpperCase() ?? 'U'
+  const notifs = useRoomLinkQuery(session?.token ? '/api/v1/notifications?limit=1' : null, session?.token, location.pathname)
+  const unreadNotifs = notifs.data?.unreadCount ?? 0
 
   async function signOut() {
     setSigningOut(true)
@@ -64,26 +67,6 @@ function Shell() {
         >
           <span aria-hidden="true" className="nav-toggle-bars" />
         </button>
-        <nav aria-label="Navegación principal" className={menuOpen ? 'main-nav main-nav-open' : 'main-nav'} id="menu-principal" onClick={() => setMenuOpen(false)}>
-          <NavLink to="/explorar">Explorar</NavLink>
-          <NavLink to="/recomendados">Recomendados</NavLink>
-          <NavLink to="/habitaciones">Habitaciones</NavLink>
-          <NavLink to="/mis-postulaciones">Mis postulaciones</NavLink>
-          {session?.user.roles?.includes('host') && <NavLink to="/anfitrion">Mis habitaciones</NavLink>}
-          <NavLink to="/buscar">Buscar roomies</NavLink>
-          <NavLink to="/cuestionario">Mi test</NavLink>
-          <NavLink to="/anuncios">Mis anuncios</NavLink>
-          <NavLink to="/conexiones">Conexiones</NavLink>
-          <NavLink to="/mensajes">Mensajes</NavLink>
-          <NavLink to="/notificaciones">Notificaciones</NavLink>
-          <NavLink to="/acuerdos">Acuerdos</NavLink>
-          <NavLink to="/perfil" end={location.pathname.startsWith('/perfil/candidato/')}>Mi perfil</NavLink>
-          <NavLink to="/denunciar" className={({ isActive }) => isActive || location.pathname.endsWith('/denunciar') ? 'active' : undefined}>Denunciar anuncio</NavLink>
-          {isAdmin && <NavLink to="/admin/moderacion">Moderación</NavLink>}
-          {isAdmin && <NavLink to="/admin/dashboard">Dashboard</NavLink>}
-          {isAdmin && <NavLink to="/admin/identidad">Identidad</NavLink>}
-          {isAdmin && <NavLink to="/admin/bitacora">Bitácora</NavLink>}
-        </nav>
         <div className="account-menu">
           <span aria-hidden="true" className="account-avatar">{accountInitial}</span>
           <span className="account-name">{session?.user.email}</span>
@@ -92,6 +75,27 @@ function Shell() {
           </button>
         </div>
       </header>
+      {menuOpen && <div aria-hidden="true" className="nav-backdrop" onClick={() => setMenuOpen(false)} />}
+      <nav aria-label="Navegación principal" className={menuOpen ? 'main-nav main-nav-open' : 'main-nav'} id="menu-principal" onClick={() => setMenuOpen(false)}>
+        <NavLink to="/explorar">Explorar</NavLink>
+        <NavLink to="/recomendados">Recomendados</NavLink>
+        <NavLink to="/habitaciones">Habitaciones</NavLink>
+        <NavLink to="/mis-postulaciones">Mis postulaciones</NavLink>
+        {session?.user.roles?.includes('host') && <NavLink to="/anfitrion">Mis habitaciones</NavLink>}
+        <NavLink to="/buscar">Buscar roomies</NavLink>
+        <NavLink to="/cuestionario">Mi test</NavLink>
+        <NavLink to="/anuncios">Mis anuncios</NavLink>
+        <NavLink to="/conexiones">Conexiones</NavLink>
+        <NavLink to="/mensajes">Mensajes</NavLink>
+        <NavLink to="/notificaciones">Notificaciones{unreadNotifs > 0 && <span className="nav-badge">{unreadNotifs > 9 ? '9+' : unreadNotifs}</span>}</NavLink>
+        <NavLink to="/acuerdos">Acuerdos</NavLink>
+        <NavLink to="/perfil" end={location.pathname.startsWith('/perfil/candidato/')}>Mi perfil</NavLink>
+        <NavLink to="/denunciar" className={({ isActive }) => isActive || location.pathname.endsWith('/denunciar') ? 'active' : undefined}>Denunciar anuncio</NavLink>
+        {isAdmin && <NavLink to="/admin/moderacion">Moderación</NavLink>}
+        {isAdmin && <NavLink to="/admin/dashboard">Dashboard</NavLink>}
+        {isAdmin && <NavLink to="/admin/identidad">Identidad</NavLink>}
+        {isAdmin && <NavLink to="/admin/bitacora">Bitácora</NavLink>}
+      </nav>
       <main id="contenido" className="page-container" tabIndex={-1}>
         <Outlet />
       </main>
