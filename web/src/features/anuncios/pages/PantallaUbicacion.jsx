@@ -1,6 +1,10 @@
 
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import {
+  useNavigate,
+  useParams,
+  useLocation,
+} from "react-router-dom";
 
 import {
   MapContainer,
@@ -19,7 +23,6 @@ import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { useAuth } from "../../../hooks/useAuth.js";
 
 import {
-  actualizarAnuncio,
   obtenerAnuncioPorId,
 } from "../services/anunciosService.js";
 
@@ -29,7 +32,7 @@ import "leaflet/dist/leaflet.css";
 import "../styles/anuncios.css";
 
 // ======================================================
-// CONFIGURAR ICONO DEL MARCADOR PARA VITE
+// CONFIGURACIÓN DEL MARCADOR
 // ======================================================
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -51,6 +54,110 @@ const URL_MAPA =
 
 const ATRIBUCION_MAPA =
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors';
+
+const CLAVE_EDICION = (listingId) =>
+  `roomlink:edicion:${listingId}`;
+
+// ======================================================
+// FUNCIONES AUXILIARES
+// ======================================================
+
+function leerDatosTemporales(listingId) {
+  try {
+    const guardado = sessionStorage.getItem(
+      CLAVE_EDICION(listingId)
+    );
+
+    return guardado ? JSON.parse(guardado) : null;
+  } catch (error) {
+    console.error(
+      "No se pudieron recuperar los datos temporales:",
+      error
+    );
+
+    return null;
+  }
+}
+
+function guardarDatosTemporales(listingId, datos) {
+  try {
+    sessionStorage.setItem(
+      CLAVE_EDICION(listingId),
+      JSON.stringify(datos)
+    );
+  } catch (error) {
+    console.error(
+      "No se pudieron guardar los datos temporales:",
+      error
+    );
+
+    throw new Error(
+      "No se pudieron conservar los cambios temporalmente."
+    );
+  }
+}
+
+function obtenerAnuncio(resultado) {
+  return (
+    resultado?.room ??
+    resultado?.data?.room ??
+    resultado?.data ??
+    resultado
+  );
+}
+
+function obtenerUbicacion(anuncio) {
+  return (
+    anuncio?.location ??
+    anuncio?.ubicacion ??
+    anuncio?.geoLocation ??
+    anuncio?.geo_location ??
+    null
+  );
+}
+
+function obtenerDatosUbicacionOriginal(anuncio) {
+  const ubicacion = obtenerUbicacion(anuncio);
+
+  if (typeof ubicacion === "string") {
+    return {
+      ubicacion,
+      latitude: anuncio?.latitude ?? null,
+      longitude: anuncio?.longitude ?? null,
+    };
+  }
+
+  return {
+    ubicacion:
+      ubicacion?.address ??
+      ubicacion?.direccion ??
+      ubicacion?.name ??
+      "",
+
+    latitude:
+      ubicacion?.latitude ??
+      ubicacion?.lat ??
+      anuncio?.latitude ??
+      null,
+
+    longitude:
+      ubicacion?.longitude ??
+      ubicacion?.lng ??
+      anuncio?.longitude ??
+      null,
+  };
+}
+
+function validarCoordenadas(lat, lng) {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
 
 // ======================================================
 // COMPONENTE: DETECTAR CLIC EN EL MAPA
@@ -82,7 +189,7 @@ function ActualizarCentro({ coordenadas }) {
     mapa.setView(
       [coordenadas.lat, coordenadas.lng],
       16,
-      { animate: true },
+      { animate: true }
     );
   }, [coordenadas, mapa]);
 
@@ -99,7 +206,10 @@ function MarcadorUbicacion({
 }) {
   return (
     <Marker
-      position={[coordenadas.lat, coordenadas.lng]}
+      position={[
+        coordenadas.lat,
+        coordenadas.lng,
+      ]}
       draggable
       eventHandlers={{
         dragend(evento) {
@@ -116,20 +226,14 @@ function MarcadorUbicacion({
 }
 
 // ======================================================
-// NORMALIZAR RESPUESTA DE UBICACIÓN
-// ======================================================
-
-function obtenerUbicacion(anuncio) {
-  return anuncio?.location ?? anuncio?.ubicacion ?? null;
-}
-
-// ======================================================
 // PANTALLA DE UBICACIÓN
 // ======================================================
 
 export default function PantallaUbicacion() {
   const { listingId } = useParams();
+
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { session, loadingSession } = useAuth();
 
@@ -153,10 +257,13 @@ export default function PantallaUbicacion() {
   const [cargandoMapa, setCargandoMapa] = useState(true);
 
   const [buscando, setBuscando] = useState(false);
-  const [buscandoDireccionMapa, setBuscandoDireccionMapa] =
-    useState(false);
 
-  const [guardando, setGuardando] = useState(false);
+  const [
+    buscandoDireccionMapa,
+    setBuscandoDireccionMapa,
+  ] = useState(false);
+
+  const [avanzando, setAvanzando] = useState(false);
 
   // ====================================================
   // MENSAJES
@@ -177,10 +284,16 @@ export default function PantallaUbicacion() {
   // ====================================================
 
   const estadoAnuncio = String(
-    anuncio?.status ?? anuncio?.estado ?? "",
+    anuncio?.status ??
+    anuncio?.estado ??
+    ""
   ).toLowerCase();
 
-  const estaCerrado = estadoAnuncio === "closed";
+  const estaCerrado = [
+    "closed",
+    "cerrada",
+    "cerrado",
+  ].includes(estadoAnuncio);
 
   // ====================================================
   // CONSULTAR INFORMACIÓN DEL ANUNCIO
@@ -198,62 +311,153 @@ export default function PantallaUbicacion() {
 
         if (!token || !userId) {
           throw new Error(
-            "Tu sesión no está disponible. Inicia sesión nuevamente.",
+            "Tu sesión no está disponible. Inicia sesión nuevamente."
           );
         }
 
         if (!listingId) {
           throw new Error(
-            "No se encontró el identificador del anuncio.",
+            "No se encontró el identificador del anuncio."
           );
         }
 
         const resultado = await obtenerAnuncioPorId(
           listingId,
-          token,
+          token
         );
 
         if (!activo) return;
 
         if (!resultado) {
-          throw new Error("No se encontró el anuncio.");
+          throw new Error(
+            "No se encontró el anuncio."
+          );
         }
 
-        setAnuncio(resultado);
+        const publicacion = obtenerAnuncio(resultado);
 
-        const ubicacion = obtenerUbicacion(resultado);
-
-        if (ubicacion) {
-          const direccionGuardada =
-            ubicacion.address ??
-            ubicacion.direccion ??
-            "";
-
-          setDireccion(direccionGuardada);
-
-          const lat = Number(
-            ubicacion.latitude ?? ubicacion.lat,
+        if (!publicacion?.id) {
+          throw new Error(
+            "No se pudo identificar la publicación."
           );
-
-          const lng = Number(
-            ubicacion.longitude ?? ubicacion.lng,
-          );
-
-          if (
-            Number.isFinite(lat) &&
-            Number.isFinite(lng) &&
-            lat >= -90 &&
-            lat <= 90 &&
-            lng >= -180 &&
-            lng <= 180
-          ) {
-            setCoordenadas({ lat, lng });
-          }
         }
+
+        setAnuncio(publicacion);
+
+        // Recuperar los datos del paso anterior.
+        // Prioridad:
+        // 1. Datos recibidos por navegación.
+        // 2. Datos guardados en sessionStorage.
+        // 3. Datos originales del servidor.
+
+        const datosDeNavegacion =
+          location.state?.datosEdicion ?? null;
+
+        const datosGuardados =
+          leerDatosTemporales(listingId);
+
+        const datosTemporales =
+          datosDeNavegacion ??
+          datosGuardados ??
+          {};
+
+        const ubicacionOriginal =
+          obtenerDatosUbicacionOriginal(publicacion);
+
+        const datosCompletos = {
+          ...datosTemporales,
+
+          // Si el primer paso ya modificó estos campos,
+          // no debemos reemplazarlos por los originales.
+          titulo:
+            datosTemporales.titulo ??
+            publicacion.title ??
+            publicacion.titulo ??
+            "",
+
+          renta:
+            datosTemporales.renta ??
+            publicacion.monthlyRent ??
+            publicacion.monthly_rent ??
+            publicacion.renta ??
+            "",
+
+          descripcion:
+            datosTemporales.descripcion ??
+            publicacion.description ??
+            publicacion.descripcion ??
+            "",
+
+          availableFrom:
+            datosTemporales.availableFrom ??
+            publicacion.availableFrom ??
+            publicacion.available_from ??
+            "",
+
+          maxRoommates:
+            datosTemporales.maxRoommates ??
+            publicacion.maxRoommates ??
+            publicacion.max_roommates ??
+            "",
+
+          // Ubicación temporal u original.
+          ubicacion:
+            datosTemporales.ubicacion ??
+            ubicacionOriginal.ubicacion,
+
+          latitude:
+            datosTemporales.latitude ??
+            ubicacionOriginal.latitude,
+
+          longitude:
+            datosTemporales.longitude ??
+            ubicacionOriginal.longitude,
+
+          // Conservar estado y fotografías originales.
+          status:
+            datosTemporales.status ??
+            publicacion.status ??
+            publicacion.estado ??
+            "draft",
+
+          fotos:
+            datosTemporales.fotos ??
+            (publicacion.photos ?? []).map((foto) => ({
+              type: "existing",
+              id: foto.id,
+            })),
+        };
+
+        // Recuperar dirección.
+        setDireccion(
+          String(datosCompletos.ubicacion ?? "")
+        );
+
+        // Recuperar coordenadas.
+        const lat = Number(datosCompletos.latitude);
+        const lng = Number(datosCompletos.longitude);
+
+        if (
+          datosCompletos.latitude != null &&
+          datosCompletos.longitude != null &&
+          validarCoordenadas(lat, lng)
+        ) {
+          setCoordenadas({ lat, lng });
+        } else {
+          setCoordenadas(null);
+        }
+
+        // Conservar el conjunto completo de datos.
+        guardarDatosTemporales(
+          listingId,
+          datosCompletos
+        );
+
       } catch (err) {
         if (activo) {
           setError(
-            err.message || "No se pudo cargar el anuncio.",
+            err.message ||
+            "No se pudo cargar el anuncio."
           );
         }
       } finally {
@@ -272,7 +476,13 @@ export default function PantallaUbicacion() {
 
       controladorBusquedaRef.current?.abort();
     };
-  }, [listingId, token, userId, loadingSession]);
+  }, [
+    listingId,
+    token,
+    userId,
+    loadingSession,
+    location.state,
+  ]);
 
   // ====================================================
   // OBTENER DIRECCIÓN A PARTIR DE COORDENADAS
@@ -309,12 +519,12 @@ export default function PantallaUbicacion() {
             Accept: "application/json",
           },
           signal: controlador.signal,
-        },
+        }
       );
 
       if (!respuesta.ok) {
         throw new Error(
-          "No se pudo consultar la dirección de este punto.",
+          "No se pudo consultar la dirección de este punto."
         );
       }
 
@@ -333,9 +543,10 @@ export default function PantallaUbicacion() {
         setDireccion("");
 
         setErrorMapa(
-          "No encontramos una dirección para este punto. Busca la dirección en el mapa o escríbela manualmente. También puedes revisar que el punto seleccionado sea correcto.",
+          "No encontramos una dirección para este punto. Puedes escribirla manualmente."
         );
       }
+
     } catch (err) {
       if (err.name === "AbortError") return;
 
@@ -343,7 +554,7 @@ export default function PantallaUbicacion() {
         solicitudActual === solicitudDireccionRef.current
       ) {
         setErrorMapa(
-          "No pudimos identificar la dirección de este punto. Puedes buscarla en el mapa o escribirla manualmente.",
+          "No pudimos identificar la dirección de este punto. Puedes escribirla manualmente."
         );
       }
     } finally {
@@ -360,20 +571,15 @@ export default function PantallaUbicacion() {
   // ====================================================
 
   function seleccionarCoordenadas(nuevasCoordenadas) {
-    if (estaCerrado || guardando) return;
+    if (estaCerrado || avanzando) return;
 
     const lat = Number(nuevasCoordenadas.lat);
     const lng = Number(nuevasCoordenadas.lng);
 
-    if (
-      !Number.isFinite(lat) ||
-      !Number.isFinite(lng) ||
-      lat < -90 ||
-      lat > 90 ||
-      lng < -180 ||
-      lng > 180
-    ) {
-      setErrorMapa("Las coordenadas seleccionadas no son válidas.");
+    if (!validarCoordenadas(lat, lng)) {
+      setErrorMapa(
+        "Las coordenadas seleccionadas no son válidas."
+      );
       return;
     }
 
@@ -388,7 +594,6 @@ export default function PantallaUbicacion() {
 
   // ====================================================
   // BUSCAR DIRECCIÓN ESCRITA POR EL USUARIO
-  // SEARCH
   // ====================================================
 
   async function buscarDireccion(evento) {
@@ -398,7 +603,7 @@ export default function PantallaUbicacion() {
 
     if (!textoBusqueda) {
       setError(
-        "Escribe una dirección para buscarla en el mapa.",
+        "Escribe una dirección para buscarla en el mapa."
       );
       return;
     }
@@ -432,12 +637,12 @@ export default function PantallaUbicacion() {
             Accept: "application/json",
           },
           signal: controlador.signal,
-        },
+        }
       );
 
       if (!respuesta.ok) {
         throw new Error(
-          "No se pudo consultar el servicio de búsqueda de direcciones. Inténtalo nuevamente.",
+          "No se pudo consultar el servicio de búsqueda de direcciones. Inténtalo nuevamente."
         );
       }
 
@@ -454,9 +659,8 @@ export default function PantallaUbicacion() {
         resultados.length === 0
       ) {
         setError(
-          "No encontramos esa dirección. Revisa que esté escrita correctamente o selecciona directamente el punto donde se encuentra tu habitación en el mapa.",
+          "No encontramos esa dirección. Revisa que esté escrita correctamente o selecciona directamente el punto en el mapa."
         );
-
         return;
       }
 
@@ -468,11 +672,13 @@ export default function PantallaUbicacion() {
       };
 
       if (
-        !Number.isFinite(nuevaCoordenada.lat) ||
-        !Number.isFinite(nuevaCoordenada.lng)
+        !validarCoordenadas(
+          nuevaCoordenada.lat,
+          nuevaCoordenada.lng
+        )
       ) {
         throw new Error(
-          "El servicio devolvió coordenadas no válidas.",
+          "El servicio devolvió coordenadas no válidas."
         );
       }
 
@@ -481,6 +687,7 @@ export default function PantallaUbicacion() {
 
       setError("");
       setErrorMapa("");
+
     } catch (err) {
       if (err.name === "AbortError") return;
 
@@ -488,7 +695,7 @@ export default function PantallaUbicacion() {
         solicitudActual === solicitudDireccionRef.current
       ) {
         setError(
-          err.message || "No se pudo buscar la dirección.",
+          err.message || "No se pudo buscar la dirección."
         );
       }
     } finally {
@@ -519,117 +726,145 @@ export default function PantallaUbicacion() {
   }
 
   // ====================================================
-  // PREPARAR DATOS PARA ACTUALIZAR
+  // PREPARAR DATOS TEMPORALES
   // ====================================================
 
-  function obtenerDatosActualizacion() {
-    const ubicacionActual = obtenerUbicacion(anuncio);
+  function obtenerDatosEdicion() {
+    const datosAnteriores =
+      leerDatosTemporales(listingId) ?? {};
 
     return {
-      titulo:
-        anuncio.title ??
-        anuncio.titulo ??
-        "",
+      ...datosAnteriores,
 
-      renta:
-        anuncio.monthlyRent ??
-        anuncio.renta ??
-        "",
+      // Conservar los campos del paso 1.
+      titulo: datosAnteriores.titulo ?? "",
+      renta: datosAnteriores.renta ?? "",
+      descripcion: datosAnteriores.descripcion ?? "",
+      availableFrom: datosAnteriores.availableFrom ?? "",
+      maxRoommates: datosAnteriores.maxRoommates ?? "",
 
-      descripcion:
-        anuncio.description ??
-        anuncio.descripcion ??
-        "",
-
+      // Actualizar únicamente la ubicación.
       ubicacion: direccion.trim(),
-
       latitude: coordenadas.lat,
       longitude: coordenadas.lng,
 
-      availableFrom:
-        anuncio.availableFrom ??
-        anuncio.available_from ??
-        "",
-
-      maxRoommates:
-        anuncio.maxRoommates ??
-        anuncio.max_roommates ??
-        "",
-
-      // Conservamos las fotografías que ya tiene el anuncio.
-      fotos: (anuncio.photos ?? []).map((foto) => ({
-        type: "existing",
-        id: foto.id,
-      })),
+      // Conservar las fotografías y el estado.
+      fotos: datosAnteriores.fotos ?? [],
+      status:
+        datosAnteriores.status ??
+        anuncio?.status ??
+        anuncio?.estado ??
+        "draft",
     };
   }
 
   // ====================================================
-  // GUARDAR UBICACIÓN
+  // CANCELAR EDICIÓN
   // ====================================================
 
-  async function guardarUbicacion() {
-    if (guardando) return;
+  function cancelarEdicion() {
+    solicitudDireccionRef.current++;
+
+    controladorBusquedaRef.current?.abort();
+
+    try {
+      sessionStorage.removeItem(
+        CLAVE_EDICION(listingId)
+      );
+    } catch (err) {
+      console.error(
+        "No se pudo limpiar la edición temporal:",
+        err
+      );
+    }
+
+    navigate("/anuncios", {
+      replace: true,
+    });
+  }
+
+  // ====================================================
+  // CONTINUAR A FOTOGRAFÍAS
+  // ====================================================
+
+  function continuarAFotografias() {
+    if (avanzando) return;
 
     try {
       setError("");
 
       if (!anuncio) {
         throw new Error(
-          "No se encontró la información del anuncio.",
+          "No se encontró la información del anuncio."
         );
       }
 
       if (estaCerrado) {
         throw new Error(
-          "Este anuncio está cerrado y ya no se puede modificar.",
+          "Este anuncio está cerrado y ya no se puede modificar."
         );
       }
 
       if (!token || !userId) {
         throw new Error(
-          "Tu sesión expiró. Inicia sesión nuevamente.",
+          "Tu sesión expiró. Inicia sesión nuevamente."
         );
       }
 
       if (!direccion.trim()) {
         throw new Error(
-          "Escribe la dirección de la habitación.",
+          "Escribe la dirección de la habitación."
         );
       }
 
       if (!coordenadas) {
         throw new Error(
-          "Selecciona una ubicación en el mapa.",
+          "Selecciona una ubicación en el mapa."
+        );
+      }
+
+      if (
+        !validarCoordenadas(
+          coordenadas.lat,
+          coordenadas.lng
+        )
+      ) {
+        throw new Error(
+          "Las coordenadas seleccionadas no son válidas."
         );
       }
 
       if (buscando || buscandoDireccionMapa) {
         throw new Error(
-          "Espera a que termine la búsqueda de la dirección antes de guardar.",
+          "Espera a que termine la búsqueda de la dirección antes de continuar."
         );
       }
 
-      setGuardando(true);
+      setAvanzando(true);
 
-      await actualizarAnuncio(
+      // Preparar todos los datos de los dos primeros pasos.
+      const datosEdicion = obtenerDatosEdicion();
+
+      // Guardar temporalmente.
+      // NO se ejecuta actualizarAnuncio().
+      guardarDatosTemporales(
         listingId,
-        obtenerDatosActualizacion(),
-        token,
-        userId,
+        datosEdicion
       );
 
       navigate(`/anuncios/${listingId}/fotos`, {
         state: {
           modoEdicion: true,
+          datosEdicion,
         },
       });
+
     } catch (err) {
       setError(
-        err.message || "No se pudo guardar la ubicación.",
+        err.message || "No se pudo continuar."
       );
-    } finally {
-      setGuardando(false);
+
+      setAvanzando(false);
     }
   }
 
@@ -697,7 +932,7 @@ export default function PantallaUbicacion() {
   }
 
   // ====================================================
-  // CONFIGURACIÓN DEL CENTRO DEL MAPA
+  // CENTRO DEL MAPA
   // ====================================================
 
   const centroMapa = coordenadas
@@ -711,8 +946,6 @@ export default function PantallaUbicacion() {
   return (
     <main className="ubicacion-pantalla">
       <section className="ubicacion-contenido">
-
-        {/* ENCABEZADO */}
 
         <header className="ubicacion-encabezado">
           <span className="ubicacion-etiqueta">
@@ -750,11 +983,9 @@ export default function PantallaUbicacion() {
           </div>
         </div>
 
-        {/* TARJETA PRINCIPAL */}
-
         <section className="ubicacion-tarjeta">
 
-          {/* BUSCADOR DE DIRECCIÓN */}
+          {/* BUSCADOR */}
 
           <form onSubmit={buscarDireccion}>
             <label htmlFor="direccion-habitacion">
@@ -769,7 +1000,7 @@ export default function PantallaUbicacion() {
                 onChange={cambiarDireccion}
                 placeholder="Ej. Calle, número, colonia, ciudad..."
                 autoComplete="street-address"
-                disabled={guardando}
+                disabled={avanzando}
               />
 
               <button
@@ -777,7 +1008,7 @@ export default function PantallaUbicacion() {
                 disabled={
                   buscando ||
                   buscandoDireccionMapa ||
-                  guardando
+                  avanzando
                 }
               >
                 {buscando ? "Buscando..." : "Buscar"}
@@ -859,8 +1090,6 @@ export default function PantallaUbicacion() {
             </div>
           )}
 
-          {/* ERROR DE MAPA */}
-
           {errorMapa && (
             <div className="ubicacion-error">
               {errorMapa}
@@ -889,7 +1118,7 @@ export default function PantallaUbicacion() {
             </div>
           )}
 
-          {/* DIRECCIÓN QUE SE GUARDARÁ */}
+          {/* DIRECCIÓN */}
 
           {direccion && (
             <div className="ubicacion-seleccionada">
@@ -899,30 +1128,41 @@ export default function PantallaUbicacion() {
             </div>
           )}
 
-          {/* ERRORES GENERALES */}
+          {/* ERROR GENERAL */}
 
           {error && (
-            <div className="ubicacion-mensaje-error">
+            <div
+              className="ubicacion-mensaje-error"
+              role="alert"
+            >
               {error}
             </div>
           )}
 
-          {/* BOTONES */}
+          {/* NOTA */}
+
+          <div className="fotos-nota">
+            La ubicación todavía no se ha guardado en tu
+            publicación. Podrás revisar todos los cambios
+            antes de pulsar Guardar en el último paso.
+          </div>
+
+          {/* ACCIONES */}
 
           <div className="ubicacion-acciones">
             <BotonAnuncio
               tipo="secundario"
-              onClick={() => navigate("/anuncios")}
-              disabled={guardando}
+              onClick={cancelarEdicion}
+              disabled={avanzando}
             >
               Cancelar
             </BotonAnuncio>
 
             <BotonAnuncio
               tipo="principal"
-              onClick={guardarUbicacion}
+              onClick={continuarAFotografias}
               disabled={
-                guardando ||
+                avanzando ||
                 cargandoMapa ||
                 buscando ||
                 buscandoDireccionMapa ||
@@ -930,9 +1170,9 @@ export default function PantallaUbicacion() {
                 !direccion.trim()
               }
             >
-              {guardando
-                ? "Guardando..."
-                : "Guardar y continuar"}
+              {avanzando
+                ? "Continuando..."
+                : "Siguiente"}
             </BotonAnuncio>
           </div>
 

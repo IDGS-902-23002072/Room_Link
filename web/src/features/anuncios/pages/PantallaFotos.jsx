@@ -1,6 +1,10 @@
 
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 import { useAuth } from "../../../hooks/useAuth.js";
 
@@ -30,19 +34,79 @@ const TIPOS_PERMITIDOS = [
 ];
 
 // ======================================================
+// FUNCIONES AUXILIARES
+// ======================================================
+
+function obtenerEstadoAnuncio(anuncio) {
+  return String(
+    anuncio?.status ?? anuncio?.estado ?? "",
+  ).toLowerCase();
+}
+
+function normalizarFotosExistentes(listingId, fotos = []) {
+  return [...fotos]
+    .sort(
+      (a, b) =>
+        Number(a.position ?? 0) - Number(b.position ?? 0),
+    )
+    .map((foto) => ({
+      id: String(foto.id),
+      type: "existing",
+      fileName:
+        foto.fileName ??
+        foto.file_name ??
+        "Fotografía",
+      mimeType:
+        foto.mimeType ??
+        foto.mime_type ??
+        "",
+      url: obtenerUrlFoto(listingId, foto.id),
+    }));
+}
+
+// Guarda únicamente información serializable.
+// Los objetos File no se pueden conservar en sessionStorage.
+function obtenerDatosSerializables(datos) {
+  return {
+    titulo: datos?.titulo ?? "",
+    renta: datos?.renta ?? "",
+    descripcion: datos?.descripcion ?? "",
+    ubicacion: datos?.ubicacion ?? "",
+    latitude: datos?.latitude ?? "",
+    longitude: datos?.longitude ?? "",
+    availableFrom: datos?.availableFrom ?? "",
+    maxRoommates: datos?.maxRoommates ?? "",
+  };
+}
+
+function obtenerFotosParaSesion(fotos = []) {
+  return fotos
+    .filter((foto) => foto.type === "existing")
+    .map((foto) => ({
+      type: "existing",
+      id: String(foto.id),
+    }));
+}
+
+// ======================================================
 // PANTALLA DE FOTOGRAFÍAS
 // ======================================================
 
 export default function PantallaFotos() {
   const { listingId } = useParams();
+
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { session, loadingSession } = useAuth();
+
+  const CLAVE_EDICION = `roomlink:edicion:${listingId}`;
 
   const inputFotosRef = useRef(null);
   const urlsTemporalesRef = useRef(new Set());
 
   const [anuncio, setAnuncio] = useState(null);
+  const [datosEdicion, setDatosEdicion] = useState({});
   const [fotos, setFotos] = useState([]);
 
   const [cargando, setCargando] = useState(true);
@@ -55,12 +119,15 @@ export default function PantallaFotos() {
   // ESTADO DEL ANUNCIO
   // ====================================================
 
-  const estadoAnuncio = String(
-    anuncio?.status ?? anuncio?.estado ?? "",
-  ).toLowerCase();
+  const estadoAnuncio = obtenerEstadoAnuncio(anuncio);
 
   const esBorrador = estadoAnuncio === "draft";
-  const estaCerrado = estadoAnuncio === "closed";
+
+  const estaCerrado = [
+    "closed",
+    "cerrado",
+    "cerrada",
+  ].includes(estadoAnuncio);
 
   const puedeEditar = Boolean(anuncio) && !estaCerrado;
 
@@ -84,7 +151,7 @@ export default function PantallaFotos() {
   }, []);
 
   // ====================================================
-  // CONSULTAR ANUNCIO Y FOTOGRAFÍAS EXISTENTES
+  // CONSULTAR ANUNCIO Y RECUPERAR EDICIÓN TEMPORAL
   // ====================================================
 
   useEffect(() => {
@@ -117,25 +184,111 @@ export default function PantallaFotos() {
         if (!activo) return;
 
         if (!resultado) {
-          throw new Error("No se encontró el anuncio solicitado.");
+          throw new Error(
+            "No se encontró el anuncio solicitado.",
+          );
         }
 
         setAnuncio(resultado);
 
-        const fotosGuardadas = [...(resultado.photos ?? [])]
-          .sort(
-            (a, b) =>
-              Number(a.position ?? 0) - Number(b.position ?? 0),
-          )
-          .map((foto) => ({
-            id: String(foto.id),
-            type: "existing",
-            fileName: foto.fileName ?? foto.file_name ?? "Fotografía",
-            mimeType: foto.mimeType ?? foto.mime_type ?? "",
-            url: obtenerUrlFoto(listingId, foto.id),
-          }));
+        // Recuperar datos enviados desde la pantalla anterior.
+        let datosTemporales = null;
 
-        setFotos(fotosGuardadas);
+        try {
+          const almacenados = sessionStorage.getItem(
+            CLAVE_EDICION,
+          );
+
+          datosTemporales = almacenados
+            ? JSON.parse(almacenados)
+            : null;
+        } catch {
+          datosTemporales = null;
+        }
+
+        // Prioridad:
+        // 1. Datos recibidos por navegación.
+        // 2. Datos temporales de sessionStorage.
+        // 3. Datos originales del anuncio.
+        const datosRecibidos =
+          location.state?.datosEdicion ??
+          datosTemporales ??
+          {};
+
+        setDatosEdicion(datosRecibidos);
+
+        // Guardar temporalmente los datos de información y ubicación.
+        const datosParaSesion =
+          obtenerDatosSerializables(datosRecibidos);
+
+        sessionStorage.setItem(
+          CLAVE_EDICION,
+          JSON.stringify(datosParaSesion),
+        );
+
+        // Recuperar fotografías originales del servidor.
+        const fotosOriginales = normalizarFotosExistentes(
+          listingId,
+          resultado.photos ?? [],
+        );
+
+        // Recuperar el orden de fotografías enviado desde
+        // Ubicación o desde la sesión temporal.
+        const fotosRecibidas =
+          location.state?.datosEdicion?.fotos ??
+          datosTemporales?.fotos ??
+          null;
+
+        if (Array.isArray(fotosRecibidas)) {
+          const fotosExistentesPorId = new Map(
+            fotosOriginales.map((foto) => [
+              String(foto.id),
+              foto,
+            ]),
+          );
+
+          const fotosRecuperadas = [];
+
+          fotosRecibidas.forEach((foto) => {
+            if (foto.type === "existing") {
+              const existente = fotosExistentesPorId.get(
+                String(foto.id),
+              );
+
+              if (existente) {
+                fotosRecuperadas.push(existente);
+                fotosExistentesPorId.delete(
+                  String(foto.id),
+                );
+              }
+            }
+
+            if (foto.type === "new" && foto.file) {
+              let preview = foto.preview;
+
+              if (!preview) {
+                preview = URL.createObjectURL(foto.file);
+                urlsTemporalesRef.current.add(preview);
+              }
+
+              fotosRecuperadas.push({
+                ...foto,
+                preview,
+                type: "new",
+              });
+            }
+          });
+
+          // Las fotografías existentes que no llegaron en el
+          // orden temporal se agregan al final.
+          fotosExistentesPorId.forEach((foto) => {
+            fotosRecuperadas.push(foto);
+          });
+
+          setFotos(fotosRecuperadas);
+        } else {
+          setFotos(fotosOriginales);
+        }
       } catch (err) {
         if (activo) {
           setError(
@@ -160,6 +313,37 @@ export default function PantallaFotos() {
     session?.token,
     session?.user?.id,
     loadingSession,
+    location.state,
+  ]);
+
+  // ====================================================
+  // CONSERVAR DATOS TEMPORALES
+  // ====================================================
+
+  useEffect(() => {
+    if (cargando || !anuncio || estaCerrado) return;
+
+    const datosParaSesion = {
+      ...obtenerDatosSerializables(datosEdicion),
+      fotos: obtenerFotosParaSesion(fotos),
+    };
+
+    try {
+      sessionStorage.setItem(
+        CLAVE_EDICION,
+        JSON.stringify(datosParaSesion),
+      );
+    } catch {
+      // El guardado definitivo seguirá disponible mientras
+      // los datos permanezcan en el estado de React.
+    }
+  }, [
+    cargando,
+    anuncio,
+    estaCerrado,
+    datosEdicion,
+    fotos,
+    CLAVE_EDICION,
   ]);
 
   // ====================================================
@@ -170,7 +354,9 @@ export default function PantallaFotos() {
     if (!puedeEditar || guardando) return;
 
     if (fotos.length >= MAX_FOTOS) {
-      setError("Solo puedes agregar un máximo de 10 fotografías.");
+      setError(
+        "Solo puedes agregar un máximo de 10 fotografías.",
+      );
       return;
     }
 
@@ -188,7 +374,9 @@ export default function PantallaFotos() {
       return;
     }
 
-    const archivos = Array.from(evento.target.files ?? []);
+    const archivos = Array.from(
+      evento.target.files ?? [],
+    );
 
     setError("");
     setMensaje("");
@@ -198,7 +386,10 @@ export default function PantallaFotos() {
     const espacioDisponible = MAX_FOTOS - fotos.length;
 
     if (espacioDisponible <= 0) {
-      setError("Ya alcanzaste el máximo de 10 fotografías.");
+      setError(
+        "Ya alcanzaste el máximo de 10 fotografías.",
+      );
+
       evento.target.value = "";
       return;
     }
@@ -213,12 +404,16 @@ export default function PantallaFotos() {
 
     archivosSeleccionados.forEach((archivo, indice) => {
       if (!TIPOS_PERMITIDOS.includes(archivo.type)) {
-        errores.push(`${archivo.name}: formato no permitido.`);
+        errores.push(
+          `${archivo.name}: formato no permitido.`,
+        );
         return;
       }
 
       if (archivo.size > MAX_TAMANO_FOTO) {
-        errores.push(`${archivo.name}: supera el límite de 8 MB.`);
+        errores.push(
+          `${archivo.name}: supera el límite de 8 MB.`,
+        );
         return;
       }
 
@@ -321,38 +516,57 @@ export default function PantallaFotos() {
 
   function obtenerDatosActualizacion() {
     return {
-      titulo: anuncio.title ?? anuncio.titulo ?? "",
+      // Información del paso 1.
+      titulo:
+        datosEdicion.titulo ??
+        anuncio.title ??
+        anuncio.titulo ??
+        "",
+
       renta:
+        datosEdicion.renta ??
         anuncio.monthlyRent ??
         anuncio.renta ??
         "",
+
       descripcion:
+        datosEdicion.descripcion ??
         anuncio.description ??
         anuncio.descripcion ??
         "",
-      ubicacion:
-        anuncio.location?.address ??
-        anuncio.ubicacion ??
-        "",
-      latitude:
-        anuncio.location?.latitude ??
-        anuncio.latitude ??
-        "",
-      longitude:
-        anuncio.location?.longitude ??
-        anuncio.longitude ??
-        "",
+
       availableFrom:
+        datosEdicion.availableFrom ??
         anuncio.availableFrom ??
         anuncio.available_from ??
         "",
+
       maxRoommates:
+        datosEdicion.maxRoommates ??
         anuncio.maxRoommates ??
         anuncio.max_roommates ??
         "",
 
-      // Se envía el orden completo de las fotografías.
-      // Las existentes se conservan y las nuevas se agregan.
+      // Información del paso 2.
+      ubicacion:
+        datosEdicion.ubicacion ??
+        anuncio.location?.address ??
+        anuncio.ubicacion ??
+        "",
+
+      latitude:
+        datosEdicion.latitude ??
+        anuncio.location?.latitude ??
+        anuncio.latitude ??
+        "",
+
+      longitude:
+        datosEdicion.longitude ??
+        anuncio.location?.longitude ??
+        anuncio.longitude ??
+        "",
+
+      // Orden final de las fotografías.
       fotos: fotos.map((foto) => {
         if (foto.type === "existing") {
           return {
@@ -370,10 +584,24 @@ export default function PantallaFotos() {
   }
 
   // ====================================================
-  // GUARDAR FOTOGRAFÍAS
+  // CANCELAR EDICIÓN
   // ====================================================
 
-  async function guardarFotografias(publicar = false) {
+  function cancelarEdicion() {
+    if (guardando) return;
+
+    sessionStorage.removeItem(CLAVE_EDICION);
+
+    navigate("/anuncios", {
+      replace: true,
+    });
+  }
+
+  // ====================================================
+  // GUARDAR TODA LA PUBLICACIÓN
+  // ====================================================
+
+  async function guardarFotografias() {
     if (guardando) return;
 
     try {
@@ -381,7 +609,9 @@ export default function PantallaFotos() {
       setMensaje("");
 
       if (!anuncio) {
-        throw new Error("No se encontró el anuncio.");
+        throw new Error(
+          "No se encontró el anuncio.",
+        );
       }
 
       if (estaCerrado) {
@@ -402,15 +632,10 @@ export default function PantallaFotos() {
         );
       }
 
-      // Solo los borradores pueden publicarse desde esta pantalla.
-      if (publicar && !esBorrador) {
-        throw new Error(
-          "Solo puedes publicar un anuncio que se encuentre en borrador.",
-        );
-      }
-
+      // Los borradores necesitan al menos 3 fotografías
+      // para poder publicarse.
       if (
-        publicar &&
+        esBorrador &&
         fotos.length < MIN_FOTOS_PUBLICACION
       ) {
         throw new Error(
@@ -418,9 +643,22 @@ export default function PantallaFotos() {
         );
       }
 
+      // Comprobar que las fotografías nuevas tengan archivo.
+      const hayArchivosInvalidos = fotos.some(
+        (foto) =>
+          foto.type === "new" &&
+          !(foto.file instanceof File),
+      );
+
+      if (hayArchivosInvalidos) {
+        throw new Error(
+          "Una o más fotografías nuevas ya no están disponibles. Agrégalas nuevamente.",
+        );
+      }
+
       setGuardando(true);
 
-      // Primero guardamos los cambios y el orden de las fotografías.
+      // 1. Actualizar información, ubicación y fotografías.
       await actualizarAnuncio(
         listingId,
         obtenerDatosActualizacion(),
@@ -428,8 +666,8 @@ export default function PantallaFotos() {
         session.user.id,
       );
 
-      // Después publicamos, únicamente si el usuario lo solicitó.
-      if (publicar) {
+      // 2. Publicar únicamente cuando el anuncio era borrador.
+      if (esBorrador) {
         await publicarAnuncio(
           listingId,
           session.token,
@@ -437,17 +675,23 @@ export default function PantallaFotos() {
         );
       }
 
+      // 3. Eliminar los datos temporales después de completar
+      // correctamente todas las operaciones.
+      sessionStorage.removeItem(CLAVE_EDICION);
+
+      // 4. Regresar a la lista de anuncios.
       navigate("/anuncios", {
+        replace: true,
         state: {
-          mensaje: publicar
-            ? "¡Tu habitación se publicó correctamente!"
+          mensaje: esBorrador
+            ? "¡Tu habitación se guardó y publicó correctamente!"
             : "Los cambios de tu publicación se guardaron correctamente.",
         },
       });
     } catch (err) {
       setError(
         err.message ||
-          "No se pudieron guardar las fotografías.",
+          "No se pudieron guardar los cambios de la publicación.",
       );
     } finally {
       setGuardando(false);
@@ -481,7 +725,7 @@ export default function PantallaFotos() {
 
         <BotonAnuncio
           tipo="secundario"
-          onClick={() => navigate("/anuncios")}
+          onClick={cancelarEdicion}
         >
           Volver a mis anuncios
         </BotonAnuncio>
@@ -519,7 +763,7 @@ export default function PantallaFotos() {
                 >
                   <div className="fotos-imagen-contenedor">
                     <img
-                      src={foto.url}
+                      src={foto.preview ?? foto.url}
                       alt={`Fotografía ${indice + 1}`}
                       className="fotos-imagen"
                     />
@@ -743,46 +987,35 @@ export default function PantallaFotos() {
             </div>
           )}
 
-          {/* ACCIONES */}
+          {/* ACCIONES FINALES */}
 
           <div className="fotos-acciones-finales">
             <BotonAnuncio
               tipo="secundario"
-              onClick={() =>
-                navigate(`/anuncios/${listingId}/ubicacion`)
-              }
+              onClick={cancelarEdicion}
               disabled={guardando}
             >
-              Volver
+              Cancelar
             </BotonAnuncio>
 
             <BotonAnuncio
-              tipo="secundario"
-              onClick={() => guardarFotografias(false)}
-              disabled={guardando}
+              tipo="principal"
+              onClick={guardarFotografias}
+              disabled={
+                guardando ||
+                (esBorrador && !puedePublicar)
+              }
             >
-              {guardando ? "Guardando..." : "Guardar cambios"}
+              {guardando ? "Guardando..." : "Guardar"}
             </BotonAnuncio>
-
-            {esBorrador && (
-              <BotonAnuncio
-                tipo="principal"
-                onClick={() => guardarFotografias(true)}
-                disabled={
-                  guardando || !puedePublicar
-                }
-              >
-                {guardando
-                  ? "Publicando..."
-                  : "Publicar habitación"}
-              </BotonAnuncio>
-            )}
           </div>
 
           <p className="fotos-nota">
             La primera fotografía será la imagen principal.
-            Para publicar tu habitación necesitas al menos
-            3 fotografías.
+
+            {esBorrador
+              ? " Necesitas al menos 3 fotografías para guardar y publicar tu habitación."
+              : " Puedes conservar, eliminar, agregar o reordenar tus fotografías antes de guardar."}
           </p>
         </section>
       </section>

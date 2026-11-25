@@ -21,6 +21,9 @@ const LONGITUD_MINIMA_TITULO = 5;
 const LONGITUD_MAXIMA_TITULO = 200;
 const LONGITUD_MAXIMA_DESCRIPCION = 5000;
 
+const CLAVE_EDICION = (listingId) =>
+  `roomlink:edicion:${listingId}`;
+
 // ======================================================
 // FUNCIONES AUXILIARES
 // ======================================================
@@ -35,6 +38,43 @@ function obtenerFechaActual() {
   return `${anio}-${mes}-${dia}`;
 }
 
+function obtenerUbicacionOriginal(anuncio) {
+  const ubicacion =
+    anuncio.location ??
+    anuncio.ubicacion ??
+    anuncio.geoLocation ??
+    anuncio.geo_location ??
+    null;
+
+  if (typeof ubicacion === "string") {
+    return {
+      ubicacion,
+      latitude: anuncio.latitude ?? null,
+      longitude: anuncio.longitude ?? null,
+    };
+  }
+
+  return {
+    ubicacion:
+      ubicacion?.address ??
+      ubicacion?.direccion ??
+      ubicacion?.name ??
+      "",
+
+    latitude:
+      ubicacion?.latitude ??
+      ubicacion?.lat ??
+      anuncio.latitude ??
+      null,
+
+    longitude:
+      ubicacion?.longitude ??
+      ubicacion?.lng ??
+      anuncio.longitude ??
+      null,
+  };
+}
+
 function normalizarAnuncio(resultado) {
   const anuncio =
     resultado?.anuncio ??
@@ -45,7 +85,9 @@ function normalizarAnuncio(resultado) {
     resultado;
 
   if (!anuncio) {
-    throw new Error("No se encontró la información del anuncio.");
+    throw new Error(
+      "No se encontró la información del anuncio."
+    );
   }
 
   return {
@@ -84,13 +126,43 @@ function normalizarAnuncio(resultado) {
 
     photos: anuncio.photos ?? [],
 
-    location:
-      anuncio.location ??
-      anuncio.ubicacion ??
-      anuncio.geoLocation ??
-      anuncio.geo_location ??
-      null,
+    ...obtenerUbicacionOriginal(anuncio),
   };
+}
+
+function leerDatosTemporales(listingId) {
+  try {
+    const guardado = sessionStorage.getItem(
+      CLAVE_EDICION(listingId)
+    );
+
+    return guardado ? JSON.parse(guardado) : null;
+  } catch (error) {
+    console.error(
+      "No se pudieron recuperar los datos temporales:",
+      error
+    );
+
+    return null;
+  }
+}
+
+function guardarDatosTemporales(listingId, datos) {
+  try {
+    sessionStorage.setItem(
+      CLAVE_EDICION(listingId),
+      JSON.stringify(datos)
+    );
+  } catch (error) {
+    console.error(
+      "No se pudieron guardar los datos temporales:",
+      error
+    );
+
+    throw new Error(
+      "No se pudieron conservar los cambios temporalmente."
+    );
+  }
 }
 
 // ======================================================
@@ -107,9 +179,11 @@ function validarFormulario(datos) {
   if (!titulo) {
     errores.titulo = "El título es obligatorio.";
   } else if (titulo.length < LONGITUD_MINIMA_TITULO) {
-    errores.titulo = `El título debe tener al menos ${LONGITUD_MINIMA_TITULO} caracteres.`;
+    errores.titulo =
+      `El título debe tener al menos ${LONGITUD_MINIMA_TITULO} caracteres.`;
   } else if (titulo.length > LONGITUD_MAXIMA_TITULO) {
-    errores.titulo = `El título no puede superar ${LONGITUD_MAXIMA_TITULO} caracteres.`;
+    errores.titulo =
+      `El título no puede superar ${LONGITUD_MAXIMA_TITULO} caracteres.`;
   }
 
   if (datos.renta === "") {
@@ -121,20 +195,30 @@ function validarFormulario(datos) {
   }
 
   if (descripcion.length > LONGITUD_MAXIMA_DESCRIPCION) {
-    errores.descripcion = `La descripción no puede superar ${LONGITUD_MAXIMA_DESCRIPCION} caracteres.`;
+    errores.descripcion =
+      `La descripción no puede superar ${LONGITUD_MAXIMA_DESCRIPCION} caracteres.`;
   }
 
   if (datos.availableFrom) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(datos.availableFrom)) {
-      errores.availableFrom = "La fecha no tiene un formato válido.";
+      errores.availableFrom =
+        "La fecha no tiene un formato válido.";
     } else {
-      const fecha = new Date(`${datos.availableFrom}T12:00:00`);
+      const [anio, mes, dia] = datos.availableFrom
+        .split("-")
+        .map(Number);
+
+      const fecha = new Date(
+        Date.UTC(anio, mes - 1, dia)
+      );
 
       if (
-        Number.isNaN(fecha.getTime()) ||
-        fecha.toISOString().slice(0, 10) !== datos.availableFrom
+        fecha.getUTCFullYear() !== anio ||
+        fecha.getUTCMonth() !== mes - 1 ||
+        fecha.getUTCDate() !== dia
       ) {
-        errores.availableFrom = "Ingresa una fecha válida.";
+        errores.availableFrom =
+          "Ingresa una fecha válida.";
       }
     }
   }
@@ -161,6 +245,7 @@ function validarFormulario(datos) {
 
 export default function PantallaEditarPublicacion() {
   const { listingId } = useParams();
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -199,11 +284,6 @@ export default function PantallaEditarPublicacion() {
     "closed",
     "cerrada",
     "cerrado",
-  ].includes(estadoAnuncio);
-
-  const estaBorrador = [
-    "draft",
-    "borrador",
   ].includes(estadoAnuncio);
 
   // ====================================================
@@ -247,47 +327,79 @@ export default function PantallaEditarPublicacion() {
           );
         }
 
-        console.log(
-          "PUBLICACIÓN CARGADA PARA EDITAR:",
-          publicacion
-        );
-
         setAnuncio(publicacion);
 
-        // Recuperar datos temporales si se regresa
-        // desde las siguientes pantallas.
-        const datosTemporales =
+        // Prioridad:
+        // 1. Datos recibidos al regresar de otra pantalla.
+        // 2. Datos guardados en sessionStorage.
+        // 3. Datos originales del servidor.
+
+        const datosDeNavegacion =
           location.state?.datosEdicion ?? null;
 
-        setDatos({
+        const datosGuardados =
+          leerDatosTemporales(listingId);
+
+        const datosTemporales =
+          datosDeNavegacion ?? datosGuardados ?? {};
+
+        const datosCompletos = {
           titulo:
-            datosTemporales?.titulo ??
+            datosTemporales.titulo ??
             publicacion.title,
 
           renta:
-            datosTemporales?.renta != null
+            datosTemporales.renta != null
               ? String(datosTemporales.renta)
-              : publicacion.monthlyRent == null
-                ? ""
-                : String(publicacion.monthlyRent),
+              : String(publicacion.monthlyRent ?? ""),
 
           descripcion:
-            datosTemporales?.descripcion ??
+            datosTemporales.descripcion ??
             publicacion.description,
 
           availableFrom:
-            datosTemporales?.availableFrom ??
-            (publicacion.availableFrom
-              ? String(publicacion.availableFrom).slice(0, 10)
-              : ""),
+            datosTemporales.availableFrom ??
+            (
+              publicacion.availableFrom
+                ? String(publicacion.availableFrom).slice(0, 10)
+                : ""
+            ),
 
           maxRoommates:
-            datosTemporales?.maxRoommates != null
+            datosTemporales.maxRoommates != null
               ? String(datosTemporales.maxRoommates)
-              : publicacion.maxRoommates == null
-                ? ""
-                : String(publicacion.maxRoommates),
+              : String(publicacion.maxRoommates ?? ""),
+
+          // Conservar ubicación original o temporal.
+          ubicacion:
+            datosTemporales.ubicacion ??
+            publicacion.ubicacion,
+
+          latitude:
+            datosTemporales.latitude ??
+            publicacion.latitude,
+
+          longitude:
+            datosTemporales.longitude ??
+            publicacion.longitude,
+
+          status: publicacion.status,
+        };
+
+        setDatos({
+          titulo: datosCompletos.titulo,
+          renta: datosCompletos.renta,
+          descripcion: datosCompletos.descripcion,
+          availableFrom: datosCompletos.availableFrom,
+          maxRoommates: datosCompletos.maxRoommates,
         });
+
+        // Guardar la versión completa para los siguientes pasos.
+        guardarDatosTemporales(
+          listingId,
+          datosCompletos
+        );
+
       } catch (err) {
         if (activo) {
           setError(
@@ -352,7 +464,12 @@ export default function PantallaEditarPublicacion() {
   // ====================================================
 
   function obtenerDatosEdicion() {
+    const datosAnteriores =
+      leerDatosTemporales(listingId) ?? {};
+
     return {
+      ...datosAnteriores,
+
       titulo: datos.titulo.trim(),
       renta: Number(datos.renta),
       descripcion: datos.descripcion.trim(),
@@ -363,7 +480,43 @@ export default function PantallaEditarPublicacion() {
         datos.maxRoommates === ""
           ? ""
           : Number(datos.maxRoommates),
+
+      // No perder ubicación ni estado al avanzar.
+      ubicacion:
+        datosAnteriores.ubicacion ??
+        anuncio.ubicacion,
+
+      latitude:
+        datosAnteriores.latitude ??
+        anuncio.latitude,
+
+      longitude:
+        datosAnteriores.longitude ??
+        anuncio.longitude,
+
+      status: anuncio.status,
     };
+  }
+
+  // ====================================================
+  // CANCELAR EDICIÓN
+  // ====================================================
+
+  function cancelarEdicion() {
+    try {
+      sessionStorage.removeItem(
+        CLAVE_EDICION(listingId)
+      );
+    } catch (error) {
+      console.error(
+        "No se pudo limpiar la edición temporal:",
+        error
+      );
+    }
+
+    navigate("/anuncios", {
+      replace: true,
+    });
   }
 
   // ====================================================
@@ -398,14 +551,21 @@ export default function PantallaEditarPublicacion() {
         );
       }
 
-      // No se llama a actualizarAnuncio.
-      // Los cambios se conservan temporalmente.
+      const datosEdicion = obtenerDatosEdicion();
+
+      // Guardar antes de navegar.
+      guardarDatosTemporales(
+        listingId,
+        datosEdicion
+      );
+
       navigate(`/anuncios/${listingId}/ubicacion`, {
         state: {
           modoEdicion: true,
-          datosEdicion: obtenerDatosEdicion(),
+          datosEdicion,
         },
       });
+
     } catch (err) {
       setError(
         err.message ||
@@ -621,7 +781,7 @@ export default function PantallaEditarPublicacion() {
 
             <BotonAnuncio
               tipo="secundario"
-              onClick={() => navigate("/anuncios")}
+              onClick={cancelarEdicion}
             >
               Cancelar
             </BotonAnuncio>

@@ -14,6 +14,15 @@ const ACCIONES_ESTADO = [
   'close',
 ];
 
+const TIPOS_FOTO_PERMITIDOS = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+];
+
+const MAX_FOTOS = 10;
+const MAX_PESO_FOTO = 8 * 1024 * 1024;
+
 // ======================================================
 // VALIDACIONES
 // ======================================================
@@ -56,6 +65,7 @@ function validarFecha(valor) {
   }
 
   const fecha = String(valor).trim();
+
   const coincidencia = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha);
 
   if (!coincidencia) {
@@ -126,107 +136,105 @@ function normalizarRenta(renta) {
   return String(numero);
 }
 
+function tienePropiedad(objeto, propiedad) {
+  return Object.prototype.hasOwnProperty.call(
+    objeto,
+    propiedad
+  );
+}
+
+// ======================================================
+// AGREGAR DATOS DEL FORMULARIO
+// ======================================================
 
 function agregarDatosFormulario(formData, datos, opciones = {}) {
-  const { esActualizacion = false } = opciones;
-
-  if (!datos || typeof datos !== "object") {
+  if (!datos || typeof datos !== 'object') {
     throw new Error(
-      "No se proporcionaron los datos de la publicación."
+      'No se proporcionaron los datos de la publicación.'
     );
   }
 
   if (
-    typeof datos.titulo !== "string" ||
+    typeof datos.titulo !== 'string' ||
     !datos.titulo.trim()
   ) {
     throw new Error(
-      "El título de la publicación es obligatorio."
+      'El título de la publicación es obligatorio.'
     );
   }
 
-  formData.append("titulo", datos.titulo.trim());
+  formData.append('titulo', datos.titulo.trim());
 
   formData.append(
-    "descripcion",
-    datos.descripcion?.trim() ?? ""
+    'descripcion',
+    String(datos.descripcion ?? '').trim()
   );
 
   formData.append(
-    "renta",
+    'renta',
     normalizarRenta(datos.renta)
   );
 
-  // En actualizaciones parciales no se envía ubicación
-  // si el usuario no está modificando ese dato.
-  const ubicacion = datos.ubicacion;
+  // Ubicación:
+  // En creación siempre se envía.
+  // En actualización se envía cuando viene incluida
+  // en los datos del formulario.
 
-  const tieneCoordenadas =
-    datos.latitude !== null &&
-    datos.latitude !== undefined &&
-    datos.longitude !== null &&
-    datos.longitude !== undefined;
+  const tieneDatosUbicacion =
+    tienePropiedad(datos, 'ubicacion') ||
+    tienePropiedad(datos, 'latitude') ||
+    tienePropiedad(datos, 'longitude');
 
-  const tieneUbicacion =
-    typeof ubicacion === "string" &&
-    ubicacion.trim().length > 0;
-
-  if (
-    !esActualizacion ||
-    tieneUbicacion ||
-    tieneCoordenadas
-  ) {
+  if (!opciones.esActualizacion || tieneDatosUbicacion) {
     formData.append(
-      "ubicacion",
-      typeof ubicacion === "string"
-        ? ubicacion.trim()
-        : ""
+      'ubicacion',
+      String(datos.ubicacion ?? '').trim()
     );
 
     formData.append(
-      "latitude",
+      'latitude',
       datos.latitude != null
         ? String(datos.latitude)
-        : ""
+        : ''
     );
 
     formData.append(
-      "longitude",
+      'longitude',
       datos.longitude != null
         ? String(datos.longitude)
-        : ""
+        : ''
     );
   }
 
-  // Si la propiedad existe, se envía incluso vacía.
-  // Esto permite limpiar la fecha desde el formulario.
-  if (
-    Object.prototype.hasOwnProperty.call(
-      datos,
-      "availableFrom"
-    )
-  ) {
+  // Fecha disponible.
+  // Si viene vacía, se envía vacía para permitir limpiarla.
+
+  if (tienePropiedad(datos, 'availableFrom')) {
     const fecha = validarFecha(datos.availableFrom);
 
-    formData.append("availableFrom", fecha ?? "");
+    formData.append(
+      'availableFrom',
+      fecha ?? ''
+    );
   }
 
-  if (
-    Object.prototype.hasOwnProperty.call(
-      datos,
-      "maxRoommates"
-    )
-  ) {
+  // Número máximo de compañeros.
+
+  if (tienePropiedad(datos, 'maxRoommates')) {
     formData.append(
-      "maxRoommates",
+      'maxRoommates',
       datos.maxRoommates != null
         ? String(datos.maxRoommates)
-        : ""
+        : ''
     );
   }
 }
 
-function agregarArchivo(formData, foto) {
+// ======================================================
+// VALIDAR Y AGREGAR ARCHIVOS
+// ======================================================
+
+function validarArchivo(foto) {
   if (
     typeof File === 'undefined' ||
     !(foto instanceof File)
@@ -236,26 +244,32 @@ function agregarArchivo(formData, foto) {
     );
   }
 
-  const tiposPermitidos = [
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-  ];
-
-  if (!tiposPermitidos.includes(foto.type)) {
+  if (!TIPOS_FOTO_PERMITIDOS.includes(foto.type)) {
     throw new Error(
       'Las fotografías deben ser JPG, PNG o WEBP.'
     );
   }
 
-  if (foto.size > 8 * 1024 * 1024) {
+  if (foto.size > MAX_PESO_FOTO) {
     throw new Error(
       'Cada fotografía debe pesar máximo 8 MB.'
     );
   }
-
-  formData.append('photos', foto, foto.name);
 }
+
+function agregarArchivo(formData, foto) {
+  validarArchivo(foto);
+
+  formData.append(
+    'photos',
+    foto,
+    foto.name
+  );
+}
+
+// ======================================================
+// OBTENER ID DE RESPUESTA
+// ======================================================
 
 function obtenerIdRespuesta(resultado) {
   const id =
@@ -295,13 +309,6 @@ export async function obtenerMisPublicaciones(token, userId) {
       'El servidor devolvió una respuesta inesperada al consultar tus publicaciones.'
     );
   }
-
-  // Registro temporal para revisar la estructura real
-  // de las ubicaciones que devuelve el backend.
-  console.log(
-    'RESPUESTA COMPLETA DE MIS PUBLICACIONES:',
-    JSON.stringify(resultado, null, 2)
-  );
 
   return resultado;
 }
@@ -356,10 +363,10 @@ export async function obtenerAnuncioPorId(listingId, token) {
   );
 
   const habitacion =
-  resultado?.room ??
-  resultado?.data?.room ??
-  resultado?.data ??
-  resultado;
+    resultado?.room ??
+    resultado?.data?.room ??
+    resultado?.data ??
+    resultado;
 
   if (!habitacion?.id) {
     throw new Error(
@@ -390,7 +397,7 @@ export async function crearAnuncio(datos, token, userId) {
     );
   }
 
-  if (fotos.length > 10) {
+  if (fotos.length > MAX_FOTOS) {
     throw new Error(
       'Una publicación puede tener máximo 10 fotografías.'
     );
@@ -403,15 +410,99 @@ export async function crearAnuncio(datos, token, userId) {
     );
   }
 
-  const resultado = await apiRequest(RUTA_ROOMS, {
-    method: 'POST',
-    token,
-    body: formData,
-  });
+  const resultado = await apiRequest(
+    RUTA_ROOMS,
+    {
+      method: 'POST',
+      token,
+      body: formData,
+    }
+  );
 
   return {
     id: obtenerIdRespuesta(resultado),
   };
+}
+
+// ======================================================
+// CONSTRUIR ORDEN DE FOTOGRAFÍAS
+// ======================================================
+
+function agregarFotografiasActualizacion(formData, fotos) {
+  if (!Array.isArray(fotos)) {
+    throw new Error(
+      'El formato de las fotografías no es válido.'
+    );
+  }
+
+  if (fotos.length > MAX_FOTOS) {
+    throw new Error(
+      'Una publicación puede tener máximo 10 fotografías.'
+    );
+  }
+
+  const photosOrder = [];
+  const idsExistentes = new Set();
+
+  let fileIndex = 0;
+
+  for (const foto of fotos) {
+    if (foto.type === 'existing') {
+      if (
+        foto.id === null ||
+        foto.id === undefined ||
+        !String(foto.id).trim()
+      ) {
+        throw new Error(
+          'Una fotografía existente no tiene un ID válido.'
+        );
+      }
+
+      const id = String(foto.id);
+
+      if (idsExistentes.has(id)) {
+        throw new Error(
+          'No se puede agregar dos veces la misma fotografía existente.'
+        );
+      }
+
+      idsExistentes.add(id);
+
+      photosOrder.push({
+        type: 'existing',
+        id: foto.id,
+      });
+
+      continue;
+    }
+
+    if (foto.type === 'new') {
+      validarArchivo(foto.file);
+
+      agregarArchivo(
+        formData,
+        foto.file
+      );
+
+      photosOrder.push({
+        type: 'new',
+        fileIndex,
+      });
+
+      fileIndex++;
+
+      continue;
+    }
+
+    throw new Error(
+      'Se encontró una fotografía con un formato desconocido.'
+    );
+  }
+
+  formData.append(
+    'photosOrder',
+    JSON.stringify(photosOrder)
+  );
 }
 
 // ======================================================
@@ -428,60 +519,33 @@ export async function actualizarAnuncio(
   validarSesion(token, userId);
 
   const id = validarIdAnuncio(listingId);
+
+  if (!datos || typeof datos !== 'object') {
+    throw new Error(
+      'No se proporcionaron los datos para actualizar la publicación.'
+    );
+  }
+
   const formData = new FormData();
 
-  agregarDatosFormulario(formData, datos, {
-    esActualizacion: true,
-  });
-
-  // Solo enviamos photosOrder cuando el formulario
-  // realmente incluye una lista de fotografías.
-
-  if (Array.isArray(datos.fotos)) {
-    if (datos.fotos.length > 10) {
-      throw new Error(
-        'Una publicación puede tener máximo 10 fotografías.'
-      );
+  agregarDatosFormulario(
+    formData,
+    datos,
+    {
+      esActualizacion: true,
     }
+  );
 
-    const photosOrder = [];
-    let fileIndex = 0;
+  // Solo se envía photosOrder cuando el formulario
+  // incluye explícitamente una lista de fotografías.
+  //
+  // Una lista vacía significa que se desea eliminar
+  // todas las fotografías existentes.
 
-    for (const foto of datos.fotos) {
-      if (foto.type === 'existing') {
-        if (
-          foto.id === null ||
-          foto.id === undefined ||
-          !String(foto.id).trim()
-        ) {
-          throw new Error(
-            'Una fotografía existente no tiene un ID válido.'
-          );
-        }
-
-        photosOrder.push({
-          type: 'existing',
-          id: foto.id,
-        });
-      } else if (foto.type === 'new') {
-        agregarArchivo(formData, foto.file);
-
-        photosOrder.push({
-          type: 'new',
-          fileIndex,
-        });
-
-        fileIndex++;
-      } else {
-        throw new Error(
-          'Se encontró una fotografía con un formato desconocido.'
-        );
-      }
-    }
-
-    formData.append(
-      'photosOrder',
-      JSON.stringify(photosOrder)
+  if (tienePropiedad(datos, 'fotos')) {
+    agregarFotografiasActualizacion(
+      formData,
+      datos.fotos
     );
   }
 
