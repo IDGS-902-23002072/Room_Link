@@ -144,7 +144,7 @@
 }
 
 .answer-option:has(input:focus-visible) {
-  outline: 3px solid rgb(99 200 194 / 55%);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 

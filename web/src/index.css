@@ -10,7 +10,8 @@
   font-weight: 400;
 
   --ink: #28232d;
-  --muted: #817987;
+  --muted: #6b6375;
+  --focus-ring: #2e9e96;
   --plum: #84658d;
   --pale-plum: #e9daec;
   --line: #e9e2eb;
@@ -45,7 +46,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 3px solid rgb(99 200 194 / 55%);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
