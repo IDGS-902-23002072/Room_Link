@@ -2,7 +2,7 @@
 
 Documento de análisis de los datos usados por las pruebas existentes y por las pruebas de monitoreo planeadas. Fuentes: secciones 7 y 8 del SLA (`IDGS1002 Proyecto 2.1 Omar Cordero.pdf`), la guía `opencode-monitoreo (1).md` y el código de pruebas del repositorio. Los identificadores `T-xx` referencian `docs/matriz-pruebas.md`.
 
-Convenciones: se describe la intención y las aserciones **definidas en el código**, no ejecuciones. Ninguna corrida fue realizada para este documento: todo resultado es `Pendiente de ejecución` y toda evidencia es `Pendiente`. No se afirma cobertura completa ni se calculan porcentajes; los SLO citados son los del SLA.
+Convenciones: se describe la intención y las aserciones **definidas en el código**, con el resultado observado el **2026-11-27**. Las suites unitarias de backend (249/249), web (23/23) y smoke (12/12) pasaron. La integración MySQL, la suite móvil y los E2E quedan `BLOCKED` por credenciales/dependencias/entorno; por eso varias filas combinan “unidad: pasa” con “E2E: BLOCKED”. No se afirma cobertura completa ni se calculan porcentajes de cobertura; los SLO citados son los del SLA.
 
 ## 1.5 · Reglas de autenticación (M1, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -11,10 +11,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** `cesar@roomlink.test`, variante `"  CESAR@RoomLink.Test "`, contraseña `Segura123`, contraseña débil `1234567` (7 caracteres), `termsAccepted: false`, cinco llamadas con `password: "incorrecta"`, `lockedUntil = 2026-11-05T12:15:00.000Z`, reloj avanzado 15 minutos, `passwordHash = "hash:Segura123"`, token de reseteo con expiración `2026-11-05T12:30:00.000Z`; en E2E, cuenta `qa-registro-${randomUUID()}@roomlink.test` con `Qa!RoomLink-Test123`.
 - **Justificación de los datos:** partición de equivalencia para términos (aceptados/no aceptados) y para correo (normalización de mayúsculas y espacios); valor límite de 7 contra 8 caracteres en contraseña; límite de exactamente cinco fallos y de 15/30 minutos con reloj controlado (`MutableClock`), de modo que el resultado es determinista y no depende de la hora real. El correo con UUID garantiza que el caso de duplicado E2E no colisione con datos previos de la base QA.
 - **Resultado esperado:** `TERMS_REQUIRED` y `WEAK_PASSWORD` sin crear usuario; correo normalizado a `cesar@roomlink.test`; hash almacenado y `UserRegisteredEvent` publicado; los cinco fallos devuelven `INVALID_CREDENTIALS`, el sexto login (aun correcto) devuelve `ACCOUNT_LOCKED` y vuelve a aceptarse tras avanzar 15 minutos con `failedLoginAttempts = 0`; el registro duplicado E2E muestra error por campo.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 1.5 (F3, ≥ 90 % de pruebas aprobadas, última corrida completa del mes).
 - **Tipo de escenario:** negativo, límite y positivo.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 2.6 · Reglas del perfil (M2, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -23,10 +23,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** `uid = 11111111-1111-1111-1111-111111111111`, `Roberto Vargas`, `birthDate 2000-06-15` y `2020-01-01`, seis URL `https://cdn.example.com/1.jpg` … `/6.jpg` y la séptima `/7.jpg`, `position: 9`, posiciones duplicadas `1,1`, perfil de `Ana García`, teléfono `+52 477 111 2222`, `instagram: ana.g`, `facebook: ana.garcia`, banderas `allowAll` (`true,true,true`) y `denyAll` (`false,false,false`), `privacy: null`.
 - **Justificación de los datos:** límite superior explícito de la galería (6 permitidas, 7 rechazada) y del rango de posición (1..6, se prueba 9); `2020-01-01` es una partición inválida de edad frente a `2000-06-15`, válida; la tabla de decisión de visibilidad combina `isOwner`, `isConnected` y tres permisos de privacidad, incluido el valor ausente (`null`) para probar el default denegado.
 - **Resultado esperado:** seis fotos listadas y la séptima rechazada con `/hasta 6 fotos/`; posición 9 rechazada con `/entre 1 y 6/`; reordenación con posiciones duplicadas rechazada; menor de 18 rechazado con `/18 años/`; sin visibility o siendo dueño se muestran teléfono y redes; espectador no conectado, conexión con privacidad denegada y conexión sin registro de privacidad devuelven `null` en teléfono/redes, conservando `fullName`.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 2.6 (F3, ≥ 90 % de pruebas aprobadas).
 - **Tipo de escenario:** límite, negativo y permisos.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 3.3 · Reglas del test de convivencia (M3, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -35,10 +35,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** respuestas QA `{schedule:3, cleanliness:4, noise:2, pets:4, smoking:1, visits:3, genderPref:3}` (`T-31`/`T-32`), conjunto de referencia con siete respuestas en 3, mutaciones `noise: "3"` (cadena), `pets: 6`, `extra: 1`, objeto parcial `{schedule: 3}`; en web, respuestas 1,2,3,4,5 que producen `[0, 'bajo'], [25, 'bajo'], [50, 'medio'], [100, 'alto'], [75, 'alto'], [0, 'bajo'], [0, 'bajo']`.
 - **Justificación de los datos:** partición de equivalencia para tipo (entero contra cadena), dominio (1..5 contra 6) y cardinalidad (siete versus seis respuestas y dimensión extra); el vector mixto 3/4/2/4/1/3/3 cubre cuatro de los cinco valores de la escala en un solo caso y coincide con el dato usado por los flujos E2E; las cinco categorías de porcentaje se comprueban en el caso web con respuestas 1 a 5.
 - **Resultado esperado:** `isValidAnswers` verdadero solo para el vector completo y válido; falso para cadena, 6, extra y parcial; al guardar, resumen de siete entradas con `percentage = 50` para el vector todo en 3; en web, porcentajes y niveles exactos anteriores.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 3.3 (F3, ≥ 90 % de pruebas aprobadas).
 - **Tipo de escenario:** positivo, negativo y límite.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 4.2 · Reglas de afinidad (M4, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -47,10 +47,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** perfiles idénticos `{schedule:3, cleanliness:4, noise:2, pets:1, smoking:1, visits:2, genderPref:3}`; perfiles divergentes 1,5,1,1,1,1,1 contra 5,1,5,5,5,5,5; perfil base todo en 1 contra un solo eje en 2; 13 candidatos con `compatibilityScore: 80`; conjunto `activeUsers = {"viewer","candidate"}` y usuario `unknown`.
 - **Justificación de los datos:** casos límite de la fórmula (score máximo 100, mínimo 0 y valor ponderado 97) permiten detectar inversiones de pesos sin depender de base de datos; 13 candidatos verifican el corte de página en 12 + 1; `unknown` fuera del conjunto de usuarios activos representa la partición "no elegible" del feed.
 - **Resultado esperado:** `calculateAffinityWith` devuelve 100, 0 y 97 respectivamente; página 1 con 12 perfiles y `hasMore = true`, página 2 con 1 y `hasMore = false`; `getTest("unknown")` con 404 y `getFeed("unknown", 1)` rechazado; feed sin test devuelve `hasTest: false` y score `null`.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 4.2 (F3, ≥ 90 % de pruebas aprobadas); el umbral de latencia del feed se mide aparte en F1/F3 con `T-34`.
 - **Tipo de escenario:** positivo, límite y negativo.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 5.3 · Reglas de filtros (M5, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -59,10 +59,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** `budgetMin: 5000` con `budgetMax: 3000`, `budgetMin: -1`, `minAge: 17`, `minAge: 30` con `maxAge: 25`, texto de 121 caracteres, `pageSize: 500`, 23 perfiles y 11 anuncios, `{page:2, pageSize:10}`; filtros reales de la app `q=León&maxRent=3000&page=2&pageSize=12` (`T-31`) y `minRent=3000&maxRent=5000` (`T-10`).
 - **Justificación de los datos:** tabla de decisión de rangos (mínimo mayor que máximo, mínimo negativo, edad menor de 18, invertido edad), límite de longitud de texto (120 permitidos, 121 rechazado) y límite de paginación (500 se fija en 50). Los valores `q=León`, `maxRent=3000`, `page=2`, `pageSize=12` son los que realmente envía el cliente móvil, por lo que comprueban la propagación de filtros hasta la consulta HTTP.
 - **Resultado esperado:** rechazo con `/mayor que el máximo/`, `/presupuesto mínimo/i`, `/al menos 18/`, `/mayor que la máxima/` y `/120 caracteres/`; `searchProfiles` con `pageSize 500` devuelve `pageSize 50`; total 23 / 11 y `totalPages 3`; la URL del cliente contiene exactamente `page=2&pageSize=12&q=León&maxRent=3000`.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 5.3 (F3, ≥ 90 % de pruebas aprobadas).
 - **Tipo de escenario:** negativo, límite y positivo.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 6.3 · Reglas de geolocalización (M6, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -71,10 +71,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** consultas `" Centro   León "` y `"centro león"`, respuesta con `{lat:"21.1221", lon:"-101.683", display_name:"Centro, León"}` y un registro inválido con `lat:""`; búsqueda `"otra dirección"` y texto en blanco `"  "`; centro `{latitude:21.122, longitude:-101.683}`, `way/2` supermercado a 334 m, `node/1` parada de autobús a 111 m, `node/3` farmacia en `21.155` (fuera de radio), `node/4` banca (categoría no fija), consulta Overpass `around:1500,21.12200,-101.68300`, coordenada inválida `{latitude:91, longitude:0}`; proveedor simulado con `Response(null,{status:429})`.
 - **Justificación de los datos:** partición de equivalencia entre la consulta con espacios/mayúsculas y su forma normalizada (misma clave de caché); límite del radio de 1500 m y del dominio de latitud; tabla de decisión de categorías (solo `bus_stop` y `supermarket` se aceptan; farmacia queda fuera por distancia y banca por categoría); el 429 inyectado representa una excepción del proveedor sin depender de redirector real.
 - **Resultado esperado:** ambas búsquedas devuelven `[{latitude:21.1221, longitude:-101.683, label:"Centro, León"}]` con una sola llamada `fetch`, `countrycodes=mx` y `User-Agent` que contiene `RoomLink`; tercera búsqueda rechazada con `GEOLOCATION_BUSY` y texto vacío con `status:400`; `nearby` devuelve `radiusMeters:1500` y solo `node/1` (111 m) y `way/2` (334 m); `latitude:91` rechazado con `status:404`; el 429 se convierte en `status:503` con `GEOLOCATION_UNAVAILABLE`.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 6.3 (F3, ≥ 90 % de pruebas aprobadas); los umbrales de latencia 6.1/6.2 se verifican aparte con la bitácora F1.
 - **Tipo de escenario:** positivo, negativo, límite y excepción.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 7.6 · Reglas de publicación y feed de habitaciones (M7, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -83,10 +83,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** anuncios de dominio con `photoCount:2` (r-3), `photoCount:3 + locationId:"loc-1"` (r-4) y `photoCount:3` sin ubicación (r-5), rentas 2500/3500; feed con `r1` (2500, publicada `2026-11-10T10:00:00Z`, `Calle Madero 10, Centro, León`), `r2` (4200, `HOST_B`, publicada `2026-11-12T10:00:00Z`, `Blvd. Campestre 300, León`), `r3` en `draft` (1800) y `r4` en `paused` (2000); consultas `?minRent=3000&maxRent=5000`, `?q=baño`, `?q=madero`, `?excludeHostId=HOST_A`, `?pageSize=1&page=1|2`; parámetros inválidos `minRent=5000&maxRent=1000`, `page=0`, `pageSize=500`, `minRent=abc`; en E2E, renta `3800`, tres PNG 1×1, `availableFrom:"2030-01-01"` / `2027-06-15` y latitud `21.1221`.
 - **Justificación de los datos:** valores límite 2 contra 3 fotos y ausencia/presencia de ubicación; partición de equivalencia de estados (`draft`/`paused` frente a `published`) y de propiedad (`HOST_A` frente a `HOST_B`); el par `publishedAt` distinto fija el orden más reciente primero; `pageSize=1` fuerza el corte de paginación; los parámetros inválidos cubren rango invertido, página 0, tope de tamaño y tipo no numérico. Los datos E2E son los que realmente envía el cliente.
 - **Resultado esperado:** con dos fotos `canPublish()` es falso y `publish()` lanza `/al menos 3 fotografías/`; sin ubicación lanza `/ubicación/`; con tres fotos y ubicación el estado pasa a `published`; el feed devuelve `["r2","r1"]` con `hasMore:false`, el filtro de renta devuelve `["r2"]`, `q=baño` y `q=madero` devuelven `r2` y `r1`, `excludeHostId=HOST_A` devuelve `["r2"]`, la primera página tiene `hasMore:true` y la segunda `false`, y los parámetros inválidos devuelven `400`. En E2E, el botón de publicación permanece deshabilitado con dos fotos y aparece `Falta una foto para publicar.`
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 7.6 (F3, ≥ 90 % de pruebas aprobadas); la latencia de publicación se mide con F1 (7.1–7.5).
 - **Tipo de escenario:** positivo, negativo, límite y permisos.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 8.3 · Reglas de costos incluidos en la renta (M8, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -95,10 +95,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** habitación `r1` con `monthlyRent:2340`; conceptos `{kind:"service", concept:"Luz", amount:30000, isIncluded:true}`, `{kind:"service", concept:"Luz", amount:1500, isIncluded:true}` + `{kind:"maintenance", concept:"Agua", amount:1500, isIncluded:true}`, `{amount:1000}` + `{amount:800}` incluidos, y `{kind:"deposit", concept:"Depósito", amount:5000, isIncluded:false}`; en E2E, renta `3800` con depósito `1900` y `items:[]` rechazado al publicar.
 - **Justificación de los datos:** límite individual (30000 contra 2340) y límite por agregación (1500+1500 contra 2340) permiten distinguir la validación de cada concepto de la del total; el caso 1000+800 es la partición válida dentro del mismo límite; `isIncluded:false` es la partición que demuestra que la regla no se aplica a cargos aparte.
 - **Resultado esperado:** los dos casos que superan la renta lanzan `/incluidos en la renta no pueden superar/i` o `/incluidos en la renta/i`; el caso válido devuelve dos conceptos; el depósito de 5000 se guarda sin error; en E2E, `items:[]` impide publicar con `/reglas y el desglose de costos/`.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 8.3 (F3, ≥ 90 % de pruebas aprobadas); las transacciones 8.1/8.2 se miden con F1.
 - **Tipo de escenario:** negativo, límite y positivo.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 9.5 · Reglas de postulaciones (M9, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -107,10 +107,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** `SEEKER`, `OTHER`, `LISTING` como UUID fijos, estados `pending`, `waitlisted`, `accepted` e id inexistente `"nope"`; en MySQL, `ownerId`/`applicantId` con `randomUUID()`, anuncio a `3500.00` con tres fotos, `compatibilityScore:0` y dos escrituras concurrentes `waitlist()`/`accept()`; en E2E, `listingId`, `applicationId`, duplicado `POST /applications` y `/applications/me` para buscador y arrendador.
 - **Justificación de los datos:** tabla de decisión estado × propietario (pendiente/en lista propia se puede retirar; aceptada o ajena no); `nope` cubre la excepción de inexistencia; el doble `create` y las dos actualizaciones concurrentes comprueban las restricciones de integridad reales de MySQL; los roles E2E verifican que el dueño del anuncio no vea postulaciones ajenas.
 - **Resultado esperado:** cancelar `pending`/`waitlisted` elimina el registro; cancelar la de `OTHER` devuelve `403`, la aceptada `409` y la inexistente `404`; el segundo `create` devuelve `409 APPLICATION_ALREADY_SENT`; de las dos escrituras concurrentes solo una gana y el estado final es `waitlisted` o `accepted`; en E2E el duplicado devuelve `409`, `/applications/me` del buscador tiene una entrada y el del arrendador está vacío.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 9.5 (F3, ≥ 90 % de pruebas aprobadas); los TSL 9.1–9.4 usan F1.
 - **Tipo de escenario:** positivo, negativo, permisos y excepción.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 10.5 · Reglas de mensajería interna (M10, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -119,10 +119,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** conexión aceptada `accepted-1` con miembros `["u-1","u-2"]`, usuario externo `u-3`, cuerpo `"   "`, mensajes `" primero "` y `"segundo"` con reloj `2026-11-05T12:00:00Z` y `12:00:01Z`; fragmentos SSE `event: connected`, `data: {"roomId":"room-1"}`, latido `: heartbeat`, `event: message.created` partido en dos trozos y `{"id":42}`, con token `demo-token` y `AbortController.signal`; en E2E, texto `Mensaje de prueba entre roles` y la conexión rechazada que debe mantener el chat bloqueado.
 - **Justificación de los datos:** tabla de decisión de origen (ninguno, dos a la vez, conexión no aceptada, externo, exactamente una aceptada); el cuerpo en blanco es la partición inválida; dos marcas de tiempo distintas fijan el orden sin depender de la hora real; los fragmentos SSE deliberadamente partidos comprueban el parser ante chunk incompleto. No se usa aquí un mensaje de 1000 caracteres: el límite de 500/501 caracteres se prueba en `T-14`, no en el cuerpo del chat.
 - **Resultado esperado:** `openRoom` falla con `CHAT_ORIGIN_REQUIRED` o `CHAT_ORIGIN_NOT_AUTHORIZED` salvo con `accepted-1` y `u-1`; `u-3` recibe `CHAT_ACCESS_DENIED` y `"   "` recibe `INVALID_MESSAGE_BODY` sin persistir; el historial queda `[[1,"primero"],[2,"segundo"]]` con dos eventos `message.created`; `markDelivered`/`markRead` actualizan solo el mensaje de `u-1` (1 cada una); el cliente SSE reconstruye `connected` y `message.created` con `{"id":42}` y envía `Authorization: Bearer demo-token`.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 10.5 (F3, ≥ 90 % de pruebas aprobadas); 10.4 se mide con F4 sobre `chat_messages.sent_at`/`delivered_at`.
 - **Tipo de escenario:** positivo, negativo, permisos y excepción.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 11.4 · Reglas de solicitudes de conexión (M11, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -131,10 +131,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** pares `req`/`addr`, `u1`/`u2` y `u2`/`u3`, `introMessage:"  Hola  "`, solicitudes `c1`…`c9`, reloj fijo `2026-11-07T00:00:00Z`, `responseMessage:"Bienvenido"` y `"x".repeat(501)`, id `"nope"`, mismo usuario en `requesterId` y `addresseeId` (`"same"`), filtros `incoming`/`outgoing`/`all`.
 - **Justificación de los datos:** límite 500/501 caracteres en el mensaje de respuesta; tabla de decisión de actor (solo `addr` responde, solo `req` cancela), de estado (responder dos veces es `409`) y de dirección de listado; el par invertido `addr→req` comprueba el duplicado simétrico; `"same"` y `"nope"` son particiones inválida e inexistente.
 - **Resultado esperado:** la solicitud se crea en `pending` con `introMessage:"Hola"` y el par inverso devuelve `409 CONNECTION_ALREADY_EXISTS`; `req` no puede responder (`403`); aceptar cambia a `accepted`, guarda `"Bienvenido"`, fija `respondedAt` al reloj y publica un único `ConnectionAcceptedEvent`; rechazar no publica evento y responder dos veces devuelve `409 CONNECTION_ALREADY_RESOLVED`; 501 caracteres devuelve `CONNECTION_MESSAGE_TOO_LONG`; `addr` no puede cancelar (`403`) y `req` sí (estado `cancelled`); los ids inexistentes devuelven `404`; `incoming=["c8"]`, `outgoing=["c9"]` y `all=["c8","c9"]`. El E2E confirma que con rechazo el chat sigue bloqueado para ambos.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 11.4 (F3, ≥ 90 % de pruebas aprobadas); 11.1–11.3 usan F1.
 - **Tipo de escenario:** positivo, negativo, límite y permisos.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 12.4 · Reglas de acuerdos de convivencia (M12, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -143,10 +143,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** `host-1`, `roomie-2`, `listing-9`, snapshot `Casa de Roberto`, `visitsPolicy:"Solo con aviso previo"`, `quietHoursStart:"22:00:00"`, `quietHoursEnd:"08:00:00"`, `costs[0].amount:3500`, host inválido `"otro-host"`, listing `"no-existe"`, usuario `"extrano"`, `details` con `startDate:"2030-02-01"` y título `Reglas del hogar` → `Reglas actualizadas`, v2 con `petsAllowed:true` y renta `4000`, `roomieIds:[]` y `roomieIds:[roomie,roomie]`.
 - **Justificación de los datos:** tabla de decisión de participantes (host, roomie, extraño) y de consistencia del listing; el conteo de firmas 0 → 1 → 2 fija el límite de `fullyAccepted`; la modificación del snapshot entre v1 y v2 comprueba que la versión firmada conserva sus datos; los `roomieIds` vacíos/duplicados cubren los invariantes de la entidad.
 - **Resultado esperado:** v1 se crea con `version:1`, `acceptances:[]` y `costs[0].amount:3500`; host y roomie inexistentes/incorrectos son rechazados; tras firmar host `isFullyAccepted()` es falso y tras firmar roomie es verdadero, con dos registros de aceptación; `"extrano"` y la doble firma son rechazados; la v2 tiene `version:2`, `supersedesAgreementId` apuntando a v1, sin firmas, conserva los detalles de v1 y refleja `petsAllowed:true`/renta `4000` del nuevo snapshot; `roomieIds` vacíos o duplicados lanzan error.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 12.4 (F3, ≥ 90 % de pruebas aprobadas); 12.1–12.3 se miden con F1.
 - **Tipo de escenario:** positivo, negativo y permisos.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 13.5 · Reglas de moderación y sanciones (M13, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -155,10 +155,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** `reporter-1`, `owner-1`, `target-1`, `listing-1`, `admin-1`, razones `fraud`/`spam`/`harassment`, descripción `" Datos inconsistentes "` (recortada), mensaje `42` con sala `room-1`, mensaje inexistente `999` e id `NaN`, decisión `removed` con motivo `Contenido fraudulento`, evento `ListingModeratedEvent`; sanciones `warning` con motivo `Lenguaje agresivo`, `temporary_suspension` sin `expiresAt`, con `expiresAt:"2000-01-01T00:00:00Z"` y con `now+1h`, `permanent_ban` y `dismissed`, reloj `2026-11-07T12:00:00Z`.
 - **Justificación de los datos:** partición autodenuncia/ajena/duplicada, de pertenencia a la sala y de tipo de objetivo (`listing`/`user`/`message`); `NaN` cubre el límite de identificador no entero; para sanciones, la tabla de decisión combina tipo con expiración (nula, pasada, futura) y motivo vacío; el 403 de `reporter-1` a `/moderation/admin/queue` en E2E fija el permiso de administrador.
 - **Resultado esperado:** la denuncia válida queda `open` con descripción recortada; la autodenuncia y el duplicado se rechazan con `SELF_REPORT_NOT_ALLOWED`/`DUPLICATE_REPORT`; el mensaje inexistente, el no miembro y el id `NaN` se rechazan; `removed` sin motivo devuelve `REVIEW_REASON_REQUIRED`, con motivo registra historial y publica el evento; `open → resolved` funciona y una segunda resolución devuelve `REPORT_ALREADY_RESOLVED`; `warning` no bloquea sesión, la suspensión futura sí y la revocada no; expiración ausente/pasada, tipo desconocido o motivo/target vacíos se rechazan.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 13.5 (F3, ≥ 90 % de pruebas aprobadas); 13.4 se mide con F4 sobre `mod_reports.created_at`/`resolved_at` (3 días).
 - **Tipo de escenario:** positivo, negativo, permisos y excepción.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 14.4 · Reglas de notificaciones (M14, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -167,10 +167,10 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** usuario `u1`, tipos `system`/`new_message`, preferencia `{inApp:false, email:true}`, usuario `intruder`, dos avisos creados a las `10:00:00Z` con el segundo marcado como leído, tipo `"nope"`, eventos `UserRegisteredEvent`, `ConnectionAcceptedEvent`, `ListingModeratedEvent` y `MessageSentEvent` con `preview:"hola"`, evento desconocido `SomethingElse` y un suscriptor que lanza `Error("boom")`.
 - **Justificación de los datos:** tabla de decisión de preferencias (sin registro = permitir; `inApp:false` = omitir; espacio faltante = valores por defecto); la partición de propiedad (`owner` frente a `intruder`); el conteo 2 → 1 → 0 en `markAllRead`; los cuatro tipos soportados contra un tipo desconocido y un listener que falla, para verificar que el outbox persiste sin propagar errores.
 - **Resultado esperado:** sin preferencia se crea el aviso; con `inApp:false` no se crea; `markRead` de otro usuario devuelve `FORBIDDEN`; `markAllRead` devuelve `1` y deja `countUnread` en `0`; `getPreferences` rellena `system` con `inApp:true`/`email:true`; el tipo `"nope"` devuelve `INVALID_NOTIFICATION_TYPE`; el bus crea un aviso por cada uno de los cuatro eventos soportados y ninguno para `SomethingElse`, el outbox sigue registrando eventos aunque un listener lance excepción. En E2E se ve `Tu postulación fue aceptada.` y `Sin leer: 0`.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 14.4 (F3, ≥ 90 % de pruebas aprobadas); el caso 14.3 (aviso en ≤ 1 minuto) se mide con F4 y no tiene prueba de latencia en el repositorio.
 - **Tipo de escenario:** positivo, negativo, permisos y excepción.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## 15.3 · Reglas del dashboard de métricas y bitácora (M15, SLO ≥ 90 % de pruebas aprobadas)
 
@@ -179,34 +179,34 @@ Convenciones: se describe la intención y las aserciones **definidas en el códi
 - **Datos utilizados:** reloj fijo `2026-11-07T12:34:56Z`, fecha de métrica `2026-11-06T09:00:00Z`, contadores `10/5/7/3/1`, promedios `12.5` y `78.2`, fecha futura `2027-01-01`, fecha inválida `"not a date"`, promedios `null`, contador `-1`, rango `2026-11-06` … `2026-11-08` con datos en `05/07/08`; en la API, `?start=2026-01-01&end=2026-03-31`, fecha inexistente `2026-02-30`, rango largo `2025-01-01` … `2026-02-01`, tokens de `admin@roomlink.test` y `seeker@roomlink.test`, KPIs `connectionAcceptanceRate:25` y `activeRooms:4`; bitácora con `page:3`, filtros vacíos `"  "`, `action:"SanctionIssuedEvent"`, fechas `2026-11-01` … `2026-11-30` y fila CSV con `userId:"=cmd"`.
 - **Justificación de los datos:** límites de fecha (futura, inválida, invertida, rango demasiado largo), partición de roles (admin/seeker/anónimo), datos `null` frente a numéricos y repetición del mismo día para comprobar idempotencia; los filtros vacíos y la fórmula `=cmd` comprueban que la bitácora omite parámetros en blanco y neutraliza inyección de fórmulas en CSV.
 - **Resultado esperado:** la agregación produce los contadores y promedios indicados con `metricDate:"2026-11-06T00:00:00.000Z"` y una sola fila tras dos recomputaciones; fechas futuras/inválidas, contadores negativos y rangos invertidos se rechazan; promedios sin datos se conservan como `null`; `getRange` devuelve dos filas (`07` y `08`); la API devuelve `200` con los KPIs para admin, `403` para seeker, `401` sin token y `400` para fecha inexistente o rango largo; la bitácora calcula `offset= PAGE_SIZE*2`, omite filtros vacíos y el CSV escapa comillas y prefija `'=cmd`.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** 15.3 (F3, ≥ 90 % de pruebas aprobadas); 15.1/15.2 se miden con F1.
 - **Tipo de escenario:** positivo, negativo, límite y permisos.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## T.1 · Disponibilidad de la plataforma (/ready cada minuto, SLO ≥ 95 % de minutos)
 
 - **Objetivo:** verificar que `/ready` refleje el estado real de la base y que el sondeo de disponibilidad y la carga ligera de la API tengan un umbral definido.
-- **Escenario:** `T-22 · app.unit.test.ts` · *"reports process health without consulting MySQL"*, *"reports readiness after MySQL answers"*, *"returns 503 when MySQL is unavailable"*; `T-25 · regression.test.ts` verifica el mismo app con fakes; `T-34 · scripts/qa-availability.mjs` (40 lecturas, concurrencia 4, `p95 < 2000`); ingestión y bitácora planeadas en `T-39` y `T-40`.
+- **Escenario:** `T-22 · app.unit.test.ts` · *"reports process health without consulting MySQL"*, *"reports readiness after MySQL answers"*, *"returns 503 when MySQL is unavailable"*; `T-25 · regression.test.ts` verifica el mismo app con fakes; `T-34 · scripts/qa-availability.mjs` (40 lecturas, concurrencia 4, `p95 < 2000`); ingestión y bitácora implementadas en `T-39` y `T-40`; el sondeo real de 60/h sigue pendiente de cron.
 - **Datos utilizados:** `checkDatabase` simulado sin llamar, resuelto y rechazado con `Error("connection refused")`; cuerpos esperados `{status:"ok",service:"room-link-backend"}`, `{status:"ready",database:"connected"}` y `{status:"unavailable",database:"disconnected"}`; `QA_BASE_URL` con hostname `localhost`/`127.0.0.1`, 4 lotes de 10 peticiones `GET /api/v1/rooms/feed?pageSize=1` con `AbortSignal.timeout(5000)` y `p95 = samples[ceil(40*0.95)-1]`; regla de monitoreo: un sondeo por minuto (60 por hora).
-- **Justificación de los datos:** tabla de decisión de dependencia de base (no consultada / disponible / caída) con reloj y errores controlados; el ensayo de carga usa solo loopback para no afectar entornos compartidos y calcula el p95 con la misma posición que el script; el sondeo periódico no se simula en unitario: queda como verificación planeada con token de servicio.
-- **Resultado esperado:** `/health` responde `200` sin consultar MySQL; `/ready` responde `200` con `database:"connected"` cuando la base responde y `503` con `database:"disconnected"` cuando falla; el script registra 40 lecturas correctas con `p95 < 2000 ms`; la ingesta planeada debe aceptar 60 sondeos por hora y rechazar peticiones sin token.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Justificación de los datos:** tabla de decisión de dependencia de base (no consultada / disponible / caída) con reloj y errores controlados; el ensayo de carga usa solo loopback para no afectar entornos compartidos y calcula el p95 con la misma posición que el script; el sondeo periódico no se simula en unitario: la ingesta con token de servicio está verificada en `T-39`, pero el cron de producción sigue pendiente.
+- **Resultado esperado:** `/health` responde `200` sin consultar MySQL; `/ready` responde `200` con `database:"connected"` cuando la base responde y `503` con `database:"disconnected"` cuando falla; el script registra 40 lecturas correctas con `p95 < 2000 ms`; la ingesta implementada acepta sondeos y rechaza peticiones sin token; 60 sondeos por hora requieren el cron real.
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** T.1 (F2, ≥ 95 % de minutos del mes). T.2 (racha ≤ 12 h) no tiene prueba dedicada en el repositorio.
 - **Tipo de escenario:** positivo, negativo, excepción y desempeño.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## T.3 · Transacciones globales `/api/v1/*` (SLO ≥ 95 % en ≤ 3 s)
 
 - **Objetivo:** comprobar la clasificación de transacciones buenas (status < 500 y duración ≤ umbral), las exclusiones fijas y que las respuestas no filtren secretos ni rompan el sitio estático.
-- **Escenario:** `T-02 · authorization.unit.test.ts` · *"rejects anonymous requests on profile create, rooms create, applications and compatibility"*, *"requires host or admin for every listing mutation"*; `T-03 · hardening.unit.test.ts` · *"login response no incluye campos de hash"*, *"GET /notifications (vacío) y /health respetan headers y DTOs"*; `T-21 · static-web.unit.test.ts` · *"no entrega index.html para rutas /api/ inexistentes"*; `T-36` a `T-41` son pruebas planeadas de monitoreo (constructor de patrón, saneamiento, escritor, ingesta, bitácora y exclusiones).
-- **Datos utilizados:** petición `OPTIONS` con `Origin:"http://localhost:5173"` → `204` y `Access-Control-Allow-Origin`; cuatro rutas privadas sin sesión → `401`, nueve mutaciones de `/api/v1/rooms` con token de `intruder@roomlink.test` → `403 HOST_REQUIRED`, `/api/v1/compatibility/owner` con `intruder` → `403 FORBIDDEN`; claves prohibidas `passwordHash`, `tokenHash`, `resetTokenHash`, `refreshTokenHash`, `secret` y cualquier clave que termine en `Hash`; cabeceras `X-Content-Type-Options:nosniff`, `Referrer-Policy:no-referrer`, `X-Frame-Options:DENY`; rutas estáticas `/assets/app.js`, `/dashboard/usuarios`, `/login`, `/descargas/roomlink.apk` y `/api/v1/no-existe` → `404`; exclusiones planeadas `OPTIONS`, `/health`, `/ready`, `/uploads` y SSE `/messages/rooms/:roomId/events`; lote de 2 s o 100 filas y umbral global de 3000 ms.
+- **Escenario:** `T-02 · authorization.unit.test.ts` · *"rejects anonymous requests on profile create, rooms create, applications and compatibility"*, *"requires host or admin for every listing mutation"*; `T-03 · hardening.unit.test.ts` · *"login response no incluye campos de hash"*, *"GET /notifications (vacío) y /health respetan headers y DTOs"*; `T-21 · static-web.unit.test.ts` · *"no entrega index.html para rutas /api/ inexistentes"*; `T-36` a `T-41` son pruebas implementadas de monitoreo (constructor de patrón, saneamiento, escritor, ingesta, bitácora y exclusiones).
+- **Datos utilizados:** petición `OPTIONS` con `Origin:"http://localhost:5173"` → `204` y `Access-Control-Allow-Origin`; cuatro rutas privadas sin sesión → `401`, nueve mutaciones de `/api/v1/rooms` con token de `intruder@roomlink.test` → `403 HOST_REQUIRED`, `/api/v1/compatibility/owner` con `intruder` → `403 FORBIDDEN`; claves prohibidas `passwordHash`, `tokenHash`, `resetTokenHash`, `refreshTokenHash`, `secret` y cualquier clave que termine en `Hash`; cabeceras `X-Content-Type-Options:nosniff`, `Referrer-Policy:no-referrer`, `X-Frame-Options:DENY`; rutas estáticas `/assets/app.js`, `/dashboard/usuarios`, `/login`, `/descargas/roomlink.apk` y `/api/v1/no-existe` → `404`; exclusiones implementadas `OPTIONS`, `/health`, `/ready`, `/uploads` y SSE `/messages/rooms/:roomId/events`; lote de 2 s o 100 filas y umbral global de 3000 ms.
 - **Justificación de los datos:** partición de equivalencia entre peticiones excluidas y registrables; tabla de decisión de autenticación/autorización para clasificar rechazos esperados como transacciones buenas; la lista de claves terminadas en `Hash` evita filtraciones de secretos sin bloquear el campo `token` legítimo; las rutas del sitio estático separan SPA, assets, APK y API inexistente; los valores 2 s/100 filas y 3 s son los definidos en la guía de monitoreo y en el SLA.
-- **Resultado esperado:** las rutas privadas sin sesión devuelven `401`, las mutaciones de anuncios sin rol `host/admin` devuelven `403 HOST_REQUIRED`, el acceso ajeno a compatibilidad devuelve `403 FORBIDDEN`, y el OAuth/local sin sesión mantiene el CORS declarado; ningún payload contiene las claves prohibidas y todas las respuestas incluyen las tres cabeceras; `/assets/app.js` y `/descargas/roomlink.apk` se sirven tal cual, `/dashboard/usuarios` y `/login` devuelven el SPA y `/api/v1/no-existe` devuelve `404` sin HTML. Las pruebas planeadas deben demostrar que las exclusiones no se registran, que no se guardan correos/tokens/IP/cuerpos/URLs con ids, que el lote se cierra por tiempo o por 100 filas y que `is_good` es verdadero para 4xx dentro del umbral.
-- **Resultado obtenido:** Pendiente de ejecución
+- **Resultado esperado:** las rutas privadas sin sesión devuelven `401`, las mutaciones de anuncios sin rol `host/admin` devuelven `403 HOST_REQUIRED`, el acceso ajeno a compatibilidad devuelve `403 FORBIDDEN`, y el OAuth/local sin sesión mantiene el CORS declarado; ningún payload contiene las claves prohibidas y todas las respuestas incluyen las tres cabeceras; `/assets/app.js` y `/descargas/roomlink.apk` se sirven tal cual, `/dashboard/usuarios` y `/login` devuelven el SPA y `/api/v1/no-existe` devuelve `404` sin HTML. Las pruebas implementadas demuestran que las exclusiones no se registran, que no se guardan correos/tokens/IP/cuerpos/URLs con ids, que el lote se cierra por tiempo o por 100 filas y que `is_good` es verdadero para 4xx dentro del umbral.
+- **Resultado obtenido:** Unidad/web: pasa (2026-11-27). Integración/E2E: BLOCKED; ver `docs/matriz-pruebas.md`.
 - **Indicador relacionado:** T.3 (F1, ≥ 95 % de tx en ≤ 3000 ms); el SLI T.1 usa F2 y T.4–T.6 usan F5/F6.
 - **Tipo de escenario:** positivo, negativo, permisos, excepción y planeado.
-- **Evidencia:** Pendiente
+- **Evidencia:** `npm --prefix backend run test:unit` (249/249), `npm --prefix web run test` (23/23) y `npm --prefix backend run test:smoke` (12/12), 2026-11-27; IDs `T-xx` en `docs/matriz-pruebas.md`.
 
 ## Escenarios analizados y NO cubiertos por las pruebas existentes
 
