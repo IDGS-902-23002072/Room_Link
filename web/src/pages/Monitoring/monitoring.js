@@ -48,6 +48,18 @@ export function getTestRun(id, token) {
   return apiRequest(`${BASE}/tests/runs/${encodeURIComponent(id)}`, { token })
 }
 
+export function getTestSuites(token) {
+  return apiRequest(`${BASE}/tests/suites`, { token })
+}
+
+export function runTestSuite(suite, token) {
+  return apiRequest(`${BASE}/tests/run`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ suite }),
+  })
+}
+
 export function getLogbook({ month, from, to, module, type, status, inSli, includeExcluded, cursor, limit = 50 }, token) {
   return apiRequest(
     `${BASE}/logbook${query({

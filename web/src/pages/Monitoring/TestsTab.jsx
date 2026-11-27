@@ -3,9 +3,16 @@ import Badge from '../../components/Badge/Badge.jsx'
 import Button from '../../components/Button/Button.jsx'
 import Card from '../../components/Card/Card.jsx'
 import EmptyState from '../../components/EmptyState/EmptyState.jsx'
+import Field from '../../components/Field/Field.jsx'
 import Notice from '../../components/Notice/Notice.jsx'
 import { asyncEffect } from '../../hooks/asyncEffect.js'
-import { formatLocal, getTestRun, getTestRuns } from './monitoring.js'
+import {
+  formatLocal,
+  getTestRun,
+  getTestRuns,
+  getTestSuites,
+  runTestSuite,
+} from './monitoring.js'
 import styles from './Monitoring.module.css'
 
 export default function TestsTab({ token }) {
@@ -14,12 +21,28 @@ export default function TestsTab({ token }) {
   const [runs, setRuns] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState(null)
+  const [selectedId, setSelectedId] = useState(null)
   const [detail, setDetail] = useState(null)
   const [detailError, setDetailError] = useState('')
-  const [showAll, setShowAll] = useState(false)
+  const [showAll, setShowAll] = useState(true)
+  const [suites, setSuites] = useState([])
+  const [suite, setSuite] = useState('')
+  const [running, setRunning] = useState(false)
+  const [runNotice, setRunNotice] = useState(null)
+  const [refresh, setRefresh] = useState(0)
   const cursor = history[page]
-  const selectedId = selected?.id ?? null
+
+  useEffect(() => asyncEffect(async (isActive) => {
+    try {
+      const result = await getTestSuites(token)
+      if (!isActive()) return
+      const items = result?.items ?? []
+      setSuites(items)
+      setSuite((current) => current || items[0]?.id || '')
+    } catch {
+      if (isActive()) setSuites([])
+    }
+  }), [token])
 
   useEffect(() => asyncEffect(async (isActive) => {
     setLoading(true)
@@ -37,7 +60,7 @@ export default function TestsTab({ token }) {
     } finally {
       if (isActive()) setLoading(false)
     }
-  }), [cursor, token])
+  }), [cursor, token, refresh])
 
   useEffect(() => {
     if (!selectedId) return undefined
@@ -51,19 +74,34 @@ export default function TestsTab({ token }) {
     })
   }, [selectedId, token])
 
+  async function execute() {
+    if (!suite || running) return
+    setRunning(true)
+    setRunNotice(null)
+    try {
+      const result = await runTestSuite(suite, token)
+      setRunNotice({ tone: 'success', text: result.message })
+      setHistory([null])
+      setPage(0)
+      setSelectedId(result.runId)
+      setDetail(null)
+      setDetailError('')
+      setShowAll(true)
+      setRefresh((value) => value + 1)
+    } catch (cause) {
+      setRunNotice({
+        tone: 'error',
+        text: cause instanceof Error ? cause.message : 'No se pudo ejecutar la suite.',
+      })
+    } finally {
+      setRunning(false)
+    }
+  }
+
   function nextPage() {
     if (!runs?.nextCursor) return
     setHistory([...history.slice(0, page + 1), runs.nextCursor])
     setPage(page + 1)
-  }
-
-  if (loading) return <p className={styles.loading} role="status">Cargando corridas de pruebas…</p>
-  if (error) {
-    return (
-      <Notice role="alert" tone="error" title="Pruebas no disponibles">
-        {error} La pantalla seguirá funcionando cuando se restablezca la base de monitoreo.
-      </Notice>
-    )
   }
 
   const items = runs?.items ?? []
@@ -72,12 +110,51 @@ export default function TestsTab({ token }) {
 
   return (
     <div className={styles.stack}>
-      {items.length === 0 ? (
+      <Card className={styles.runCard}>
+        <div className={styles.runIntro}>
+          <h2 className={styles.sectionTitle}>Ejecutar pruebas</h2>
+          <p className={styles.cardNote}>
+            Solo se permiten las suites listadas. El resultado se guarda en la base de monitoreo y
+            aparece abajo; ninguna petición queda esperando a la base.
+          </p>
+        </div>
+        <div className={styles.runControls}>
+          <Field className={styles.runField} htmlFor="test-suite" label="Suite">
+            <select
+              disabled={running}
+              id="test-suite"
+              onChange={(event) => setSuite(event.target.value)}
+              value={suite}
+            >
+              {suites.length === 0
+                ? <option value="">Sin suites disponibles</option>
+                : suites.map((item) => (
+                  <option key={item.id} title={item.description} value={item.id}>{item.label}</option>
+                ))}
+            </select>
+          </Field>
+          <Button disabled={!suite || running} loading={running} onClick={execute}>
+            Ejecutar suite
+          </Button>
+        </div>
+        {runNotice ? (
+          <Notice className={styles.runNotice} tone={runNotice.tone}>{runNotice.text}</Notice>
+        ) : null}
+      </Card>
+
+      {loading ? <p className={styles.loading} role="status">Cargando corridas de pruebas…</p> : null}
+      {error ? (
+        <Notice role="alert" tone="error" title="Pruebas no disponibles">
+          {error} La pantalla seguirá funcionando cuando se restablezca la base de monitoreo.
+        </Notice>
+      ) : null}
+      {!loading && !error && items.length === 0 ? (
         <EmptyState
-          description="Las corridas aparecen cuando se envía el resultado de Vitest al endpoint de ingesta."
+          description="Ejecuta una suite o envía el resultado de Vitest al endpoint de ingesta."
           title="Sin corridas registradas"
         />
-      ) : (
+      ) : null}
+      {!loading && !error && items.length > 0 ? (
         <Card className={styles.tableWrap}>
           <table className={styles.table}>
             <caption className={styles.srOnly}>Corridas de pruebas automáticas</caption>
@@ -101,12 +178,12 @@ export default function TestsTab({ token }) {
                   </td>
                   <td>
                     <Button
-                      aria-pressed={selected?.id === run.id}
+                      aria-pressed={selectedId === run.id}
                       onClick={() => {
-                        setSelected(run.id)
+                        setSelectedId(run.id)
                         setDetail(null)
                         setDetailError('')
-                        setShowAll(false)
+                        setShowAll(true)
                       }}
                       size="sm"
                       variant="secondary"
@@ -119,7 +196,7 @@ export default function TestsTab({ token }) {
             </tbody>
           </table>
         </Card>
-      )}
+      ) : null}
 
       <div className={styles.pagination}>
         <Button disabled={page === 0} onClick={() => setPage(page - 1)} size="sm" variant="secondary">
@@ -131,12 +208,12 @@ export default function TestsTab({ token }) {
         </Button>
       </div>
 
-      {selected ? (
+      {selectedId ? (
         <Card className={styles.detail}>
           <div className={styles.detailHead}>
             <div>
               <h2 className={styles.sectionTitle}>Detalle de la corrida</h2>
-              <p className={styles.cardNote}>{selected.id}</p>
+              <p className={styles.cardNote}>{selectedId}</p>
             </div>
             <Button onClick={() => setShowAll((value) => !value)} size="sm" variant="secondary">
               {showAll ? 'Solo fallidas' : `Ver todas (${results.length})`}
@@ -152,7 +229,7 @@ export default function TestsTab({ token }) {
               {visibleResults.map((result, index) => (
                 <li key={`${result.testName}-${index}`} className={styles.result}>
                   <Badge tone={result.result === 'passed' ? 'success' : 'danger'}>
-                    {result.result === 'passed' ? 'Aprobada' : 'Fallida'}
+                    {result.result === 'passed' ? 'Aprobada' : result.result === 'skipped' ? 'Omitida' : 'Fallida'}
                   </Badge>
                   <span className={styles.resultName}>{result.testName}</span>
                   <span className={styles.resultMeta}>
