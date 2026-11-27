@@ -4,7 +4,12 @@ import { createApp } from "../../src/app.js";
 import { createMonitorActivityListener } from "../../src/monitoring/activityListener.js";
 import { InProcessEventBus } from "../../src/modules/notifications/event-bus.js";
 import type { AuthVariables } from "../../src/modules/auth/index.js";
-import { describeDomainEvent, sanitizeDetail } from "../../src/monitoring/messageBuilder.js";
+import {
+  describeDomainEvent,
+  describeProbe,
+  describeRequest,
+  sanitizeDetail,
+} from "../../src/monitoring/messageBuilder.js";
 import { parseSource, shouldExclude, toRoutePattern } from "../../src/monitoring/routePattern.js";
 import { monitorSchema } from "../../src/monitoring/schema.js";
 import { createRequestLogger } from "../../src/monitoring/requestLogger.js";
@@ -155,6 +160,60 @@ describe("F1 · bitácora descriptiva sin datos sensibles", () => {
       expect(JSON.stringify(activity.value.detail)).not.toContain("oculto@correo.test");
     }
     await writer.close();
+  });
+});
+
+describe("F1 · bitácora explicativa y trazable por petición", () => {
+  it("explica cada operación principal en lenguaje simple :: Se describieron login, creación de anuncio, postulación y test de convivencia. Cada mensaje dice qué pasó, no solo el código HTTP.", () => {
+    expect(describeRequest("POST", "/api/v1/auth/login", 200).message).toContain("inició sesión");
+    expect(describeRequest("POST", "/api/v1/rooms", 201).message).toContain("borrador");
+    expect(describeRequest("POST", "/api/v1/applications", 201).message).toContain("pendiente");
+    expect(
+      describeRequest("PUT", "/api/v1/compatibility/:id", 200).message,
+    ).toContain("siete respuestas");
+  });
+
+  it("explica los rechazos y fallos sin dejar solo el código :: Se describieron un 404 y un 500. Los mensajes dicen la causa y ninguno guarda datos de la petición.", () => {
+    const notFound = describeRequest("PATCH", "/api/v1/rooms/abc/close", 404);
+    const failed = describeRequest("POST", "/api/v1/rooms", 500);
+    expect(notFound.result).toBe("rejected");
+    expect(notFound.message).toContain("no se encontró");
+    expect(failed.result).toBe("failed");
+    expect(failed.message).toContain("error interno");
+    expect(JSON.stringify([notFound, failed])).not.toContain("HTTP 404");
+  });
+
+  it("vincula la petición con su actividad usando el mismo request_id :: Se hizo una petición de creación de anuncio. La fila de petición y la fila de negocio compartieron identificador y mensaje explicativo.", async () => {
+    const sink = new CapturingSink();
+    const writer = quietWriter(sink);
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use("*", createRequestLogger(writer));
+    app.post("/api/v1/rooms", (context) => context.json({ id: "oculto" }, 201));
+
+    await app.request("/api/v1/rooms", {
+      method: "POST",
+      headers: { "x-roomlink-source": "test", "x-request-id": "11111111-1111-4111-8111-111111111111" },
+    });
+    await writer.flush();
+
+    const request = sink.records.find((record) => record.kind === "request");
+    const activity = sink.records.find((record) => record.kind === "activity");
+    expect(request?.kind).toBe("request");
+    expect(activity?.kind).toBe("activity");
+    if (request?.kind === "request" && activity?.kind === "activity") {
+      expect(request.value.requestId).toBe(activity.value.requestId);
+      expect(request.value.message).toContain("borrador");
+      expect(activity.value.message).toBe(request.value.message);
+      expect(activity.value.module).toBe("habitaciones");
+      expect(activity.value.action).toBe("Creación de anuncio");
+      expect(activity.value.source).toBe("test");
+    }
+    await writer.close();
+  });
+
+  it("explica los sondeos de disponibilidad :: Se describieron un sondeo correcto y uno fallido. Ambos mensajes nombran el endpoint y lo que significó para la app.", () => {
+    expect(describeProbe("/health", "up", 200)).toContain("atender las peticiones");
+    expect(describeProbe("/ready", "down", 503)).toContain("base principal");
   });
 });
 

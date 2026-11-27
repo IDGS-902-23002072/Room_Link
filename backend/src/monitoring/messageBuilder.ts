@@ -106,6 +106,264 @@ function applicationMessage(payload: Record<string, unknown>): { message: string
   }
 }
 
+interface RequestOperation {
+  module: string;
+  action: string;
+  verb: string;
+  success: string;
+}
+
+/**
+ * Operaciones principales de negocio. La clave es método + patrón de ruta ya
+ * saneado (sin identificadores). Nunca se guarda la URL original ni el cuerpo.
+ */
+const REQUEST_OPERATIONS: Record<string, RequestOperation> = {
+  "POST /api/v1/auth/register": {
+    module: "autenticación",
+    action: "Registro de cuenta",
+    verb: "crear la cuenta",
+    success:
+      "Se creó una cuenta nueva. El sistema validó los datos y ya se puede iniciar sesión.",
+  },
+  "POST /api/v1/auth/login": {
+    module: "autenticación",
+    action: "Inicio de sesión",
+    verb: "iniciar sesión",
+    success:
+      "La persona inició sesión correctamente. El sistema validó sus credenciales y abrió una sesión.",
+  },
+  "GET /api/v1/auth/me": {
+    module: "autenticación",
+    action: "Consulta de sesión",
+    verb: "consultar la sesión",
+    success: "Se consultaron los datos de la sesión activa.",
+  },
+  "POST /api/v1/profiles": {
+    module: "perfil",
+    action: "Creación de perfil",
+    verb: "guardar el perfil",
+    success: "Se guardó el perfil personal con los datos enviados.",
+  },
+  "PUT /api/v1/profiles/:id": {
+    module: "perfil",
+    action: "Actualización de perfil",
+    verb: "actualizar el perfil",
+    success: "Se actualizó el perfil personal.",
+  },
+  "POST /api/v1/profiles/:id/photos": {
+    module: "perfil",
+    action: "Foto de perfil",
+    verb: "guardar la foto",
+    success: "Se guardó una foto en el perfil.",
+  },
+  "DELETE /api/v1/profiles/:id/photos/:id": {
+    module: "perfil",
+    action: "Borrado de foto",
+    verb: "eliminar la foto",
+    success: "Se eliminó una foto del perfil.",
+  },
+  "PUT /api/v1/compatibility/:id": {
+    module: "compatibilidad",
+    action: "Test de convivencia",
+    verb: "guardar el test de convivencia",
+    success:
+      "Se guardaron las siete respuestas del test de convivencia y se calculó el resumen de afinidad.",
+  },
+  "GET /api/v1/compatibility/:id": {
+    module: "compatibilidad",
+    action: "Consulta del test",
+    verb: "consultar el test de convivencia",
+    success: "Se consultó el test de convivencia guardado.",
+  },
+  "GET /api/v1/compatibility/:id/feed": {
+    module: "afinidades",
+    action: "Feed de afinidad",
+    verb: "consultar el feed de afinidad",
+    success: "Se consultó el listado de perfiles recomendados por afinidad.",
+  },
+  "GET /api/v1/compatibility/:id/candidates/:id": {
+    module: "afinidades",
+    action: "Perfil candidato",
+    verb: "consultar el perfil candidato",
+    success: "Se consultó el detalle de un perfil candidato.",
+  },
+  "POST /api/v1/compatibility/:id/connections": {
+    module: "conexiones",
+    action: "Solicitud de conexión desde afinidad",
+    verb: "enviar la solicitud de conexión",
+    success:
+      "Se envió una solicitud de conexión. Quedó pendiente de la respuesta del otro usuario.",
+  },
+  "POST /api/v1/rooms": {
+    module: "habitaciones",
+    action: "Creación de anuncio",
+    verb: "crear el anuncio",
+    success:
+      "Se creó un anuncio de habitación en borrador. Todavía no está publicado.",
+  },
+  "GET /api/v1/rooms": {
+    module: "habitaciones",
+    action: "Listado de habitaciones",
+    verb: "consultar las habitaciones",
+    success: "Se consultó el listado de habitaciones disponibles.",
+  },
+  "GET /api/v1/rooms/feed": {
+    module: "habitaciones",
+    action: "Feed de habitaciones",
+    verb: "consultar el feed de habitaciones",
+    success: "Se consultó el feed de habitaciones disponibles.",
+  },
+  "GET /api/v1/rooms/:id": {
+    module: "habitaciones",
+    action: "Detalle de habitación",
+    verb: "consultar la habitación",
+    success: "Se consultó el detalle de una habitación.",
+  },
+  "PATCH /api/v1/rooms/:id/publish": {
+    module: "habitaciones",
+    action: "Publicación de anuncio",
+    verb: "publicar el anuncio",
+    success:
+      "Se publicó el anuncio. La habitación ya es visible para quienes buscan alojamiento.",
+  },
+  "PATCH /api/v1/rooms/:id/close": {
+    module: "habitaciones",
+    action: "Cierre de anuncio",
+    verb: "cerrar el anuncio",
+    success:
+      "Se cerró la publicación. El anuncio sale del listado sin borrar la información.",
+  },
+  "PATCH /api/v1/rooms/:id": {
+    module: "habitaciones",
+    action: "Edición de anuncio",
+    verb: "actualizar el anuncio",
+    success: "Se actualizaron los datos del anuncio.",
+  },
+  "GET /api/v1/rooms/:id/rules": {
+    module: "reglas y costos",
+    action: "Consulta de reglas",
+    verb: "consultar las reglas",
+    success: "Se consultaron las reglas de convivencia del anuncio.",
+  },
+  "PUT /api/v1/rooms/:id/rules": {
+    module: "reglas y costos",
+    action: "Guardado de reglas",
+    verb: "guardar las reglas",
+    success: "Se guardaron las reglas de convivencia del anuncio.",
+  },
+  "GET /api/v1/rooms/:id/costs": {
+    module: "reglas y costos",
+    action: "Consulta de costos",
+    verb: "consultar los costos",
+    success: "Se consultaron los costos del anuncio.",
+  },
+  "PUT /api/v1/rooms/:id/costs": {
+    module: "reglas y costos",
+    action: "Guardado de costos",
+    verb: "guardar los costos",
+    success: "Se guardaron los costos del anuncio.",
+  },
+  "POST /api/v1/applications": {
+    module: "postulaciones",
+    action: "Envío de postulación",
+    verb: "enviar la postulación",
+    success:
+      "Se envió una postulación a una habitación. Quedó pendiente de la decisión del anfitrión.",
+  },
+  "GET /api/v1/applications/listing/:id": {
+    module: "postulaciones",
+    action: "Postulaciones del anuncio",
+    verb: "consultar las postulaciones recibidas",
+    success: "Se consultaron las postulaciones recibidas en un anuncio.",
+  },
+  "PATCH /api/v1/applications/:id/decide": {
+    module: "postulaciones",
+    action: "Decisión de postulación",
+    verb: "resolver la postulación",
+    success:
+      "El anfitrión respondió la postulación. La decisión quedó registrada y notificada.",
+  },
+  "GET /api/v1/applications/me": {
+    module: "postulaciones",
+    action: "Mis postulaciones",
+    verb: "consultar mis postulaciones",
+    success: "Se consultaron las postulaciones enviadas por el usuario.",
+  },
+};
+
+const normalizedRoute = (route: string): string =>
+  route.replace(/`/g, "").replace(/:[A-Za-z0-9_]+/g, ":id");
+
+const rejectionReason = (status: number): string => {
+  if (status === 400) return "los datos enviados no son válidos";
+  if (status === 401) return "la sesión no es válida o no se envió";
+  if (status === 403) return "la cuenta no tiene permiso para esta operación";
+  if (status === 404) return "no se encontró el recurso solicitado";
+  if (status === 409) return "la operación entra en conflicto con el estado actual";
+  if (status === 413) return "el archivo o cuerpo enviado es demasiado grande";
+  if (status === 422) return "faltan datos obligatorios";
+  return "la aplicación rechazó la petición";
+};
+
+/** Convierte una petición HTTP en una explicación corta para la bitácora. */
+export function describeRequest(
+  method: string,
+  routePattern: string,
+  status: number,
+  moduleFallback = "sistema",
+): DescribedEvent {
+  const key = `${method.toUpperCase()} ${normalizedRoute(routePattern)}`;
+  const operation = REQUEST_OPERATIONS[key];
+  const result: LogResult = status >= 500 ? "failed" : status >= 400 ? "rejected" : "success";
+
+  if (!operation) {
+    const verb = `atender la petición ${method.toUpperCase()} ${normalizedRoute(routePattern)}`;
+    return {
+      module: moduleFallback,
+      action: `${method.toUpperCase()} ${normalizedRoute(routePattern)}`,
+      result,
+      message:
+        result === "success"
+          ? `La aplicación atendió la petición ${method.toUpperCase()} ${normalizedRoute(routePattern)} y respondió correctamente.`
+          : result === "rejected"
+            ? `No se pudo ${verb} porque ${rejectionReason(status)}.`
+            : `No se pudo ${verb} porque el servidor tuvo un error interno.`,
+      detail: { status, route: normalizedRoute(routePattern) },
+      actorId: null,
+      source: "real",
+    };
+  }
+
+  const message =
+    result === "success"
+      ? operation.success
+      : result === "rejected"
+        ? `No se pudo ${operation.verb} porque ${rejectionReason(status)}.`
+        : `No se pudo ${operation.verb} porque el servidor tuvo un error interno.`;
+
+  return {
+    module: operation.module,
+    action: operation.action,
+    result,
+    message,
+    detail: { status, route: normalizedRoute(routePattern) },
+    actorId: null,
+    source: "real",
+  };
+}
+
+/** Explica un sondeo de disponibilidad sin guardar IPs ni datos de la petición. */
+export function describeProbe(
+  target: "/health" | "/ready",
+  status: "up" | "down",
+  httpStatus: number,
+): string {
+  const action = target === "/health" ? "atender las peticiones" : "conectarse a la base principal";
+  return status === "up"
+    ? `El sondeo de ${target} fue correcto (HTTP ${httpStatus}): la aplicación puede ${action}.`
+    : `El sondeo de ${target} falló (HTTP ${httpStatus}): la aplicación no pudo ${action} en este momento.`;
+}
+
 /** Convierte un evento de dominio en un registro legible para la bitácora. */
 export function describeDomainEvent(
   event: DomainEvent,

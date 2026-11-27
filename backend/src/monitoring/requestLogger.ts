@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { MiddlewareHandler } from "hono";
 import type { AuthVariables } from "../modules/auth/index.js";
+import { describeRequest } from "./messageBuilder.js";
 import { parseSource, shouldExclude, toRoutePattern, type EventSource } from "./routePattern.js";
 import { findSliByRoute, SLI_BY_ID } from "./sliCatalog.js";
 import { emitMonitorEvent, type BatchedMonitorWriter } from "./writer.js";
@@ -50,6 +51,7 @@ export const createRequestLogger = (
           const status = context.res.status || (thrown === null ? 200 : 500);
           const isGood: 0 | 1 = status < 500 && durationMs <= thresholdMs ? 1 : 0;
           const source = parseSource(context.req.header("x-roomlink-source"));
+          const described = describeRequest(method, routePattern, status, sli?.module ?? "sistema");
 
           writer.enqueue({
             kind: "request",
@@ -63,6 +65,26 @@ export const createRequestLogger = (
               sliId: sli?.id ?? null,
               isGood,
               source,
+              message: described.message,
+            },
+          });
+
+          // Misma operación, mismo request_id: la bitácora puede seguir el paso
+          // de negocio aunque la fila de petición se oculte por tener actividad.
+          writer.enqueue({
+            kind: "activity",
+            value: {
+              module: described.module,
+              action: described.action,
+              result: described.result,
+              message: described.message,
+              httpStatus: status,
+              durationMs,
+              requestId,
+              sliId: sli?.id ?? null,
+              actorId: null,
+              source,
+              detail: described.detail,
             },
           });
 

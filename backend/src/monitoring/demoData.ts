@@ -1,3 +1,4 @@
+import { describeRequest } from "./messageBuilder.js";
 import { isGoodTransaction } from "./metrics.js";
 import type {
   monActivityLog,
@@ -99,9 +100,10 @@ export function buildDemoData(period: string): DemoData {
       const durationMs = isBad
         ? threshold + 150
         : 80 + Math.floor(random() * Math.max(1, Math.min(1000, threshold - 80)));
+      const method = index % 3 === 0 ? "POST" : "GET";
       requests.push({
         occurredAt,
-        method: index % 3 === 0 ? "POST" : "GET",
+        method,
         routePattern: route,
         status,
         durationMs,
@@ -110,6 +112,7 @@ export function buildDemoData(period: string): DemoData {
         sliId: sli.id,
         isGood: isGoodTransaction(status, durationMs, threshold) ? 1 : 0,
         source: "synthetic",
+        message: describeRequest(method, route, status, sli.module).message,
       });
     }
   }
