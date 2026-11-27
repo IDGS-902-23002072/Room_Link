@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
-import { BatchedMonitorWriter } from "../../monitoring/writer.js";
+import { sanitizeTestRecord } from "../../monitoring/testRecordBridge.js";
+import { BatchedMonitorWriter, type MonitorRecord } from "../../monitoring/writer.js";
 
 export type IngestOutcome =
   | { accepted: true; queued: number; message: string }
@@ -220,6 +221,17 @@ export class MonitoringIngestService {
       });
     }
 
+    // La suite también entrega los pasos reales que ejecutó: operaciones de
+    // negocio y sondeos con su request_id. Se sanea de nuevo porque este
+    // endpoint es público y no se confía en el contenido del arreglo.
+    const logRecords: MonitorRecord[] = [];
+    if (Array.isArray(payload.records)) {
+      for (const raw of payload.records) {
+        const record = sanitizeTestRecord(raw);
+        if (record) logRecords.push(record);
+      }
+    }
+
     this.writer.enqueue({
       kind: "testRun",
       value: {
@@ -237,11 +249,12 @@ export class MonitoringIngestService {
       },
     });
     for (const result of results) this.writer.enqueue({ kind: "testResult", value: result });
+    for (const record of logRecords) this.writer.enqueue(record);
 
     return {
       accepted: true,
-      queued: 1 + results.length,
-      message: `Corrida encolada con ${results.length} resultados de prueba.`,
+      queued: 1 + results.length + logRecords.length,
+      message: `Corrida encolada con ${results.length} resultados y ${logRecords.length} pasos de la bitácora.`,
     };
   }
 }

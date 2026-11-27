@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { createApp } from "../../src/app.js";
 import { createMonitorActivityListener } from "../../src/monitoring/activityListener.js";
+import { emitTestRecord } from "../../src/monitoring/testRecordBridge.js";
 import {
   BatchedMonitorWriter,
   type MonitorRecord,
@@ -42,6 +43,7 @@ class CapturingSink implements MonitorSink {
   readonly records: MonitorRecord[] = [];
   async insert(records: MonitorRecord[]): Promise<void> {
     this.records.push(...records);
+    for (const record of records) emitTestRecord(record);
   }
 }
 

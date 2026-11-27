@@ -68,6 +68,7 @@ function outcome(suite: string): TestExecutionOutcome {
         durationMs: 8,
       },
     ],
+    records: [],
   };
 }
 

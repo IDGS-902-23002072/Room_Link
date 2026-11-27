@@ -5,7 +5,8 @@ import { readFile, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AppError } from "../shared/AppError.js";
-import { emitMonitorEvent } from "./writer.js";
+import { parseTestRecords, TEST_RECORD_ENV } from "./testRecordBridge.js";
+import { emitMonitorEvent, type MonitorRecord } from "./writer.js";
 
 /** Suites que el panel puede ejecutar. Nunca se acepta un comando del cliente. */
 export interface TestSuiteDefinition {
@@ -72,6 +73,8 @@ export interface TestExecutionOutcome {
     commitSha: null;
   };
   results: TestCaseOutcome[];
+  /** Pasos reales de la suite (operaciones y sondeos), ya saneados. */
+  records: MonitorRecord[];
 }
 
 export interface TestRunExecutor {
@@ -171,10 +174,11 @@ export class ProcessTestRunExecutor implements TestRunExecutor {
     let reason = "la suite no terminó correctamente";
 
     try {
-      const exitCode = await this.spawn(command, suite);
+      const { exitCode, records } = await this.spawn(command, suite);
       reason = `la suite terminó con código ${exitCode ?? "desconocido"}`;
       const report = await this.readReport(command.report, suite);
       const outcome = this.toOutcome(report, suite, startedAt, new Date());
+      outcome.records = records;
       emitMonitorEvent({
         event: "test_run_executed",
         suite,
@@ -194,18 +198,27 @@ export class ProcessTestRunExecutor implements TestRunExecutor {
     }
   };
 
-  private spawn(command: SuiteCommand, suite: string): Promise<number | null> {
+  private spawn(
+    command: SuiteCommand,
+    suite: string,
+  ): Promise<{ exitCode: number | null; records: MonitorRecord[] }> {
     return new Promise((resolveExit, reject) => {
       let settled = false;
+      let stdout = "";
       const args = useNodeCli ? [npmCli, ...command.args] : command.args;
       const child = spawn(npmCommand, args, {
         cwd: command.cwd,
+        env: { ...process.env, [TEST_RECORD_ENV]: "1" },
         stdio: ["ignore", "pipe", "pipe"],
         shell: false,
         windowsHide: true,
       });
-      // La salida se descarta: puede contener rutas o mensajes con datos sensibles.
-      child.stdout.resume();
+      // Solo se leen las líneas marcadas por el puente; el resto se descarta
+      // sin guardarse para no filtrar rutas ni mensajes de Vitest.
+      child.stdout.on("data", (chunk: Buffer | string) => {
+        stdout += chunk.toString();
+        if (stdout.length > 2_000_000) stdout = stdout.slice(-2_000_000);
+      });
       child.stderr.resume();
 
       const timer = setTimeout(() => {
@@ -228,7 +241,9 @@ export class ProcessTestRunExecutor implements TestRunExecutor {
       child.on("error", () =>
         finish(() => reject(new AppError(`No se pudo iniciar la suite ${suite}.`, 503, "TEST_RUN_START_FAILED"))),
       );
-      child.on("close", (code) => finish(() => resolveExit(code)));
+      child.on("close", (code) =>
+        finish(() => resolveExit({ exitCode: code, records: parseTestRecords(stdout) })),
+      );
     });
   }
 
@@ -301,6 +316,7 @@ export class ProcessTestRunExecutor implements TestRunExecutor {
         commitSha: null,
       },
       results,
+      records: [],
     };
   }
 }

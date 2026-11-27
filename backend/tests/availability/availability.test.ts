@@ -6,6 +6,7 @@ import {
   type MonitorRecord,
   type MonitorSink,
 } from "../../src/monitoring/writer.js";
+import { emitTestRecord } from "../../src/monitoring/testRecordBridge.js";
 
 /**
  * Suite de disponibilidad de la app. Comprueba /health y /ready con la base
@@ -16,6 +17,7 @@ class CapturingSink implements MonitorSink {
   readonly records: MonitorRecord[] = [];
   async insert(records: MonitorRecord[]): Promise<void> {
     this.records.push(...records);
+    for (const record of records) emitTestRecord(record);
   }
 }
 

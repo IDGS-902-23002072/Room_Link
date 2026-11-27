@@ -195,6 +195,101 @@ describe("F2/F3/F5 · ingesta protegida", () => {
     await writer.close();
   });
 
+  it("guarda los pasos reales de la suite como operaciones y sondeos, no solo como pruebas", async () => {
+    const { app, sink, writer } = setup();
+    const id = randomUUID();
+    const requestId = "11111111-1111-4111-8111-111111111111";
+
+    const response = await app.request("/api/v1/admin/monitoring/ingest/test-run", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        run: {
+          id,
+          startedAt: "2026-11-27T12:00:00.000Z",
+          finishedAt: "2026-11-27T12:00:05.000Z",
+          suite: "funcional",
+          complete: true,
+          totalTests: 1,
+          passedTests: 1,
+          failedTests: 0,
+          commitSha: null,
+        },
+        results: [
+          {
+            sliId: "7.1",
+            module: "M7",
+            testName: "Crear anuncio de habitación",
+            result: "passed",
+            durationMs: 12,
+          },
+        ],
+        records: [
+          {
+            kind: "activity",
+            value: {
+              module: "habitaciones",
+              action: "Creación de anuncio",
+              result: "success",
+              message: "Se creó un anuncio de habitación en borrador.",
+              httpStatus: 201,
+              durationMs: 12,
+              requestId,
+              sliId: "7.1",
+              source: "test",
+            },
+          },
+          {
+            kind: "probe",
+            value: {
+              status: "up",
+              httpStatus: 200,
+              latencyMs: 4,
+              requestId,
+              source: "test",
+              message: "El sondeo de /health fue correcto.",
+            },
+          },
+          {
+            kind: "activity",
+            value: {
+              module: "autenticación",
+              action: "Inicio de sesión",
+              result: "success",
+              message: "Sesión de ana@roomlink.test",
+              source: "real",
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(202);
+    await writer.flush();
+
+    const activity = sink.records.find((record) => record.kind === "activity");
+    expect(activity?.kind).toBe("activity");
+    if (activity?.kind === "activity") {
+      expect(activity.value.action).toBe("Creación de anuncio");
+      expect(activity.value.requestId).toBe(requestId);
+      expect(activity.value.source).toBe("test");
+      expect(JSON.stringify(activity.value)).not.toContain("roomlink.test");
+    }
+
+    const probe = sink.records.find((record) => record.kind === "probe");
+    expect(probe?.kind).toBe("probe");
+    if (probe?.kind === "probe") {
+      expect(probe.value.source).toBe("test");
+      expect(probe.value.message).toContain("/health");
+    }
+
+    const businessSteps = sink.records.filter(
+      (record) => record.kind === "activity" && record.value.action === "Creación de anuncio",
+    );
+    expect(businessSteps).toHaveLength(1);
+    await writer.close();
+  });
+
   it("limpia texto sensible antes de guardarlo", () => {
     expect(safeText("usuario@correo.test")).toBeNull();
     expect(safeText("Bearer abc.def.ghi")).toBeNull();
