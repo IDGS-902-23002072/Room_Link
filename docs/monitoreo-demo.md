@@ -150,7 +150,7 @@ estas suites, definidas en `backend/src/monitoring/testRunner.ts`:
 | Id | Qué corre |
 |---|---|
 | `funcional` | `npm run test:functional:json`: login, test de convivencia con candidatos, crear y publicar habitación, postular, aceptar y cerrar. Usa repositorios en memoria y etiqueta `mon-test-AAAAMMDD-xxxx`; no escribe en `roomlink`. Cada paso queda trazable por `request_id`. |
-| `disponibilidad` | `npm run test:availability:json`: sondea `/health` y `/ready` con la base disponible y caída. Verifica los mensajes de `mon_probe`; no sustituye al cron de producción, pero sí deja la evidencia automática de la app. |
+| `disponibilidad` | `npm run test:availability:json`: sondea `/health` y `/ready` con la base disponible y caída, y comprueba que un usuario autenticado consulte el feed de Explorar con un anuncio en memoria. Verifica los mensajes de `mon_probe` y que las peticiones no guarden correos ni contraseñas; no sustituye al cron de producción, pero sí deja la evidencia automática de la app. |
 | `monitor` | `npm run test:monitor:json`: infraestructura F1/F2/F3/F5 (bitácora, privacidad, exclusiones y tolerancia a fallos). **No prueba login ni flujos de negocio**: por eso casi todas sus llamadas son `GET` sintéticos. |
 | `backend:unit` | `npm run test:unit:json` |
 | `backend:smoke` | `npm run test:smoke:json` |
@@ -201,7 +201,7 @@ suite `monitor` tenía 16 pruebas; hoy tiene 21):
 Eso escribió 1 fila en `mon_test_run` y 16 en `mon_test_result`, con `source='test'`.
 Con el puente de registros, además se encolan las operaciones y los sondeos de la
 suite. Las corridas locales actuales son: `monitor` 21/21, `funcional` 8/8 y
-`disponibilidad` 4/4 (2026-11-27).
+`disponibilidad` 5/5 (2026-11-27).
 
 Para comprobarlo en MySQL después de ejecutar `funcional` y `disponibilidad` desde
 el panel:

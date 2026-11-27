@@ -1,17 +1,26 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createApp } from "../../src/app.js";
+import { createApp, type AppDependencies } from "../../src/app.js";
+import { RoomListing } from "../../src/domain/index.js";
 import {
   BatchedMonitorWriter,
   type MonitorRecord,
   type MonitorSink,
 } from "../../src/monitoring/writer.js";
 import { emitTestRecord } from "../../src/monitoring/testRecordBridge.js";
+import { createAuthFakes } from "../helpers/auth-fakes.js";
+import {
+  InMemoryRoomRepository,
+  InMemoryUserRepository,
+  buildUser,
+} from "../helpers/in-memory-repos.js";
 
 /**
  * Suite de disponibilidad de la app. Comprueba /health y /ready con la base
  * principal simulada, y verifica que cada sondeo deje un registro legible en
- * `mon_probe`. No escribe en `roomlink`: `checkDatabase` es una función inyectada.
+ * `mon_probe`. También comprueba que un usuario autenticado consulte el feed
+ * de Explorar. No escribe en `roomlink`: los repositorios y `checkDatabase`
+ * son inyectados.
  */
 class CapturingSink implements MonitorSink {
   readonly records: MonitorRecord[] = [];
@@ -27,16 +36,28 @@ afterEach(async () => {
   for (const writer of writers.splice(0)) await writer.close();
 });
 
-const makeApp = (checkDatabase: () => Promise<void>) => {
+const makeApp = (
+  checkDatabase: () => Promise<void>,
+  dependencies: Partial<AppDependencies> = {},
+) => {
   const sink = new CapturingSink();
   const writer = new BatchedMonitorWriter(sink, { batchSize: 100, intervalMs: 600_000 });
   writers.push(writer);
-  const app = createApp({ monitorWriter: writer, checkDatabase });
-  const request = (path: string) =>
+  const app = createApp({ monitorWriter: writer, checkDatabase, ...dependencies });
+  const request = (
+    path: string,
+    options: {
+      method?: string;
+      headers?: Record<string, string>;
+      body?: string;
+    } = {},
+  ) =>
     app.request(path, {
+      ...options,
       headers: {
         "x-roomlink-source": "test",
         "x-request-id": randomUUID(),
+        ...options.headers,
       },
     });
   return { app, sink, writer, request };
@@ -122,6 +143,98 @@ describe("Suite disponibilidad · sondeos automáticos de la app", () => {
         record.kind === "probe" ? record.value.status : null,
       );
       expect(statuses).toEqual(["down", "up"]);
+    },
+  );
+
+  it(
+    `[SLI T.1] Usuario autenticado consulta un anuncio en Explorar :: Se inició sesión con una cuenta de prueba en repositorios en memoria y se consultó el feed que usa la pantalla Explorar; la API devolvió el anuncio publicado y la petición quedó trazada :: Datos: usuario y anuncio en memoria, sin escrituras en roomlink :: Esperado: login 200, /auth/me 200, feed 200 con el anuncio :: Obtenido: login 200, /auth/me 200, feed 200 con el anuncio`,
+    async () => {
+      const userId = "disponibilidad-explorar-usuario";
+      const listingId = "disponibilidad-explorar-anuncio";
+      const email = "disponibilidad-explorar@roomlink.test";
+      const password = "password";
+      const now = new Date("2026-11-27T12:00:00.000Z");
+
+      const userRepo = new InMemoryUserRepository();
+      userRepo.users.set(
+        userId,
+        buildUser({ id: userId, email, roles: ["seeker"], passwordPlain: password }),
+      );
+
+      const roomRepo = new InMemoryRoomRepository();
+      roomRepo.rooms.set(
+        listingId,
+        new RoomListing({
+          id: listingId,
+          hostId: userId,
+          title: "Habitación disponible QA",
+          description: "Anuncio publicado para la prueba de disponibilidad.",
+          monthlyRent: 3800,
+          status: "published",
+          photoCount: 3,
+          publishedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
+
+      const { sink, writer, request } = makeApp(
+        vi.fn().mockResolvedValue(undefined),
+        { userRepo, roomRepo, authDependencies: createAuthFakes().dependencies },
+      );
+
+      const login = await request("/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      expect(login.status).toBe(200);
+      const loginBody = (await login.json()) as {
+        token?: string;
+        user?: { id?: string };
+      };
+      expect(loginBody.user?.id).toBe(userId);
+      expect(typeof loginBody.token).toBe("string");
+      const token = loginBody.token ?? "";
+
+      const me = await request("/api/v1/auth/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(me.status).toBe(200);
+      expect((await me.json() as { email?: string }).email).toBe(email);
+
+      const feed = await request(
+        "/api/v1/rooms/feed?page=1&pageSize=12&q=Habitaci%C3%B3n%20disponible",
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      expect(feed.status).toBe(200);
+      const feedBody = (await feed.json()) as {
+        items?: Array<{ id?: string; title?: string; monthlyRent?: number }>;
+      };
+      expect(feedBody.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: listingId,
+            title: "Habitación disponible QA",
+            monthlyRent: 3800,
+          }),
+        ]),
+      );
+
+      await writer.flush();
+      const logged = JSON.stringify(sink.records);
+      expect(logged).not.toContain(password);
+      expect(logged).not.toContain(email);
+      const routes = sink.records.flatMap((record) =>
+        record.kind === "request" ? [record.value.routePattern] : [],
+      );
+      expect(routes).toEqual(
+        expect.arrayContaining([
+          "/api/v1/auth/login",
+          "/api/v1/auth/me",
+          "/api/v1/rooms/feed",
+        ]),
+      );
     },
   );
 });
