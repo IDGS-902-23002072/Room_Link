@@ -12,7 +12,9 @@ permissions:
 
 jobs:
   e2e:
-    runs-on: ubuntu-latest
+    # ubuntu-latest rodó a 26.04 "resolute", cuyo repo apt de Microsoft devuelve
+    # 403 y rompe `playwright install --with-deps`. Fijado a 24.04 estable.
+    runs-on: ubuntu-24.04
     timeout-minutes: 18
     services:
       mysql:

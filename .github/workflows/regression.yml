@@ -17,7 +17,7 @@ concurrency:
 jobs:
   regression-backend:
     name: Backend · regression gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       mysql:
@@ -117,7 +117,7 @@ jobs:
 
   e2e-mobile:
     name: Móvil · E2E cross-origin (navegador real)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       mysql:
