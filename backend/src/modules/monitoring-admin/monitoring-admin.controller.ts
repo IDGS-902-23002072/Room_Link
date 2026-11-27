@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { errorResponse } from "../../shared/AppError.js";
+import { AppError, errorResponse } from "../../shared/AppError.js";
 import type { AuthVariables } from "../auth/index.js";
 import type { MonitoringAdminService } from "./monitoring-admin.service.js";
 
@@ -34,6 +34,29 @@ export class MonitoringAdminController {
 
   logbook = async (c: AuthContext): Promise<Response> =>
     this.handle(c, async () => c.json(await this.service.logbook(c.req.query())));
+
+  suites = async (c: AuthContext): Promise<Response> =>
+    this.handle(c, async () => c.json({ items: this.service.suites() }));
+
+  runTests = async (c: AuthContext): Promise<Response> =>
+    this.handle(c, async () => {
+      const contentType = c.req.header("content-type") ?? "";
+      if (!contentType.toLowerCase().includes("application/json")) {
+        throw new AppError("Se requiere Content-Type: application/json.", 400, "BODY_CONTENT_TYPE");
+      }
+      let body: unknown;
+      try {
+        body = JSON.parse(await c.req.text());
+      } catch {
+        throw new AppError("El cuerpo debe ser JSON válido.", 400, "BODY_INVALID");
+      }
+      const suite =
+        typeof body === "object" && body !== null && "suite" in body ? body.suite : undefined;
+      if (typeof suite !== "string") {
+        throw new AppError("Indica la suite en el campo 'suite'.", 400, "SUITE_INVALID");
+      }
+      return c.json(await this.service.executeTests(suite));
+    });
 
   exportRequests = async (c: AuthContext): Promise<Response> =>
     this.handle(c, async () => {

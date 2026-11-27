@@ -1,6 +1,13 @@
 import { AppError } from "../../shared/AppError.js";
 import { longestFailedProbeRun } from "../../monitoring/metrics.js";
 import { monthWindow } from "../../monitoring/time.js";
+import {
+  TEST_SUITES,
+  ProcessTestRunExecutor,
+  type TestRunExecutor,
+  type TestSuiteDefinition,
+} from "../../monitoring/testRunner.js";
+import type { MonitoringIngestService } from "../monitoring/monitoring.service.js";
 import type { MonitoringAdminRepository, TestRunRow } from "./monitoring-admin.ports.js";
 
 export interface SliPanelRow {
@@ -83,6 +90,16 @@ export interface LogbookResponse {
   nextCursor: string | null;
 }
 
+export interface TestExecutionResponse {
+  suite: string;
+  runId: string;
+  totalTests: number;
+  passedTests: number;
+  failedTests: number;
+  queued: number;
+  message: string;
+}
+
 type Query = Record<string, string | undefined>;
 
 const CURRENT_PERIOD = (): string =>
@@ -98,7 +115,13 @@ const nextMonthFirst = (period: string): string => {
 };
 
 export class MonitoringAdminService {
-  constructor(private readonly repository: MonitoringAdminRepository) {}
+  private runningSuite: string | null = null;
+
+  constructor(
+    private readonly repository: MonitoringAdminRepository,
+    private readonly testRunner: TestRunExecutor = new ProcessTestRunExecutor(),
+    private readonly ingest: MonitoringIngestService | null = null,
+  ) {}
 
   /** Cualquier fallo de la base de monitoreo se vuelve un 503 controlado. */
   private async read<T>(operation: () => Promise<T>): Promise<T> {
@@ -334,6 +357,42 @@ export class MonitoringAdminService {
     const { start, end } = this.window(resolved);
     const rows = await this.read(() => this.repository.getRequestExport(start, end));
     return { period: resolved, rows };
+  };
+
+  suites = (): TestSuiteDefinition[] => TEST_SUITES.map((item) => ({ ...item }));
+
+  /** Ejecuta una suite permitida; solo encola el resultado, nunca espera a la base. */
+  executeTests = async (suite: string): Promise<TestExecutionResponse> => {
+    const id = suite?.trim() ?? "";
+    if (!TEST_SUITES.some((item) => item.id === id)) {
+      throw new AppError("Suite no permitida. Consulta las suites disponibles.", 400, "SUITE_INVALID");
+    }
+    if (this.runningSuite) {
+      throw new AppError("Ya hay una corrida en curso. Espera a que termine.", 409, "TEST_RUN_BUSY");
+    }
+    if (!this.ingest) {
+      throw new AppError("La ingesta de resultados no está disponible.", 503, "MONITOR_INGEST_UNAVAILABLE");
+    }
+
+    this.runningSuite = id;
+    try {
+      const outcome = await this.testRunner.run(id);
+      const accepted = this.ingest.ingestTestRun(outcome);
+      if (!accepted.accepted) {
+        throw new AppError(accepted.error, accepted.status === 503 ? 503 : 400, accepted.code);
+      }
+      return {
+        suite: id,
+        runId: outcome.run.id,
+        totalTests: outcome.run.totalTests,
+        passedTests: outcome.run.passedTests,
+        failedTests: outcome.run.failedTests,
+        queued: accepted.queued,
+        message: `Corrida ${id} encolada: ${outcome.run.passedTests} de ${outcome.run.totalTests} pruebas pasaron.`,
+      };
+    } finally {
+      this.runningSuite = null;
+    }
   };
 
   private runDto(row: TestRunRow): TestRunSummary {

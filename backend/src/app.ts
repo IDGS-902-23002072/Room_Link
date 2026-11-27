@@ -130,6 +130,10 @@ import { createMonitorActivityListener } from "./monitoring/activityListener.js"
 import { DrizzleMonitorSink } from "./monitoring/sink.js";
 import { BatchedMonitorWriter } from "./monitoring/writer.js";
 import {
+  ProcessTestRunExecutor,
+  type TestRunExecutor,
+} from "./monitoring/testRunner.js";
+import {
   MonitoringIngestController,
   MonitoringIngestService,
   createMonitoringIngestRoutes,
@@ -166,6 +170,8 @@ export interface AppDependencies {
   monitorIngestToken?: string;
   /** Inyectable en pruebas: el panel solo lee `roomlink_monitor`. */
   monitoringAdminRepo?: MonitoringAdminRepository;
+  /** Inyectable en pruebas: ejecuta solo suites de la allowlist. */
+  testRunner?: TestRunExecutor;
 }
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
@@ -440,9 +446,11 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     createActivityLogRoutes(activityLogController, authService),
   );
 
-  // Panel de monitoreo (F6): solo admin, solo lectura de `roomlink_monitor`.
+  // Panel de monitoreo (F6): solo admin; lee `roomlink_monitor` y ejecuta suites permitidas.
   const monitoringAdminService = new MonitoringAdminService(
     dependencies.monitoringAdminRepo ?? new DrizzleMonitoringAdminRepository(),
+    dependencies.testRunner ?? new ProcessTestRunExecutor(),
+    monitoringIngestService,
   );
   const monitoringAdminController = new MonitoringAdminController(monitoringAdminService);
   app.route(
