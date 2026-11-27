@@ -152,6 +152,8 @@ export default function LogbookTab({ month, token }) {
                 <th scope="col">Tipo</th>
                 <th scope="col">Módulo</th>
                 <th scope="col">Operación</th>
+                <th scope="col">Mensaje</th>
+                <th scope="col">Solicitud</th>
                 <th scope="col">Estado</th>
                 <th scope="col">Duración</th>
               </tr>
@@ -163,8 +165,14 @@ export default function LogbookTab({ month, token }) {
                   <td>{item.type}</td>
                   <td>{item.module}</td>
                   <td>
-                    <span title={item.message}>{item.operation}</span>
+                    <span>{item.operation}</span>
                     {item.excluded ? <span className={styles.windowTag}>Excluido</span> : null}
+                  </td>
+                  <td className={styles.cellMessage} title={item.message || 'Sin mensaje'}>
+                    {item.message || '—'}
+                  </td>
+                  <td className={styles.cellRequest} title={item.requestId || 'Sin identificador'}>
+                    {item.requestId || '—'}
                   </td>
                   <td>
                     <Badge tone={item.status === 'éxito' ? 'success' : 'danger'}>{item.status}</Badge>

@@ -154,7 +154,7 @@
 
 .table {
   width: 100%;
-  min-width: 720px;
+  min-width: 960px;
   border-collapse: collapse;
   font-size: var(--text-sm);
 }
@@ -196,6 +196,18 @@
 .cellNumber {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.cellMessage {
+  max-width: 320px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.cellRequest {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
 }
 
 .stateCell {
