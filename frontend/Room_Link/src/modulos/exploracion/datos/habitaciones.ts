@@ -4,8 +4,8 @@ import type { HabitacionDetalle, HabitacionResumen } from '../api';
 export type HabitacionFeed = {
   id: string;
   hostId: string;
-  /** Nombre del anfitrión; la API aún no lo entrega, solo los datos de prueba lo traen. */
   anfitrion: string | null;
+  ubicacion?: string;
   titulo: string;
   renta: number;
   rentaTexto: string;
@@ -51,7 +51,8 @@ export function adaptarHabitacion(
   return {
     id: habitacion.id,
     hostId: habitacion.hostId,
-    anfitrion: null,
+    anfitrion: habitacion.hostName ?? null,
+    ubicacion: [habitacion.zone, habitacion.city].filter(Boolean).join(' · '),
     titulo: habitacion.title.trim() || 'Habitación sin título',
     renta: habitacion.monthlyRent,
     rentaTexto: formatearRenta(habitacion.monthlyRent),

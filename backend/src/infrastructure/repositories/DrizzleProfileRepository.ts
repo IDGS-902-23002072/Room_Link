@@ -12,6 +12,7 @@ import {
   profileProfiles,
   profilePhotos,
   profileContactPrivacy,
+  profileHousingPreferences,
   type ProfileRow,
   type NewProfile,
   type ProfilePhotoRow,
@@ -204,6 +205,38 @@ export class DrizzleProfileRepository implements IProfileRepository {
           showSocialsToConnections: privacy.showSocialsToConnections,
         },
       });
+  }
+
+  async findHousingPreferences(userId: string) {
+    const rows = await this.db
+      .select()
+      .from(profileHousingPreferences)
+      .where(eq(profileHousingPreferences.userId, userId))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      budgetMin: row.budgetMin != null ? Number(row.budgetMin) : null,
+      budgetMax: row.budgetMax != null ? Number(row.budgetMax) : null,
+      desiredZoneId: row.desiredZoneId ?? null,
+    };
+  }
+
+  async upsertHousingPreferences(pref: {
+    userId: string;
+    budgetMin: number | null;
+    budgetMax: number | null;
+    desiredZoneId: string | null;
+  }): Promise<void> {
+    const values = {
+      budgetMin: pref.budgetMin != null ? String(pref.budgetMin) : null,
+      budgetMax: pref.budgetMax != null ? String(pref.budgetMax) : null,
+      desiredZoneId: pref.desiredZoneId,
+    };
+    await this.db
+      .insert(profileHousingPreferences)
+      .values({ userId: pref.userId, ...values })
+      .onDuplicateKeyUpdate({ set: values });
   }
 
   async listNotificationPreferences(

@@ -1,3 +1,4 @@
+import LoadingState from '../components/LoadingState/LoadingState.jsx'
 import { Link } from 'react-router-dom'
 
 export function Brand({ to = '/explorar' }) {
@@ -21,7 +22,8 @@ export function FeatureHeading({ title, description, children }) {
   )
 }
 
-export function FeatureNotice({ error, retry, children }) {
+export function FeatureNotice({ error, retry, children, loading = false }) {
+  if (loading) return <LoadingState label={children} />
   if (error) {
     return (
       <div className="notice feature-error" role="alert">

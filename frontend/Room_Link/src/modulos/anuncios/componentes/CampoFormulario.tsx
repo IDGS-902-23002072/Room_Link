@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import React from "react";
 import {
   View,
@@ -23,7 +25,8 @@ export default function CampoFormulario({
 
       <TextInput
         {...inputProps}
-        placeholderTextColor="#9A8B9D"
+        accessibilityLabel={inputProps.accessibilityLabel ?? etiqueta}
+        placeholderTextColor={color.secundario}
         style={[
           styles.input,
           inputProps.multiline ? styles.multiline : undefined,
@@ -36,25 +39,25 @@ export default function CampoFormulario({
 
 const styles = StyleSheet.create({
   contenedor: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: color.blanco,
     borderWidth: 1,
-    borderColor: "#E9E0EA",
-    borderRadius: 13,
+    borderColor: color.control,
+    borderRadius: 8,
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 9,
     marginBottom: 10,
   },
   etiqueta: {
-    color: "#88768D",
-    fontSize: 11,
+    color: color.secundario,
+    fontSize: 13,
     marginBottom: 4,
   },
   input: {
-    color: "#332A37",
-    fontSize: 14,
+    color: color.tinta,
+    fontSize: 16,
     padding: 0,
-    minHeight: 23,
+    minHeight: 32,
   },
   multiline: {
     minHeight: 58,

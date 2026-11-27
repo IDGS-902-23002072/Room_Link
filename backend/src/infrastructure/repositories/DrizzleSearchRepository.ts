@@ -105,7 +105,7 @@ export class DrizzleSearchRepository implements ISearchRepository {
   }
 
   async listZones() {
-    return this.db.selectDistinct({ name: geoZones.name, city: geoZones.city })
+    return this.db.selectDistinct({ id: geoZones.id, name: geoZones.name, city: geoZones.city })
       .from(geoZones).orderBy(geoZones.city, geoZones.name);
   }
 

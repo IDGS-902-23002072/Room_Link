@@ -8,7 +8,7 @@ import {
 } from "../../domain/index.js";
 
 export class DrizzleConnectionRepository implements IConnectionRepository {
-  constructor(private readonly db: MySql2Database<any>) {}
+  constructor(private readonly db: MySql2Database<any>) { }
 
   async findById(id: string): Promise<Connection | null> {
     const rows = await this.db
@@ -30,9 +30,9 @@ export class DrizzleConnectionRepository implements IConnectionRepository {
         : direction === "outgoing"
           ? eq(connConnections.requesterId, userId)
           : or(
-              eq(connConnections.addresseeId, userId),
-              eq(connConnections.requesterId, userId),
-            );
+            eq(connConnections.addresseeId, userId),
+            eq(connConnections.requesterId, userId),
+          );
     const rows = await this.db
       .select()
       .from(connConnections)
@@ -42,14 +42,14 @@ export class DrizzleConnectionRepository implements IConnectionRepository {
   }
 
   async update(connection: Connection): Promise<void> {
-    // Al resolver (accept/reject/cancel), si ya no queda "activa" el par queda liberado.
-    const stillActive = connection.status === "pending" || connection.status === "accepted";
-    const pairLow = connection.requesterId.localeCompare(connection.addresseeId) < 0
-      ? connection.requesterId
-      : connection.addresseeId;
-    const pairHigh = pairLow === connection.requesterId
-      ? connection.addresseeId
-      : connection.requesterId;
+    const stillActive =
+      connection.status === "pending" ||
+      connection.status === "accepted";
+
+    const [pairLow, pairHigh] = this.getPair(
+      connection.requesterId,
+      connection.addresseeId,
+    );
 
     await this.db
       .update(connConnections)
@@ -75,5 +75,72 @@ export class DrizzleConnectionRepository implements IConnectionRepository {
       createdAt: new Date(row.createdAt),
       respondedAt: row.respondedAt ? new Date(row.respondedAt) : null,
     });
+  }
+
+  async create(connection: Connection): Promise<void> {
+    const [pairLow, pairHigh] = this.getPair(
+      connection.requesterId,
+      connection.addresseeId,
+    );
+
+    await this.db.insert(connConnections).values({
+      id: connection.id,
+      requesterId: connection.requesterId,
+      addresseeId: connection.addresseeId,
+      status: connection.status,
+      introMessage: connection.introMessage,
+      responseMessage: connection.responseMessage,
+      createdAt: connection.createdAt,
+      respondedAt: connection.respondedAt,
+      activePairLow: pairLow,
+      activePairHigh: pairHigh,
+    });
+  }
+
+  async existsActiveBetween(
+    userA: string,
+    userB: string,
+  ): Promise<boolean> {
+    const [pairLow, pairHigh] = this.getPair(userA, userB);
+
+    const rows = await this.db
+      .select({ id: connConnections.id })
+      .from(connConnections)
+      .where(
+        and(
+          eq(connConnections.activePairLow, pairLow),
+          eq(connConnections.activePairHigh, pairHigh),
+        ),
+      )
+      .limit(1);
+
+    return rows.length > 0;
+  }
+
+  async existsAcceptedBetween(
+    userA: string,
+    userB: string,
+  ): Promise<boolean> {
+    const [pairLow, pairHigh] = this.getPair(userA, userB);
+
+    const rows = await this.db
+      .select({ id: connConnections.id })
+      .from(connConnections)
+      .where(
+        and(
+          eq(connConnections.activePairLow, pairLow),
+          eq(connConnections.activePairHigh, pairHigh),
+          eq(connConnections.status, "accepted"),
+        ),
+      )
+      .limit(1);
+
+    return rows.length > 0;
+  }
+
+  private getPair(userA: string, userB: string): [string, string] {
+    return userA.localeCompare(userB) < 0
+      ? [userA, userB]
+      : [userB, userA];
   }
 }

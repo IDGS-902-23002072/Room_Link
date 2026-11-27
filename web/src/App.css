@@ -38,11 +38,116 @@
   display: none;
 }
 
-.main-nav,
 .account-menu {
   display: flex;
   align-items: center;
   gap: 22px;
+}
+
+.nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 70%);
+  cursor: pointer;
+}
+
+.nav-toggle-bars,
+.nav-toggle-bars::before,
+.nav-toggle-bars::after {
+  display: block;
+  width: 20px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ink);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.nav-toggle-bars {
+  position: relative;
+}
+
+.nav-toggle-bars::before,
+.nav-toggle-bars::after {
+  position: absolute;
+  left: 0;
+  content: '';
+}
+
+.nav-toggle-bars::before {
+  top: -6px;
+}
+
+.nav-toggle-bars::after {
+  top: 6px;
+}
+
+.nav-toggle[aria-expanded='true'] .nav-toggle-bars {
+  background: transparent;
+}
+
+.nav-toggle[aria-expanded='true'] .nav-toggle-bars::before {
+  top: 0;
+  transform: rotate(45deg);
+}
+
+.nav-toggle[aria-expanded='true'] .nav-toggle-bars::after {
+  top: 0;
+  transform: rotate(-45deg);
+}
+
+/* Nav como sidebar/drawer izquierdo colapsable: en móvil funciona como menú
+   hamburguesa, en escritorio como barra lateral que aparece y desaparece. */
+.main-nav {
+  position: fixed;
+  z-index: 20;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  width: min(280px, 82vw);
+  height: 100%;
+  padding: 24px 16px;
+  overflow-y: auto;
+  background: rgb(255 255 255 / 99%);
+  border-right: 1px solid var(--line);
+  box-shadow: 0 20px 48px rgb(40 35 45 / 18%);
+  backdrop-filter: blur(14px);
+  transform: translateX(-102%);
+  transition: transform 0.22s ease;
+}
+
+.main-nav-open {
+  transform: translateX(0);
+}
+
+.nav-backdrop {
+  position: fixed;
+  z-index: 19;
+  inset: 0;
+  background: rgb(20 15 25 / 28%);
+}
+
+.nav-badge {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  margin-left: 8px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--info);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
 }
 
 .main-nav a,
@@ -52,10 +157,21 @@
   text-decoration: none;
 }
 
+.main-nav a {
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
 .main-nav a:hover,
 .main-nav a.active,
 .button-quiet:hover {
   color: var(--plum);
+}
+
+.main-nav a:hover,
+.main-nav a.active {
+  background: var(--pale-plum);
 }
 
 .account-menu {
@@ -88,14 +204,17 @@
   min-height: 43px;
   align-items: center;
   justify-content: center;
-  padding: 0 18px;
+  padding: 11px 18px;
+  gap: 8px;
+  line-height: 1.4;
+  text-align: center;
   border: 0;
   border-radius: 12px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 650;
   text-decoration: none;
-  transition: background 160ms ease, transform 160ms ease;
+  transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
 
 .button:active {
@@ -103,12 +222,13 @@
 }
 
 .button-primary {
-  background: var(--plum);
-  color: white;
+  background: var(--mint);
+  color: var(--mint-dark);
+  border: 1px solid var(--mint-strong);
 }
 
 .button-primary:hover:not(:disabled) {
-  background: #72547b;
+  background: var(--mint-hover);
 }
 
 .button-secondary {
@@ -118,7 +238,7 @@
 }
 
 .button-secondary:hover:not(:disabled) {
-  background: #faf6fb;
+  background: var(--surface-soft);
 }
 
 .button-quiet {
@@ -230,13 +350,6 @@
     padding: 12px 20px;
   }
 
-  .main-nav {
-    order: 3;
-    width: 100%;
-    justify-content: center;
-    gap: 24px;
-  }
-
   .account-name {
     display: none;
   }
@@ -269,3 +382,15 @@
   color: white;
 }
 .skip-link:focus { transform: none; }
+
+.nav-close { justify-content: space-between; margin-bottom: 20px; }
+.nav-close span { font-size: 24px; line-height: 1; }
+.main-nav a.active { font-weight: 750; box-shadow: inset 3px 0 var(--plum); }
+.page-container > * { min-width: 0; animation: roomlink-enter 300ms var(--ease); }
+.button[aria-busy='true']::before { content: ''; width: 15px; height: 15px; flex: 0 0 15px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: roomlink-spin .8s linear infinite; }
+.button[aria-busy='true'] { cursor: progress; opacity: 1; }
+.button-mint { box-shadow: 0 3px 0 rgb(32 95 81 / 10%); }
+@media (hover: hover) { .button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 16px rgb(32 53 47 / 9%); } }
+@keyframes roomlink-enter { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: none; } }
+@keyframes roomlink-spin { to { transform: rotate(360deg); } }
+@media (max-width: 420px) { .topbar { gap: 8px; padding: 12px; } .brand { font-size: 17px; gap: 6px; } .brand img { width: 30px; height: 30px; } .sign-out { padding: 8px; font-size: 12px; } .nav-toggle { width: 38px; } }

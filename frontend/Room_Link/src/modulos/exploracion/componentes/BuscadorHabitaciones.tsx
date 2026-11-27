@@ -1,3 +1,7 @@
+import { useState } from 'react';
+
+import { color } from '@/constants/roomlink';
+
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export const filtrosHabitaciones = [
@@ -20,15 +24,18 @@ export function BuscadorHabitaciones({
   alBuscar: (valor: string) => void;
   alCambiarFiltro: (filtro: FiltroHabitacion) => void;
 }) {
+  const [enfocado, setEnfocado] = useState(false);
   return (
     <>
-      <View style={styles.campoBusqueda}>
-        <Text style={styles.iconoBusqueda}>⌕</Text>
+      <View style={[styles.campoBusqueda, enfocado && styles.enfocado]}>
+        <Text accessible={false} style={styles.iconoBusqueda}>⌕</Text>
         <TextInput
           accessibilityLabel="Buscar habitaciones"
+          onFocus={() => setEnfocado(true)}
+          onBlur={() => setEnfocado(false)}
           onChangeText={alBuscar}
-          placeholder="Buscar habitaciones"
-          placeholderTextColor="#9A909E"
+          placeholder="Ciudad, zona o habitación"
+          placeholderTextColor={color.secundario}
           returnKeyType="search"
           style={styles.entrada}
           value={busqueda}
@@ -61,32 +68,31 @@ export function BuscadorHabitaciones({
 }
 
 const styles = StyleSheet.create({
+  enfocado: { borderColor: color.accion },
   campoBusqueda: {
-    height: 52,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#EEE8F0',
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    marginTop: 18,
+    borderColor: color.borde,
+    borderRadius: 8,
+    backgroundColor: color.blanco,
   },
   iconoBusqueda: {
-    color: '#9C80A4',
+    color: color.accion,
     fontSize: 26,
     lineHeight: 28,
     marginRight: 10,
   },
   entrada: {
     flex: 1,
-    color: '#28232D',
+    color: color.tinta,
     fontSize: 15,
     paddingVertical: 0,
   },
   filtrosContenedor: {
     flexGrow: 0,
-    marginTop: 12,
   },
   filtros: {
     flexDirection: 'row',
@@ -96,23 +102,23 @@ const styles = StyleSheet.create({
   filtro: {
     paddingHorizontal: 18,
     paddingVertical: 6,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    backgroundColor: color.blanco,
     borderWidth: 1,
-    borderColor: '#EEE8F0',
-    height: 44,
+    borderColor: color.borde,
+    minHeight: 44,
     justifyContent: 'center',
   },
   filtroActivo: {
-    backgroundColor: '#84658D',
-    borderColor: '#84658D',
+    backgroundColor: color.tinta,
+    borderColor: color.tinta,
   },
   textoFiltro: {
-    color: '#4A4350',
+    color: color.secundario,
     fontSize: 14,
   },
   textoFiltroActivo: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: color.blanco,
+    fontWeight: '700',
   },
 });

@@ -1,28 +1,16 @@
 import PropTypes from 'prop-types'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppLink } from '../../components/AppLink.jsx'
-import { goBack, push } from '../../routes/navigation.js'
+import { push } from '../../routes/navigation.js'
 import { useAuth } from '../../hooks/useAuth.js'
 import { asyncEffect } from '../../hooks/asyncEffect.js'
-import { useRoomLinkQuery } from '../../hooks/useRoomLinkQuery.js'
-import { apiRequest } from '../../services/api.js'
 import {
-  getCandidate,
   getRecommendationFeed,
-  sendConnectionRequest,
 } from './compatibility.js'
+import CandidateProfileDetail from './CandidateDetail.jsx'
+import { readLocal } from '../roomlink/storage.js'
 import './recommendations.css'
-
-const DIMENSIONS = {
-  schedule: 'Horarios',
-  cleanliness: 'Limpieza',
-  noise: 'Ruido',
-  pets: 'Mascotas',
-  smoking: 'Tabaco',
-  visits: 'Visitas',
-  genderPref: 'Género',
-}
 
 function formatBudget(minimum, maximum) {
   if (!minimum && !maximum) return 'Presupuesto no indicado'
@@ -31,7 +19,7 @@ function formatBudget(minimum, maximum) {
   return `${min} - ${max} MXN`
 }
 
-function CandidateCard({ profile, showScore, onOpen }) {
+function CandidateCard({ profile, showScore, onOpen, onPreview }) {
   const initials = profile.fullName
     .split(/\s+/)
     .slice(0, 2)
@@ -42,9 +30,9 @@ function CandidateCard({ profile, showScore, onOpen }) {
   return (
     <article className="candidate-card">
       <button
-        aria-label={`Ver perfil de ${profile.fullName}`}
+        aria-label={`Vista rápida de ${profile.fullName}`}
         className="candidate-photo-button"
-        onClick={onOpen}
+        onClick={onPreview}
         type="button"
       >
         {profile.photoUrl ? (
@@ -79,6 +67,7 @@ function CandidateCard({ profile, showScore, onOpen }) {
 
 CandidateCard.propTypes = {
   onOpen: PropTypes.func.isRequired,
+  onPreview: PropTypes.func.isRequired,
   profile: PropTypes.shape({
     age: PropTypes.number,
     budgetMax: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
@@ -93,181 +82,6 @@ CandidateCard.propTypes = {
   showScore: PropTypes.bool.isRequired,
 }
 
-function CandidateDetail({ candidateId }) {
-  const { session } = useAuth()
-  const navigate = useNavigate()
-  const [detail, setDetail] = useState({
-    candidateId: null,
-    profile: null,
-    error: '',
-  })
-  const [requestError, setRequestError] = useState('')
-  const [sending, setSending] = useState(false)
-  const [requestSent, setRequestSent] = useState(false)
-  const [connectionAttempt, setConnectionAttempt] = useState(0)
-  const connections = useRoomLinkQuery('/api/v1/connections', session.token, connectionAttempt)
-  const activeConnection = connections.data?.find(({ requesterId, addresseeId, status }) =>
-    (requesterId === candidateId || addresseeId === candidateId) && ['pending', 'accepted'].includes(status),
-  )
-  const connectionLabel = activeConnection?.status === 'accepted' ? 'Conexión aceptada'
-    : activeConnection?.requesterId === candidateId ? 'Solicitud recibida'
-    : activeConnection || requestSent ? 'Solicitud enviada' : null
-
-  useEffect(
-    () => asyncEffect(async (isActive) => {
-      try {
-        const path = `/api/v1/profiles/${encodeURIComponent(candidateId)}`
-        const [candidate, publicProfile] = await Promise.allSettled([
-          getCandidate(session.user.id, candidateId, session.token),
-          apiRequest(path, { token: session.token }),
-        ])
-        if (candidate.status === 'rejected' && publicProfile.status === 'rejected') throw candidate.reason
-        const profile = {
-          ...(publicProfile.status === 'fulfilled' && publicProfile.value),
-          compatibilityScore: null,
-          ...(candidate.status === 'fulfilled' && candidate.value),
-        }
-        if (isActive()) setDetail({ candidateId, profile, error: '' })
-      } catch (cause) {
-        if (isActive()) {
-          setDetail({
-            candidateId,
-            profile: null,
-            error: cause instanceof Error ? cause.message : 'No se pudo cargar el perfil.',
-          })
-        }
-      }
-    }),
-    [candidateId, session.token, session.user.id],
-  )
-
-  async function requestConnection() {
-    if (sending || connectionLabel || connections.loading || connections.error) return
-    setSending(true)
-    setRequestError('')
-    try {
-      await sendConnectionRequest(session.user.id, candidateId, session.token)
-      setRequestSent(true)
-    } catch (cause) {
-      setRequestError(
-        cause instanceof Error ? cause.message : 'No se pudo enviar la solicitud.',
-      )
-    } finally {
-      setSending(false)
-    }
-  }
-
-  if (detail.candidateId !== candidateId) {
-    return <div className="loading-screen">Cargando perfil…</div>
-  }
-  if (detail.error) {
-    return (
-      <section className="recommendations-page">
-        <button className="back-link back-button" onClick={() => goBack(navigate, '/recomendados')} type="button">
-          ← Volver a roomies
-        </button>
-        <div className="notice notice-error" role="alert">{detail.error}</div>
-      </section>
-    )
-  }
-  const profile = detail.profile
-  if (!profile) return null
-
-  const initials = profile.fullName
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0] || '')
-    .join('')
-    .toUpperCase()
-
-  return (
-    <section className="recommendations-page">
-      <button className="back-link back-button" onClick={() => goBack(navigate, '/recomendados')} type="button">
-        ← Volver a roomies
-      </button>
-      <article className="candidate-detail">
-        <div className="candidate-detail-hero">
-          {profile.photoUrl ? (
-            <img alt={`Foto de ${profile.fullName}`} src={profile.photoUrl} />
-          ) : (
-            <span aria-hidden="true" className="candidate-placeholder detail-placeholder">{initials}</span>
-          )}
-          <div className="candidate-detail-identity">
-            <h1>{profile.fullName}</h1>
-            <p>{profile.age} años · {profile.zone || 'Zona no indicada'}{profile.city ? `, ${profile.city}` : ''}</p>
-            {profile.compatibilityScore !== null && (
-              <div className="detail-score-block">
-                <span>Compatibilidad contigo</span>
-                <strong>{Math.round(profile.compatibilityScore)}%</strong>
-              </div>
-            )}
-            {requestError && <p className="form-error" role="alert">{requestError}</p>}
-            {connections.error && <p className="form-error" role="alert">No se pudo consultar el estado de la conexión.</p>}
-            {connections.error && <button className="button button-secondary" type="button" onClick={() => setConnectionAttempt((value) => value + 1)}>Reintentar</button>}
-            <button
-              className="button button-primary button-wide"
-              disabled={sending || Boolean(connectionLabel) || connections.loading || Boolean(connections.error)}
-              onClick={requestConnection}
-              type="button"
-            >
-              {connectionLabel || (sending ? 'Enviando…' : connections.loading ? 'Consultando…' : 'Enviar solicitud')}
-            </button>
-            <button className="button button-secondary button-wide" onClick={() => goBack(navigate, '/recomendados')} type="button">
-              Volver a roomies
-            </button>
-          </div>
-        </div>
-        <div className="candidate-detail-content">
-          <section className="detail-section">
-            <h2>Sobre mí</h2>
-            <p>{profile.bio || 'Este perfil aún no tiene una descripción.'}</p>
-          </section>
-          {(profile.phone || profile.email || profile.instagram || profile.facebook) && <section className="detail-section">
-            <h2>Contacto</h2>
-            {profile.phone && <p>Teléfono {profile.phone}</p>}
-            {profile.email && <p>Correo {profile.email}</p>}
-            {profile.instagram && <p>Instagram {profile.instagram}</p>}
-            {profile.facebook && <p>Facebook {profile.facebook}</p>}
-          </section>}
-          <section className="detail-section">
-            <h2>Estilo de vida</h2>
-            <div className="lifestyle-tags">
-              <span>{formatBudget(profile.budgetMin, profile.budgetMax)}</span>
-              {profile.occupation && <span>{profile.occupation}</span>}
-              {profile.compatibilitySummary?.slice(0, 4).map(({ dimension, level }) => (
-                <span key={dimension}>{DIMENSIONS[dimension] || dimension}: {level}</span>
-              ))}
-            </div>
-          </section>
-          <section className="detail-section">
-            <h2>Respuestas del test</h2>
-            {profile.compatibilitySummary?.length ? (
-              <div className="detail-answer-list">
-                {profile.compatibilitySummary.map(({ dimension, percentage }) => (
-                  <div className="detail-answer" key={dimension}>
-                    <strong>{DIMENSIONS[dimension] || dimension}</strong>
-                    <span className="detail-answer-value">1</span>
-                    <div aria-label={`${DIMENSIONS[dimension] || dimension}: ${percentage}%`} className="meter-track" role="img">
-                      <span style={{ width: `${percentage}%` }} />
-                    </div>
-                    <span className="detail-answer-value">5</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="muted">Este perfil aún no tiene un resumen de test.</p>
-            )}
-          </section>
-        </div>
-      </article>
-    </section>
-  )
-}
-
-CandidateDetail.propTypes = {
-  candidateId: PropTypes.string.isRequired,
-}
-
 export default function Recommendations() {
   const { session } = useAuth()
   const navigate = useNavigate()
@@ -277,6 +91,10 @@ export default function Recommendations() {
     result: null,
     error: '',
   })
+  const dialog = useRef(null)
+  const [preview, setPreview] = useState(null)
+  const [historyFilter, setHistoryFilter] = useState('')
+  const history = Object.values(readLocal(session.user.id, 'candidate-history', {})).filter(({ status }) => status === historyFilter)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('Todas')
@@ -300,6 +118,10 @@ export default function Recommendations() {
     }),
     [candidateId, page, session.token, session.user.id],
   )
+
+  useEffect(() => {
+    if (preview && !dialog.current?.open) dialog.current?.showModal()
+  }, [preview])
 
   const loading = feedState.page !== page
   const feed = loading ? null : feedState.result
@@ -334,7 +156,7 @@ export default function Recommendations() {
     setPage(nextPage)
   }
 
-  if (candidateId) return <CandidateDetail key={candidateId} candidateId={decodeURIComponent(candidateId)} />
+  if (candidateId) return <CandidateProfileDetail key={candidateId} candidateId={decodeURIComponent(candidateId)} />
 
   return (
     <section className="recommendations-page">
@@ -360,93 +182,127 @@ export default function Recommendations() {
         </div>
       )}
 
-      <div className="feed-toolbar">
-        <label className="feed-search">
-          <span aria-hidden="true">⌕</span>
-          <input
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por nombre, zona o intereses"
-            type="search"
-            value={search}
-          />
-        </label>
-        <label className="feed-filter-label">
-          <span>Filtros</span>
-          <select onChange={(event) => setFilter(event.target.value)} value={filter}>
-            <option>Todas</option>
-            <option>Con foto</option>
-            <option>Con presupuesto</option>
-          </select>
-        </label>
-        <label className="feed-sort-label">
-          <span>Ordenar por</span>
-          <select onChange={(event) => setSort(event.target.value)} value={sort}>
-            <option value="compatibility">Compatibilidad</option>
-            <option value="name">Nombre</option>
-            <option value="budget">Presupuesto</option>
-          </select>
-        </label>
-      </div>
-
-      {error && <div className="notice notice-error" role="alert">{error}</div>}
-      {loading ? (
-        <div className="loading-screen feed-loading">Buscando perfiles compatibles…</div>
-      ) : filteredProfiles.length ? (
-        <div aria-busy={loading} className="candidate-grid">
-          {filteredProfiles.map((profile) => (
-            <CandidateCard
-              key={profile.userId}
-              onOpen={() => push(navigate, `/perfil/candidato/${encodeURIComponent(profile.userId)}`)}
-              profile={profile}
-              showScore={feed?.hasTest === true}
+      <nav className="feature-actions" aria-label="Historial de perfiles">
+        {[['', 'Recomendados'], ['saved', 'Guardados'], ['discarded', 'Descartados']].map(([value, label]) => (
+          <button key={label} className="button button-secondary" type="button" aria-pressed={historyFilter === value} onClick={() => setHistoryFilter(value)}>{label}</button>
+        ))}
+      </nav>
+      {historyFilter && (
+        <section>
+          <h2>{historyFilter === 'saved' ? 'Perfiles guardados' : 'Perfiles descartados'}</h2>
+          {history.length > 0
+            ? <ul>{history.map(({ id, name }) => (
+              <li key={id}><AppLink href={`/perfil/candidato/${encodeURIComponent(id)}`}>{name}</AppLink></li>
+            ))}</ul>
+            : <p>El historial está vacío.</p>}
+        </section>
+      )}
+      <dialog className="candidate-preview" ref={dialog} aria-labelledby="candidate-preview-title" onClose={() => setPreview(null)}>
+        <h2 id="candidate-preview-title">Vista rápida</h2>
+        {preview && <>
+          <h3>{preview.fullName}{preview.age != null ? `, ${preview.age} años` : ''}</h3>
+          <p>{[preview.zone, preview.city].filter(Boolean).join(' · ') || 'Zona no indicada'}</p>
+          <p>{formatBudget(preview.budgetMin, preview.budgetMax)}</p>
+          {feed?.hasTest && Number.isFinite(preview.compatibilityScore) && <p>{Math.round(preview.compatibilityScore)}% de afinidad</p>}
+          <div className="feature-actions">
+            <button className="button button-mint" type="button" onClick={() => {
+              dialog.current.close()
+              push(navigate, `/perfil/candidato/${encodeURIComponent(preview.userId)}`)
+            }}>Ver perfil completo</button>
+            <button className="button button-secondary" type="button" onClick={() => dialog.current.close()}>Cerrar</button>
+          </div>
+        </>}
+      </dialog>
+      {!historyFilter && <>
+        <div className="feed-toolbar">
+          <label className="feed-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar por nombre, zona o intereses"
+              type="search"
+              value={search}
             />
-          ))}
+          </label>
+          <label className="feed-filter-label">
+            <span>Filtros</span>
+            <select onChange={(event) => setFilter(event.target.value)} value={filter}>
+              <option>Todas</option>
+              <option>Con foto</option>
+              <option>Con presupuesto</option>
+            </select>
+          </label>
+          <label className="feed-sort-label">
+            <span>Ordenar por</span>
+            <select onChange={(event) => setSort(event.target.value)} value={sort}>
+              <option value="compatibility">Compatibilidad</option>
+              <option value="name">Nombre</option>
+              <option value="budget">Presupuesto</option>
+            </select>
+          </label>
         </div>
-      ) : (
-        <div className="empty-feed">
-          <div className="empty-icon" aria-hidden="true">⌕</div>
-          <h2>{feed?.profiles?.length ? 'No encontramos coincidencias' : 'Aún no hay perfiles para mostrar'}</h2>
-          <p className="muted">
-            {feed?.profiles?.length
-              ? 'Prueba con otro nombre o filtro.'
-              : 'Vuelve más tarde para descubrir nuevos roomies.'}
-          </p>
-          {search || filter !== 'Todas' ? (
+
+        {error && <div className="notice notice-error" role="alert">{error}</div>}
+        {loading ? (
+          <div className="loading-screen feed-loading">Buscando perfiles compatibles…</div>
+        ) : filteredProfiles.length ? (
+          <div aria-busy={loading} className="candidate-grid">
+            {filteredProfiles.map((profile) => (
+              <CandidateCard
+                key={profile.userId}
+                onOpen={() => push(navigate, `/perfil/candidato/${encodeURIComponent(profile.userId)}`)}
+                onPreview={() => setPreview(profile)}
+                profile={profile}
+                showScore={feed?.hasTest === true}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="empty-feed">
+            <div className="empty-icon" aria-hidden="true">⌕</div>
+            <h2>{feed?.profiles?.length ? 'No encontramos coincidencias' : 'Aún no hay perfiles para mostrar'}</h2>
+            <p className="muted">
+              {feed?.profiles?.length
+                ? 'Prueba con otro nombre o filtro.'
+                : 'Vuelve más tarde para descubrir nuevos roomies.'}
+            </p>
+            {search || filter !== 'Todas' ? (
+              <button
+                className="button button-secondary"
+                onClick={() => {
+                  setSearch('')
+                  setFilter('Todas')
+                }}
+                type="button"
+              >
+                Limpiar filtros
+              </button>
+            ) : null}
+          </div>
+        )}
+
+        {!loading && (
+          <nav aria-label="Paginación de perfiles" className="feed-pagination">
             <button
               className="button button-secondary"
-              onClick={() => {
-                setSearch('')
-                setFilter('Todas')
-              }}
+              disabled={page <= 1 || loading}
+              onClick={() => changePage(page - 1)}
               type="button"
             >
-              Limpiar filtros
+              Anterior
             </button>
-          ) : null}
-        </div>
-      )}
-
-      {!loading && (
-        <nav aria-label="Paginación de perfiles" className="feed-pagination">
-          <button
-            className="button button-secondary"
-            disabled={page <= 1 || loading}
-            onClick={() => changePage(page - 1)}
-            type="button"
-          >
-            Anterior
-          </button>
-          <span>Página {page}</span>
-          <button
-            className="button button-secondary"
-            disabled={!feed?.hasMore || loading}
-            onClick={() => changePage(page + 1)}
-            type="button"
-          >
-            {loading ? 'Cargando…' : 'Siguiente'}
-          </button>
-        </nav>
-      )}
+            <span>Página {page}</span>
+            <button
+              className="button button-secondary"
+              disabled={!feed?.hasMore || loading}
+              onClick={() => changePage(page + 1)}
+              type="button"
+            >
+              {loading ? 'Cargando…' : 'Siguiente'}
+            </button>
+          </nav>
+        )}
+      </>}
     </section>
   )
 }

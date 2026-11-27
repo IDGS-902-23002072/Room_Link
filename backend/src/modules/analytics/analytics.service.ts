@@ -10,7 +10,7 @@ import { AppError } from "../../shared/AppError.js";
 
 export interface AdminDashboard {
   period: { start: string; end: string };
-  kpis: AnalyticsTotals & { connectionAcceptanceRate: number | null };
+  kpis: AnalyticsTotals & { connectionAcceptanceRate: number | null; estimatedOccupancyRate?: number | null };
   monthlyUsers: MonthlyMetric[];
   monthlyListings: MonthlyMetric[];
 }
@@ -126,6 +126,9 @@ export class AnalyticsService {
         },
         kpis: {
           ...totals,
+          estimatedOccupancyRate: totals.publishedListings
+            ? Math.round(((totals.listingsWithAcceptedApplication ?? 0) / totals.publishedListings) * 10_000) / 100
+            : null,
           connectionAcceptanceRate:
             totals.connectionsSent === 0
               ? null

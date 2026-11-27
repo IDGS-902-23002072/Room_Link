@@ -17,7 +17,7 @@ function formatDate(value) {
 }
 
 function agreementTitle(item) {
-  return item.rulesSnapshot.listingTitle || 'Acuerdo de convivencia'
+  return item.rulesSnapshot.details?.title || item.rulesSnapshot.listingTitle || 'Acuerdo de convivencia'
 }
 
 function rulesFor(item) {
@@ -34,6 +34,8 @@ function rulesFor(item) {
     ['Mascotas', typeof data.petsAllowed === 'boolean' && (data.petsAllowed ? 'Permitidas' : 'No permitidas')],
     ['Tabaco', typeof data.smokingAllowed === 'boolean' && (data.smokingAllowed ? 'Permitido' : 'No permitido')],
     ['Otras normas', data.extraRules],
+    ['Inicio propuesto', data.details?.startDate],
+    ...(data.details?.rules ?? []).map(({ category, title, description }) => [`${category}: ${title}`, description]),
   ].filter(([, value]) => value)
 }
 
@@ -150,7 +152,7 @@ function CreateAgreement() {
 
   async function submit(event) {
     event.preventDefault()
-    if (!window.confirm('¿Enviar a revisión las reglas publicadas en el anuncio? Puedes conservar tu borrador por separado.')) return
+    if (!window.confirm('¿Enviar a revisión las reglas del anuncio y los detalles de este acuerdo?')) return
     setBusy(true)
     setError('')
     try {
@@ -163,9 +165,21 @@ function CreateAgreement() {
         throw new Error('Selecciona un roomie con una solicitud aceptada.')
       }
       const existing = versions.items.filter((entry) => entry.hostId === user.id && entry.roomieIds.length === 1 && entry.roomieIds.includes(draft.roomieId)).sort((a, b) => b.version - a.version)[0]
-      const item = existing ?? await apiRequest(agreementsPath, {
+      const details = {
+        title: draft.title.trim() || undefined,
+        startDate: draft.startDate || undefined,
+        rules: Object.entries(draft.rules)
+          .filter(([, rule]) => rule.title.trim() || rule.description.trim())
+          .map(([category, rule]) => ({ category, title: rule.title.trim(), description: rule.description.trim() })),
+      }
+      const stored = existing?.rulesSnapshot.details
+      const unchanged = (stored?.title ?? '') === (details.title ?? '')
+        && (stored?.startDate ?? '') === (details.startDate ?? '')
+        && JSON.stringify(stored?.rules ?? []) === JSON.stringify(details.rules)
+      const path = existing ? `${agreementsPath}/${encodeURIComponent(existing.id)}/versions` : agreementsPath
+      const item = existing && unchanged ? existing : await apiRequest(path, {
         token, method: 'POST',
-        body: JSON.stringify({ listingId: draft.listingId, hostId: user.id, roomieId: draft.roomieId }),
+        body: JSON.stringify({ listingId: draft.listingId, hostId: user.id, roomieId: draft.roomieId, details }),
       })
       navigate(`/acuerdos/revisar/${encodeURIComponent(item.id)}`)
     } catch (cause) {
@@ -199,7 +213,7 @@ function CreateAgreement() {
                   const next = { ...draft.rules }
                   delete next[category]
                   persist({ ...draft, rules: next })
-                }} type="button">Eliminar norma</button>
+                }} type="button">Limpiar</button>
                 <button className="button button-primary" disabled={!rule.title.trim() || !rule.description.trim()} onClick={() => persist(draft)} type="button">Guardar norma</button>
               </div>
               {Object.entries(draft.rules).filter(([name, value]) => name !== category && (value.title || value.description)).map(([name, value]) => (
@@ -215,7 +229,7 @@ function CreateAgreement() {
             </Panel>
             <Panel title="Antes de enviar">
               <ol><li>Revisa las normas con tu roomie.</li><li>Envía la versión para revisión.</li><li>Consulta la aceptación individual.</li></ol>
-              <p className="muted">El nombre, la fecha propuesta y las normas personalizadas forman tu borrador local. La versión enviada toma sus reglas del anuncio.</p>
+              <p className="muted">El nombre, la fecha y las normas personalizadas se incluyen en la versión enviada, junto con las reglas del anuncio.</p>
               <button aria-expanded={preview} className="button button-secondary" onClick={() => setPreview(!preview)} type="button">{preview ? 'Ocultar borrador' : 'Ver borrador'}</button>
             </Panel>
           </div>
@@ -223,7 +237,7 @@ function CreateAgreement() {
         <Feedback error={error}>{message}</Feedback>
         <div className="room-save">
           <Link className="button button-secondary" to="/acuerdos">Cancelar</Link>
-          <div className="room-actions"><button className="button button-secondary" onClick={() => persist(draft)} type="button">Guardar borrador</button><button className="button button-primary" disabled={busy || !draft.listingId || !draft.roomieId} type="submit">{busy ? 'Enviando…' : 'Enviar reglas del anuncio a revisión'}</button></div>
+          <div className="room-actions"><button className="button button-secondary" onClick={() => persist(draft)} type="button">Guardar borrador</button><button className="button button-primary" disabled={busy || !draft.listingId || !draft.roomieId} type="submit">{busy ? 'Enviando…' : 'Enviar acuerdo a revisión'}</button></div>
         </div>
       </form>
     </>

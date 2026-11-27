@@ -29,6 +29,8 @@ export default defineConfig({
     isMobile: true,
     hasTouch: true,
     headless: true,
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
     launchOptions: {
       ...(executablePath ? { executablePath } : {}),
       args: ["--no-sandbox", "--disable-gpu"],

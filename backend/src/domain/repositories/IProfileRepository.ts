@@ -32,6 +32,9 @@ export interface IProfileRepository {
   findContactPrivacy(userId: string): Promise<ContactPrivacy | null>;
   upsertContactPrivacy(privacy: ContactPrivacy): Promise<void>;
 
+  findHousingPreferences(userId: string): Promise<{ budgetMin: number | null; budgetMax: number | null; desiredZoneId: string | null } | null>;
+  upsertHousingPreferences(pref: { userId: string; budgetMin: number | null; budgetMax: number | null; desiredZoneId: string | null }): Promise<void>;
+
   // Preferencias de notificaciones
   listNotificationPreferences(userId: string): Promise<ProfileNotificationPreference[]>;
   upsertNotificationPreference(preference: ProfileNotificationPreference): Promise<void>;

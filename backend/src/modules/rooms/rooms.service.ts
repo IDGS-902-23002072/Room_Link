@@ -542,6 +542,17 @@ export class RoomsService {
       return { kind: item.kind, concept, amount, isIncluded, isProrated };
     });
 
+    // Un costo "incluido en la renta" es parte de la renta, así que la suma de
+    // los incluidos no puede superar la renta mensual de la habitación.
+    const includedTotal = normalizados
+      .filter((item) => item.isIncluded)
+      .reduce((total, item) => total + item.amount, 0);
+    if (includedTotal > room.monthlyRent) {
+      throw new Error(
+        "Los costos incluidos en la renta no pueden superar la renta mensual.",
+      );
+    }
+
     if (!this.roomRepo.replaceCostItems) {
       return normalizados.map((item) => ({
         ...item,

@@ -48,4 +48,38 @@ export class ConnectionsController {
       return c.json({ error: response.error, code: response.code }, response.status as 400);
     }
   }
+
+  create = async (c: AuthContext) =>
+  this.handle(c, async () => {
+    const body = await c.req.json();
+
+    if (
+      typeof body.addresseeId !== "string" ||
+      !body.addresseeId.trim()
+    ) {
+      return c.json(
+        { error: "addresseeId es obligatorio." },
+        400,
+      );
+    }
+
+    if (
+      body.introMessage !== undefined &&
+      body.introMessage !== null &&
+      typeof body.introMessage !== "string"
+    ) {
+      return c.json(
+        { error: "introMessage debe ser un texto." },
+        400,
+      );
+    }
+
+    const connection = await this.service.send({
+      requesterId: c.get("auth").userId,
+      addresseeId: body.addresseeId.trim(),
+      introMessage: body.introMessage ?? null,
+    });
+
+    return c.json(ConnectionView.toDTO(connection), 201);
+  });
 }

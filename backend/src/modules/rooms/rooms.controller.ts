@@ -744,7 +744,10 @@ export class RoomsController {
           "Content-Type": photo.mimeType,
           "Content-Disposition": "inline",
           "X-Content-Type-Options": "nosniff",
-          "Cache-Control": "private, max-age=3600",
+          // La "primera foto" (portada) cambia al reordenar/eliminar fotos:
+          // debe revalidarse para no mostrar una miniatura obsoleta en el
+          // listado. (getPhoto por id sí puede cachear: es inmutable.)
+          "Cache-Control": "private, no-cache",
         }
       );
     } catch (err: unknown) {

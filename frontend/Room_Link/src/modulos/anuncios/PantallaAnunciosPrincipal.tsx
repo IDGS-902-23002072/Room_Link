@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 
 import React, {
   useCallback,
@@ -14,12 +16,15 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
   RefreshControl,
   Alert,
 } from "react-native";
+
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { MarcaRoomLink } from '@/components/MarcaRoomLink';
 
 import TarjetaPublicacion, {
   type Publicacion,
@@ -27,7 +32,6 @@ import TarjetaPublicacion, {
 
 import {
   obtenerMisPublicaciones,
-  obtenerUrlPrimeraFoto,
   pausarAnuncio,
   reactivarAnuncio,
   cerrarAnuncio,
@@ -46,6 +50,7 @@ type Filtro =
 type Props = {
   onCrearPublicacion?: () => void;
   onEditarPublicacion?: (id: string) => void;
+  onVerDetalles?: (id: string) => void;
 };
 
 type EstadoBD = "draft" | "published" | "paused" | "closed";
@@ -101,6 +106,7 @@ function convertirFiltro(
 export default function PantallaAnunciosPrincipal({
   onCrearPublicacion,
   onEditarPublicacion,
+  onVerDetalles,
 }: Props) {
   const router = useRouter();
 
@@ -154,7 +160,6 @@ export default function PantallaAnunciosPrincipal({
 
             detalle: `${habitacion.photosCount} fotografías`,
 
-            imagen: obtenerUrlPrimeraFoto(habitacion.id),
           };
         });
     },
@@ -379,15 +384,15 @@ export default function PantallaAnunciosPrincipal({
   // ====================================================
 
   return (
-    <SafeAreaView style={styles.pantalla}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.pantalla}>
       <StatusBar barStyle="dark-content" />
 
       {/* ENCABEZADO */}
 
       <View style={styles.encabezado}>
-        <Text style={styles.marca}>ROOMLINK / 07</Text>
+        <MarcaRoomLink />
 
-        <Text style={styles.titulo}>
+        <Text accessibilityRole="header" style={styles.titulo}>
           Mis publicaciones
         </Text>
 
@@ -412,6 +417,8 @@ export default function PantallaAnunciosPrincipal({
           return (
             <Pressable
               key={item}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: item === filtro }}
               disabled={procesando !== null}
               onPress={() => setFiltro(item)}
               style={[
@@ -443,8 +450,8 @@ export default function PantallaAnunciosPrincipal({
           <RefreshControl
             refreshing={cargando}
             onRefresh={actualizar}
-            tintColor="#806487"
-            colors={["#806487"]}
+            tintColor={color.accion}
+            colors={[color.accion]}
           />
         }
       >
@@ -452,7 +459,7 @@ export default function PantallaAnunciosPrincipal({
           <View style={styles.mensaje}>
             <ActivityIndicator
               size="large"
-              color="#806487"
+              color={color.accion}
             />
 
             <Text style={styles.textoMensaje}>
@@ -479,6 +486,7 @@ export default function PantallaAnunciosPrincipal({
             <TarjetaPublicacion
               key={publicacion.id}
               publicacion={publicacion}
+              onVerDetalles={onVerDetalles}
               onEditar={onEditarPublicacion}
               onPausar={confirmarPausar}
               onReactivar={confirmarReactivar}
@@ -520,37 +528,32 @@ export default function PantallaAnunciosPrincipal({
 const styles = StyleSheet.create({
   pantalla: {
     flex: 1,
-    backgroundColor: "#F8F5F9",
+    backgroundColor: color.blanco,
   },
 
   encabezado: {
     paddingHorizontal: 22,
     paddingTop: 13,
-    paddingBottom: 15,
-  },
-
-  marca: {
-    color: "#8A6C91",
-    fontSize: 9,
-    letterSpacing: 0.7,
-    marginBottom: 7,
+    paddingBottom: 18,
+    gap: 8,
   },
 
   titulo: {
-    color: "#332A37",
-    fontSize: 23,
-    fontWeight: "700",
+    color: color.tinta,
+    fontSize: 32,
+    fontWeight: "600",
+    letterSpacing: -0.9,
   },
 
   subtitulo: {
-    color: "#948798",
-    fontSize: 11,
-    marginTop: 5,
+    color: color.secundario,
+    fontSize: 14,
+    lineHeight: 20,
   },
 
   pestanas: {
     marginHorizontal: 16,
-    backgroundColor: "#E9DDEA",
+    backgroundColor: color.superficie,
     borderRadius: 9,
     flexDirection: "row",
     padding: 3,
@@ -560,21 +563,24 @@ const styles = StyleSheet.create({
   pestana: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 8,
-    borderRadius: 7,
+    minHeight: 48,
+    justifyContent: "center",
+    paddingVertical: 6,
+    borderRadius: 10,
   },
 
   pestanaActiva: {
-    backgroundColor: "#D6C2D9",
+    backgroundColor: color.blanco,
   },
 
   textoPestana: {
-    fontSize: 10,
-    color: "#8A788D",
+    fontSize: 14,
+    textAlign: "center",
+    color: color.secundario,
   },
 
   textoPestanaActivo: {
-    color: "#654C6D",
+    color: color.accion,
     fontWeight: "700",
   },
 
@@ -584,15 +590,15 @@ const styles = StyleSheet.create({
 
   listaContenido: {
     paddingHorizontal: 16,
-    paddingBottom: 18,
+    paddingBottom: 88,
     flexGrow: 1,
   },
 
   vacio: {
     textAlign: "center",
-    color: "#948798",
+    color: color.secundario,
     marginTop: 35,
-    fontSize: 12,
+    fontSize: 14,
   },
 
   mensaje: {
@@ -602,19 +608,19 @@ const styles = StyleSheet.create({
   },
 
   textoMensaje: {
-    color: "#948798",
-    fontSize: 12,
+    color: color.secundario,
+    fontSize: 14,
     marginTop: 12,
   },
 
   error: {
-    color: "#A33D4D",
-    fontSize: 12,
+    color: color.rosaTexto,
+    fontSize: 14,
     textAlign: "center",
   },
 
   botonReintentar: {
-    backgroundColor: "#806487",
+    backgroundColor: color.accion,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 9,
@@ -622,8 +628,8 @@ const styles = StyleSheet.create({
   },
 
   botonCrear: {
-    backgroundColor: "#806487",
-    minHeight: 44,
+    backgroundColor: color.accion,
+    minHeight: 50,
     borderRadius: 11,
     justifyContent: "center",
     alignItems: "center",
@@ -631,7 +637,7 @@ const styles = StyleSheet.create({
   },
 
   textoBoton: {
-    color: "#FFFFFF",
+    color: color.blanco,
     fontSize: 13,
     fontWeight: "700",
   },

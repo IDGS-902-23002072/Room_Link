@@ -9,7 +9,7 @@ import { Feedback, Panel } from '../roomlink/Workspace.jsx'
 import { applicationsPath, applicationStatuses, hostLink, json, roomLink, roomPath } from './listings.js'
 
 export function QueryStatus({ query, onRetry }) {
-  if (query.loading) return <FeatureNotice>Cargando…</FeatureNotice>
+  if (query.loading) return <FeatureNotice loading>Cargando…</FeatureNotice>
   if (query.error) return <FeatureNotice error={query.error} retry={onRetry} />
   return null
 }
@@ -36,6 +36,26 @@ function ChatButton({ applicationId, token }) {
   }
 
   return <><button className="button button-mint" disabled={opening} onClick={open} type="button">Abrir conversación</button><Feedback error={error} /></>
+}
+
+function CancelButton({ applicationId, token, onCancelled }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function cancel() {
+    if (!window.confirm('¿Cancelar esta postulación? Esta acción no se puede deshacer.')) return
+    setBusy(true)
+    setError('')
+    try {
+      await apiRequest(applicationsPath + '/' + encodeURIComponent(applicationId), { token, method: 'DELETE' })
+      onCancelled()
+    } catch (cause) {
+      setError(cause.message)
+      setBusy(false)
+    }
+  }
+
+  return <><button className="button button-rose" disabled={busy} onClick={cancel} type="button">Cancelar postulación</button><Feedback error={error} /></>
 }
 
 export function ApplyToRoom({ room, token }) {
@@ -83,7 +103,7 @@ export function ApplyToRoom({ room, token }) {
   )
 }
 
-function HistoryItem({ application, token }) {
+function HistoryItem({ application, token, refresh }) {
   const { data } = useRoomLinkQuery(roomPath(application.listingId), token)
   return (
     <article className="room-panel listing-application">
@@ -95,6 +115,7 @@ function HistoryItem({ application, token }) {
       {application.decidedAt && <p className="muted">Actualizada el <time dateTime={application.decidedAt}>{formatMoment(application.decidedAt)}</time></p>}
       {application.message && <p className="listing-description">{application.message}</p>}
       {application.status === 'accepted' && <ChatButton token={token} applicationId={application.id} />}
+      {(application.status === 'pending' || application.status === 'waitlisted') && <CancelButton token={token} applicationId={application.id} onCancelled={refresh} />}
     </article>
   )
 }
@@ -113,7 +134,7 @@ export function MyApplications() {
       <QueryStatus query={query} onRetry={() => setVersion((current) => current + 1)} />
       {query.data?.length === 0 && !query.error && <FeatureNotice>Todavía no has enviado postulaciones.</FeatureNotice>}
       <div className="room-stack">
-        {newestFirst(query.data || []).map((application) => <HistoryItem key={application.id} application={application} token={session.token} />)}
+        {newestFirst(query.data || []).map((application) => <HistoryItem key={application.id} application={application} token={session.token} refresh={() => setVersion((current) => current + 1)} />)}
       </div>
     </section>
   )
@@ -131,6 +152,12 @@ function Applicant({ item, token, deciding, onDecision }) {
       </div>
       <p className="muted"><time dateTime={item.createdAt}>{formatMoment(item.createdAt)}</time> · {item.compatibilityScore == null ? 'Afinidad sin calcular' : `${Math.round(item.compatibilityScore)}% de afinidad`}</p>
       {item.message && <p className="listing-description">{item.message}</p>}
+      {candidate.data && <details className="listing-description">
+        <summary>Perfil del postulante</summary>
+        <p>{[candidate.data.age != null && `${candidate.data.age} años`, candidate.data.occupation].filter(Boolean).join(' · ')}</p>
+        <p>{candidate.data.bio || 'Este perfil aún no tiene biografía.'}</p>
+        <Link to={`/perfil/candidato/${encodeURIComponent(item.applicantId)}`}>Ver perfil y compatibilidad</Link>
+      </details>}
       <div className="feature-actions">
         {canDecide && <>
           <button className="button button-mint" disabled={deciding} type="button" onClick={() => onDecision(item.id, 'accept')}>Aceptar</button>

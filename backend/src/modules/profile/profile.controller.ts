@@ -263,6 +263,41 @@ export class ProfileController {
     return c.json(ProfileView.toPrivacyDto(privacy), 200);
   };
 
+  getHousing = async (c: Context) => {
+    const userId = c.req.param("userId");
+    if (!userId) return c.json({ error: "userId es obligatorio" }, 400);
+    const prefs = await this.profileService.getHousingPreferences(userId);
+    return c.json(prefs, 200);
+  };
+
+  updateHousing = async (c: Context) => {
+    try {
+      const userId = c.req.param("userId");
+      if (!userId) return c.json({ error: "userId es obligatorio" }, 400);
+      const body = (await c.req.json()) as Record<string, unknown>;
+      const num = (value: unknown): number | null => {
+        if (value === undefined || value === null || value === "") return null;
+        const n = Number(value);
+        if (!Number.isFinite(n)) throw new Error("El presupuesto debe ser un número válido.");
+        return n;
+      };
+      const desiredZoneId =
+        typeof body.desiredZoneId === "string" && body.desiredZoneId.trim()
+          ? body.desiredZoneId.trim()
+          : null;
+      const prefs = await this.profileService.saveHousingPreferences(userId, {
+        budgetMin: num(body.budgetMin),
+        budgetMax: num(body.budgetMax),
+        desiredZoneId,
+      });
+      return c.json(prefs, 200);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Error al guardar preferencias de vivienda";
+      return c.json({ error: msg }, 400);
+    }
+  };
+
   updatePrivacy = async (c: Context) => {
     try {
       const userId = c.req.param("userId");

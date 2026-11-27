@@ -50,10 +50,11 @@ function AcceptedConnection({ connection, token, userId, open, opening }) {
   )
 }
 
-function ChatDetails({ context, name, token }) {
+function ChatDetails({ context, name, token, userId }) {
   const { data: listing } = useRoomLinkQuery(
     context.listingId ? `/api/v1/rooms/${makeKey(context.listingId)}` : null, token,
   )
+  const esDueno = listing?.hostId === userId
   return (
     <section className="chat-details">
       <h3>Detalles de la conversación</h3>
@@ -64,7 +65,7 @@ function ChatDetails({ context, name, token }) {
           <dt>Anuncio</dt><dd>{listing?.title || context.listingId}</dd>
         </>}
       </dl>
-      {context.listingId && <Link className="button button-rose" to={`/anuncios/${makeKey(context.listingId)}/denunciar`}>Denunciar anuncio</Link>}
+      {context.listingId && listing && !esDueno && <Link className="button button-rose" to={`/anuncios/${makeKey(context.listingId)}/denunciar`}>Denunciar anuncio</Link>}
     </section>
   )
 }
@@ -228,13 +229,13 @@ function Conversation({ roomId, session, refreshInbox }) {
           {showDetails ? 'Ocultar detalles' : 'Detalles'}
         </button>
       </header>
-      {showDetails && context && <ChatDetails context={context} name={name} token={token} />}
+      {showDetails && context && <ChatDetails context={context} name={name} token={token} userId={user.id} />}
       <div className="chat-scroll" ref={viewport}>
         {(error || contextError) && <FeatureNotice error={error || contextError} retry={() => {
           update()
           if (contextError) setRetryContext((value) => value + 1)
         }} />}
-        {(loading || loadingContext) && <FeatureNotice>Cargando conversación…</FeatureNotice>}
+        {(loading || loadingContext) && <FeatureNotice loading>Cargando conversación…</FeatureNotice>}
         {recent?.length === pageSize && hasMore && <button className="button button-subtle chat-older" disabled={paging} type="button" onClick={loadOlder}>{paging ? 'Cargando…' : 'Ver mensajes anteriores'}</button>}
         {!loading && !error && !messages.length && <FeatureNotice>Envía un saludo para empezar la conversación.</FeatureNotice>}
         <ol className="chat-bubbles" aria-label="Historial de mensajes">
@@ -268,8 +269,6 @@ export default function Messages() {
   const [inboxRefresh, setInboxRefresh] = useState(0)
   const [openError, setOpenError] = useState('')
   const [opening, setOpening] = useState(false)
-  const [applicationId, setApplicationId] = useState('')
-  const [showApplication, setShowApplication] = useState(false)
   const refreshInbox = useCallback(() => setInboxRefresh((value) => value + 1), [])
   const { data: inbox, loading, error } = useRoomLinkQuery(messagesPath, session.token, inboxRefresh)
   const { data: connections, error: connectionsError } = useRoomLinkQuery('/api/v1/connections', session.token, inboxRefresh)
@@ -295,8 +294,6 @@ export default function Messages() {
       const room = await apiRequest(`${messagesPath}/rooms`, {
         token: session.token, method: 'POST', body: JSON.stringify(origin),
       })
-      setApplicationId('')
-      setShowApplication(false)
       refreshInbox()
       navigate(`/mensajes/${makeKey(room.id)}`)
     } catch (cause) {
@@ -313,7 +310,7 @@ export default function Messages() {
         <aside className="chat-inbox" aria-label="Bandeja de conversaciones">
           <h2>Conversaciones <span className="feature-badge">{rooms.length}</span></h2>
           {error && <FeatureNotice error={error} retry={refreshInbox} />}
-          {loading && <FeatureNotice>Cargando conversaciones…</FeatureNotice>}
+          {loading && <FeatureNotice loading>Cargando conversaciones…</FeatureNotice>}
           {!loading && !error && !rooms.length && <FeatureNotice>Tus conversaciones aparecerán aquí.</FeatureNotice>}
           <nav className="chat-list" aria-label="Conversaciones">
             {rooms.map((item) => <InboxItem key={item.room.id} item={item} token={session.token} />)}
@@ -322,18 +319,7 @@ export default function Messages() {
             <h3>Nueva conversación</h3>
             {connectionsError && <FeatureNotice error={connectionsError} retry={refreshInbox} />}
             {eligible.map((connection) => <AcceptedConnection key={connection.id} connection={connection} token={session.token} userId={session.user.id} open={open} opening={opening} />)}
-            <button className="button button-subtle" type="button" aria-expanded={showApplication} onClick={() => setShowApplication((value) => !value)}>Abrir desde una postulación</button>
-            {showApplication && (
-              <form className="feature-form" onSubmit={(event) => {
-                event.preventDefault()
-                if (applicationId.trim()) void open({ applicationId: applicationId.trim() })
-              }}>
-                <label className="field">ID de la postulación aceptada
-                  <input required value={applicationId} onChange={(event) => setApplicationId(event.target.value)} />
-                </label>
-                <button className="button button-mint" disabled={opening || !applicationId.trim()}>Abrir chat</button>
-              </form>
-            )}
+            <p className="muted">Para escribirle a alguien que aceptó tu postulación, usa «Abrir conversación» desde Mis postulaciones o Postulaciones recibidas.</p>
             {openError && <FeatureNotice error={openError} />}
           </section>
         </aside>

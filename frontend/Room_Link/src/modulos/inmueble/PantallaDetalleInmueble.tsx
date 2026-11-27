@@ -1,5 +1,7 @@
-import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { color } from '@/constants/roomlink';
+
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -77,7 +79,8 @@ export function PantallaDetalleInmueble({
   const [aviso, setAviso] = useState<string | null>(null);
 
   const esAnfitrion = Boolean(
-    sesion?.usuario.id && inmueble && sesion.usuario.id === inmueble.hostId,
+    sesion?.usuario.id && inmueble && sesion.usuario.id === inmueble.hostId
+      && sesion.usuario.roles.some((rol) => rol === 'host' || rol === 'admin'),
   );
 
   const cargar = useCallback(async () => {
@@ -121,9 +124,9 @@ export function PantallaDetalleInmueble({
     }
   }, [listingId]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     void cargar();
-  }, [cargar]);
+  }, [cargar]));
 
   const manejarGuardarReglas = async () => {
     setGuardando(true);
@@ -191,11 +194,16 @@ export function PantallaDetalleInmueble({
   const abrirMapaExterno = () => {
     if (!inmueble?.location) return;
     const { latitude, longitude } = inmueble.location;
+    const precision = esAnfitrion ? 6 : 2;
     void Linking.openURL(
-      `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`,
+      `https://www.google.com/maps/search/?api=1&query=${latitude.toFixed(precision)},${longitude.toFixed(precision)}`,
     );
   };
 
+  const costosPublicados = inmueble?.costItems ?? [];
+  const depositoInformado = esAnfitrion || costosPublicados.some(({ kind }) => kind === 'deposit');
+  const serviciosInformados = esAnfitrion || costosPublicados.some(({ kind }) => kind === 'service');
+  const mantenimientoInformado = esAnfitrion || costosPublicados.some(({ kind }) => kind === 'maintenance');
   const renta = inmueble?.monthlyRent ?? 0;
   const montoServicios = serviciosIncluidos ? 0 : Number(servicios) || 0;
   const montoMantenimiento = mantenimientoIncluido ? 0 : Number(mantenimiento) || 0;
@@ -250,7 +258,7 @@ export function PantallaDetalleInmueble({
 
         {cargando ? (
           <View style={styles.centrado}>
-            <ActivityIndicator size="large" color="#84658D" />
+            <ActivityIndicator size="large" color={color.accion} />
             <Text style={styles.subtitulo}>Cargando detalles del inmueble…</Text>
           </View>
         ) : error && !inmueble ? (
@@ -345,7 +353,7 @@ export function PantallaDetalleInmueble({
                   multiline
                   style={styles.input}
                   placeholder="Escribe reglas adicionales para tus roomies…"
-                  placeholderTextColor="#9A909E"
+                  placeholderTextColor={color.secundario}
                 />
               ) : (
                 <Text style={styles.valor}>
@@ -398,10 +406,10 @@ export function PantallaDetalleInmueble({
                   keyboardType="numeric"
                   style={styles.input}
                   placeholder={`${renta} (1 mes de renta)`}
-                  placeholderTextColor="#9A909E"
+                  placeholderTextColor={color.secundario}
                 />
               ) : (
-                <Text style={styles.valor}>{moneda.format(montoDeposito)}</Text>
+                <Text style={styles.valor}>{depositoInformado ? moneda.format(montoDeposito) : 'Sin especificar'}</Text>
               )}
             </View>
 
@@ -444,13 +452,13 @@ export function PantallaDetalleInmueble({
                       keyboardType="numeric"
                       style={styles.input}
                       placeholder="Monto mensual estimado en MXN"
-                      placeholderTextColor="#9A909E"
+                      placeholderTextColor={color.secundario}
                     />
                   )}
                 </>
               ) : (
                 <Text style={styles.valor}>
-                  {serviciosIncluidos
+                  {!serviciosInformados ? 'Sin especificar' : serviciosIncluidos
                     ? 'Incluidos en la renta'
                     : `${moneda.format(montoServicios)} / mes`}
                 </Text>
@@ -496,13 +504,13 @@ export function PantallaDetalleInmueble({
                       keyboardType="numeric"
                       style={styles.input}
                       placeholder="Cuota mensual de mantenimiento en MXN"
-                      placeholderTextColor="#9A909E"
+                      placeholderTextColor={color.secundario}
                     />
                   )}
                 </>
               ) : (
                 <Text style={styles.valor}>
-                  {mantenimientoIncluido
+                  {!mantenimientoInformado ? 'Sin especificar' : mantenimientoIncluido
                     ? 'Incluido ($0)'
                     : `${moneda.format(montoMantenimiento)} / mes`}
                 </Text>
@@ -511,10 +519,10 @@ export function PantallaDetalleInmueble({
 
             <View style={styles.tarjetaMenta}>
               <Text style={styles.tituloMenta}>
-                Total mensual estimado · {moneda.format(totalMensual)}
+                {serviciosInformados && mantenimientoInformado ? 'Total mensual estimado' : 'Subtotal mensual informado'} · {moneda.format(totalMensual)}
               </Text>
               <Text style={styles.textoMenta}>
-                Depósito estimado: {moneda.format(montoDeposito)}.
+                Depósito: {depositoInformado ? moneda.format(montoDeposito) : 'sin especificar'}.
                 {inmueble.availableFrom
                   ? ` Disponible desde ${inmueble.availableFrom}.`
                   : ''}
@@ -552,16 +560,12 @@ export function PantallaDetalleInmueble({
             </Text>
 
             <View style={styles.tarjetaMapa}>
-              <Text style={styles.iconoMapa}>📍</Text>
+              <Text style={styles.iconoMapa}>⌖</Text>
               <Text style={styles.nombreMapa}>
-                {inmueble.location?.address ?? 'Ubicación no especificada aún'}
+                {inmueble.location ? esAnfitrion ? inmueble.location.address : 'Zona aproximada' : 'Ubicación sin especificar'}
               </Text>
               {inmueble.location && (
                 <>
-                  <Text style={styles.coordenadas}>
-                    Lat {inmueble.location.latitude.toFixed(4)} · Lng{' '}
-                    {inmueble.location.longitude.toFixed(4)}
-                  </Text>
                   <Pressable
                     style={styles.botonSecundario}
                     onPress={abrirMapaExterno}
@@ -575,8 +579,7 @@ export function PantallaDetalleInmueble({
             <View style={styles.tarjetaMenta}>
               <Text style={styles.tituloMenta}>Privacidad de ubicación</Text>
               <Text style={styles.textoMenta}>
-                La dirección exacta y referencias de acceso se comparten únicamente al
-                confirmar una visita o aceptar la postulación.
+                Para acordar una visita, confirma el punto de encuentro con el anfitrión.
               </Text>
             </View>
           </>
@@ -587,42 +590,42 @@ export function PantallaDetalleInmueble({
 }
 
 const styles = StyleSheet.create({
-  pantalla: { flex: 1, backgroundColor: '#F6F2F7' },
-  scroll: { padding: 20, paddingBottom: 40, gap: 12 },
+  pantalla: { flex: 1, backgroundColor: color.fondo },
+  scroll: { width: '100%', maxWidth: 520, alignSelf: 'center', padding: 20, paddingBottom: 40, gap: 12 },
   barraSuperior: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   botonVolver: { paddingVertical: 6, paddingRight: 12 },
-  textoVolver: { color: '#84658D', fontSize: 15, fontWeight: '700' },
-  eyebrow: { color: '#84658D', fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
-  tituloInmueble: { color: '#2B2430', fontSize: 20, fontWeight: '700' },
-  tituloSeccion: { color: '#2B2430', fontSize: 22, fontWeight: '700' },
-  subtitulo: { color: '#786D7E', fontSize: 13, lineHeight: 19 },
+  textoVolver: { color: color.accion, fontSize: 15, fontWeight: '700' },
+  eyebrow: { color: color.accion, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
+  tituloInmueble: { color: color.tinta, fontSize: 20, fontWeight: '700' },
+  tituloSeccion: { color: color.tinta, fontSize: 22, fontWeight: '700' },
+  subtitulo: { color: color.secundario, fontSize: 13, lineHeight: 19 },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: '#E9DDEA',
+    backgroundColor: color.menta,
     borderRadius: 12,
     padding: 3,
     gap: 4,
   },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9 },
-  tabActiva: { backgroundColor: '#FFFFFF' },
-  tabTexto: { color: '#786D7E', fontSize: 12, fontWeight: '600' },
-  tabTextoActivo: { color: '#654C6D', fontWeight: '700' },
+  tabActiva: { backgroundColor: color.blanco },
+  tabTexto: { color: color.secundario, fontSize: 12, fontWeight: '600' },
+  tabTextoActivo: { color: color.accion, fontWeight: '700' },
   centrado: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   tarjeta: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: color.blanco,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#ECE5EF',
+    borderColor: color.borde,
     padding: 14,
     gap: 8,
   },
-  etiqueta: { color: '#786D7E', fontSize: 12, fontWeight: '700' },
-  valor: { color: '#2B2430', fontSize: 14, lineHeight: 20 },
-  valorDestacado: { color: '#84658D', fontSize: 24, fontWeight: '800' },
+  etiqueta: { color: color.secundario, fontSize: 12, fontWeight: '700' },
+  valor: { color: color.tinta, fontSize: 14, lineHeight: 20 },
+  valorDestacado: { color: color.accion, fontSize: 24, fontWeight: '800' },
   filaOpciones: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   opcion: {
     paddingHorizontal: 12,
@@ -630,11 +633,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#F1EAF3',
   },
-  opcionActiva: { backgroundColor: '#84658D' },
-  textoOpcion: { color: '#654C6D', fontSize: 12, fontWeight: '600' },
-  textoOpcionActiva: { color: '#FFFFFF' },
+  opcionActiva: { backgroundColor: color.accion },
+  textoOpcion: { color: color.accion, fontSize: 12, fontWeight: '600' },
+  textoOpcionActiva: { color: color.blanco },
   input: {
-    color: '#2B2430',
+    color: color.tinta,
     fontSize: 14,
     minHeight: 40,
     borderWidth: 1,
@@ -645,7 +648,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   tarjetaMenta: {
-    backgroundColor: '#CFEFE8',
+    backgroundColor: color.menta,
     borderRadius: 16,
     padding: 16,
     gap: 4,
@@ -661,35 +664,34 @@ const styles = StyleSheet.create({
   },
   iconoMapa: { fontSize: 32 },
   nombreMapa: {
-    color: '#2B2430',
+    color: color.tinta,
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
   },
-  coordenadas: { color: '#6E6275', fontSize: 12 },
   botonPrincipal: {
-    backgroundColor: '#84658D',
+    backgroundColor: color.accion,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  textoPrincipal: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  textoPrincipal: { color: color.blanco, fontSize: 15, fontWeight: '700' },
   botonSecundario: {
-    backgroundColor: '#E9DAEC',
+    backgroundColor: color.menta,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
     alignItems: 'center',
   },
-  textoSecundario: { color: '#654C6D', fontSize: 13, fontWeight: '700' },
+  textoSecundario: { color: color.accion, fontSize: 13, fontWeight: '700' },
   deshabilitado: { opacity: 0.6 },
   avisoExito: { backgroundColor: '#DCF0E8', borderRadius: 12, padding: 12 },
   textoExito: { color: '#1F6F60', fontSize: 13, fontWeight: '600' },
   avisoError: {
-    backgroundColor: '#FCE8E8',
+    backgroundColor: color.rosa,
     borderRadius: 12,
     padding: 14,
     gap: 10,
   },
-  textoError: { color: '#A33D4D', fontSize: 13, fontWeight: '600' },
+  textoError: { color: color.rosaTexto, fontSize: 13, fontWeight: '600' },
 });

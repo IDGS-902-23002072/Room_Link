@@ -189,7 +189,7 @@ export default function Moderation({ tab }) {
           }} />}
           {message && <p className="feature-feedback feature-success" role="status">{message}</p>}
           {error && <FeatureNotice error={error} retry={reload} />}
-          {loading && <FeatureNotice>Cargando {current.label.toLowerCase()}…</FeatureNotice>}
+          {loading && <FeatureNotice loading>Cargando {current.label.toLowerCase()}…</FeatureNotice>}
           {!loading && !error && !items.length && <FeatureNotice>{current.empty}</FeatureNotice>}
           <div className="review-list">
             {items.map((item) => <ReviewCard key={item.id || item.listingId} item={item} token={session.token} tab={tab} onChange={update} />)}
@@ -212,7 +212,7 @@ export function ModerationListing() {
         <Link className="button button-subtle" to="/admin/moderacion/cola">Volver a moderación</Link>
       </FeatureHeading>
       {error && <FeatureNotice error={error} retry={() => setRefresh((value) => value + 1)} />}
-      {loading && <FeatureNotice>Cargando anuncio…</FeatureNotice>}
+      {loading && <FeatureNotice loading>Cargando anuncio…</FeatureNotice>}
       {data && <article className="review-card">
         <p className="review-copy">{data.description || 'Este anuncio no tiene descripción.'}</p>
         <dl className="listing-facts">
@@ -259,7 +259,7 @@ export function ReportListing() {
   return (
     <section className="cesar-feature report-page">
       <FeatureHeading title="Denunciar anuncio" description={listing?.title || 'Cuéntanos qué sucede con esta publicación.'} />
-      {loading && <FeatureNotice>Cargando anuncio…</FeatureNotice>}
+      {loading && <FeatureNotice loading>Cargando anuncio…</FeatureNotice>}
       {listingError && <FeatureNotice error={listingError} retry={() => setRefresh((value) => value + 1)} />}
       {report && <div className="feature-feedback feature-success" role="status">Denuncia enviada. Folio {report.id}.</div>}
       {listing?.hostId === session.user.id && <FeatureNotice>Este anuncio pertenece a tu cuenta.</FeatureNotice>}

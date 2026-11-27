@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 
 import React, { useState } from "react";
 
@@ -390,7 +392,7 @@ export default function PantallaFotos({
 const styles = StyleSheet.create({
   pantalla: {
     flex: 1,
-    backgroundColor: "#F8F5F9",
+    backgroundColor: color.blanco,
   },
 
   contenido: {
@@ -400,7 +402,7 @@ const styles = StyleSheet.create({
   },
 
   marca: {
-    color: "#8A6C91",
+    color: color.accion,
     fontSize: 9,
     letterSpacing: 0.7,
     marginBottom: 7,
@@ -417,26 +419,26 @@ const styles = StyleSheet.create({
   },
 
   textoVolver: {
-    color: "#806487",
+    color: color.accion,
     fontSize: 30,
     lineHeight: 34,
   },
 
   titulo: {
-    color: "#332A37",
+    color: color.tinta,
     fontSize: 21,
     fontWeight: "700",
   },
 
   subtitulo: {
-    color: "#948798",
+    color: color.secundario,
     fontSize: 10,
     marginTop: 2,
     marginBottom: 9,
   },
 
   instruccion: {
-    color: "#88768D",
+    color: color.secundario,
     fontSize: 11,
     lineHeight: 17,
     marginBottom: 15,
@@ -455,24 +457,24 @@ const styles = StyleSheet.create({
   },
 
   contadorNumero: {
-    color: "#806487",
+    color: color.accion,
     fontSize: 11,
     fontWeight: "700",
   },
 
   tarjetaFoto: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: color.blanco,
     borderRadius: 13,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#EDE5EE",
+    borderColor: color.borde,
     marginBottom: 10,
   },
 
   imagen: {
     width: "100%",
     height: 145,
-    backgroundColor: "#E9DDEA",
+    backgroundColor: color.menta,
   },
 
   infoFoto: {
@@ -480,7 +482,7 @@ const styles = StyleSheet.create({
   },
 
   nombreFoto: {
-    color: "#332A37",
+    color: color.tinta,
     fontSize: 12,
     fontWeight: "600",
     marginBottom: 9,
@@ -492,7 +494,7 @@ const styles = StyleSheet.create({
   },
 
   accion: {
-    color: "#806487",
+    color: color.accion,
     fontSize: 11,
     fontWeight: "600",
   },
@@ -508,7 +510,7 @@ const styles = StyleSheet.create({
   },
 
   vacio: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: color.blanco,
     borderWidth: 1,
     borderColor: "#E9E0EA",
     borderStyle: "dashed",
@@ -519,7 +521,7 @@ const styles = StyleSheet.create({
   },
 
   iconoVacio: {
-    color: "#806487",
+    color: color.accion,
     fontSize: 35,
     marginBottom: 8,
   },
@@ -531,14 +533,14 @@ const styles = StyleSheet.create({
   },
 
   detalleVacio: {
-    color: "#948798",
+    color: color.secundario,
     fontSize: 10,
     marginTop: 5,
     textAlign: "center",
   },
 
   botonSubir: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: color.blanco,
     borderWidth: 1,
     borderColor: "#E9E0EA",
     borderRadius: 11,
@@ -548,13 +550,13 @@ const styles = StyleSheet.create({
   },
 
   textoSubir: {
-    color: "#806487",
+    color: color.accion,
     fontSize: 12,
     fontWeight: "600",
   },
 
   botonEnviar: {
-    backgroundColor: "#806487",
+    backgroundColor: color.accion,
     borderRadius: 11,
     height: 45,
     alignItems: "center",
@@ -563,7 +565,7 @@ const styles = StyleSheet.create({
   },
 
   textoEnviar: {
-    color: "#FFFFFF",
+    color: color.blanco,
     fontSize: 13,
     fontWeight: "700",
   },

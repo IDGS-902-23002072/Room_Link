@@ -16,6 +16,19 @@ export class InMemoryExtendedProfileRepository implements IProfileRepository {
   public photos: Map<string, ProfilePhoto> = new Map();
   public privacy: Map<string, ContactPrivacy> = new Map();
   public prefs: Map<string, ProfileNotificationPreference> = new Map();
+  public housing: Map<string, { budgetMin: number | null; budgetMax: number | null; desiredZoneId: string | null }> = new Map();
+
+  async findHousingPreferences(userId: string) {
+    return this.housing.get(userId) ?? null;
+  }
+
+  async upsertHousingPreferences(pref: { userId: string; budgetMin: number | null; budgetMax: number | null; desiredZoneId: string | null }) {
+    this.housing.set(pref.userId, {
+      budgetMin: pref.budgetMin,
+      budgetMax: pref.budgetMax,
+      desiredZoneId: pref.desiredZoneId,
+    });
+  }
 
   async findByUserId(userId: string): Promise<Profile | null> {
     const profile = this.profiles.get(userId);

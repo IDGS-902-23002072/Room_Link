@@ -1,0 +1,27 @@
+.meter {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.track {
+  overflow: hidden;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--data-mint);
+  transition: inline-size var(--duration-base) var(--ease);
+}
+
+.ends {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}

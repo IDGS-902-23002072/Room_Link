@@ -1,3 +1,4 @@
+import type { AgreementDraftDetails } from "../../domain/entities/Agreement.js";
 import { randomUUID } from "node:crypto";
 import {
   Agreement,
@@ -17,6 +18,7 @@ export class AgreementsService {
     listingId: string;
     hostId: string;
     roomieId: string;
+    details?: AgreementDraftDetails;
   }): Promise<Agreement> {
     if (!input.listingId || !input.hostId || !input.roomieId) {
       throw new Error("listingId, hostId y roomieId son obligatorios.");
@@ -46,6 +48,7 @@ export class AgreementsService {
       extraRules: snapshot.extraRules,
       costs: snapshot.costs,
       listingTitle: snapshot.listingTitle,
+      ...(input.details ? { details: input.details } : {}),
       hostId: input.hostId,
       roomieIds: [input.roomieId],
       version: 1,
@@ -80,7 +83,7 @@ export class AgreementsService {
   }
 
   /** EL-12.5 — Función: crearNuevaVersion(acuerdo_id). */
-  async crearNuevaVersion(agreementId: string): Promise<Agreement> {
+  async crearNuevaVersion(agreementId: string, details?: AgreementDraftDetails): Promise<Agreement> {
     const previous = await this.repo.findById(agreementId);
     if (!previous) {
       throw new Error(`Acuerdo ${agreementId} no encontrado.`);
@@ -91,6 +94,7 @@ export class AgreementsService {
       throw new Error(`No existe el listing ${previous.listingId}.`);
     }
 
+    const nextDetails = details ?? previous.rulesSnapshot.details;
     const newRules: AgreementRuleSet = {
       visitsPolicy: snapshot.visitsPolicy,
       partiesAllowed: snapshot.partiesAllowed,
@@ -102,6 +106,7 @@ export class AgreementsService {
       extraRules: snapshot.extraRules,
       costs: snapshot.costs,
       listingTitle: snapshot.listingTitle,
+      ...(nextDetails ? { details: nextDetails } : {}),
       hostId: previous.hostId,
       roomieIds: previous.roomieIds,
       version: previous.version + 1,

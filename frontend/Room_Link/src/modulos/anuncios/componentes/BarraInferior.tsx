@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 
@@ -64,7 +66,7 @@ export default function BarraInferior({
 const styles = StyleSheet.create({
   contenedor: {
     height: 62,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: color.blanco,
     borderRadius: 17,
     flexDirection: "row",
     alignItems: "center",
@@ -91,14 +93,14 @@ const styles = StyleSheet.create({
   },
   simbolo: {
     fontSize: 20,
-    color: "#88768D",
+    color: color.secundario,
   },
   simboloActivo: {
     color: "#765A7E",
   },
   nombre: {
     fontSize: 9,
-    color: "#88768D",
+    color: color.secundario,
   },
   nombreActivo: {
     color: "#765A7E",

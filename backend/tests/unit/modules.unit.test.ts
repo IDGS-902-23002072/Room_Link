@@ -350,6 +350,9 @@ class InMemoryApplicationRepository
     this.apps.set(app.id, app);
     return true;
   }
+  async deleteById(id: string) {
+    return this.apps.delete(id);
+  }
 }
 
 describe("Modular Monolith MVC API", () => {

@@ -44,6 +44,9 @@ export const createProfileRoutes = (
   router.get("/:userId/privacy", authenticate, self, controller.getPrivacy);
   router.put("/:userId/privacy", authenticate, self, controller.updatePrivacy);
 
+  router.get("/:userId/housing", authenticate, self, controller.getHousing);
+  router.put("/:userId/housing", authenticate, self, controller.updateHousing);
+
   // Verificación de identidad
   router.post(
     "/:userId/verification/request",

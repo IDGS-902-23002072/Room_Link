@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
@@ -49,7 +51,7 @@ export function CampoPerfil({
           onChangeText={alCambiar}
           onFocus={() => setEnfocado(true)}
           placeholder={placeholder}
-          placeholderTextColor="#9A909E"
+          placeholderTextColor={color.secundario}
           style={[styles.entrada, multiline && styles.entradaMultilinea]}
           textAlignVertical={multiline ? 'top' : 'center'}
           value={valor}
@@ -71,20 +73,20 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   etiqueta: {
-    color: '#6F5B76',
-    fontSize: 10,
+    color: color.accion,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 5,
   },
   contenedorEntrada: {
-    minHeight: 42,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#EEE8F0',
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    borderColor: color.control,
+    borderRadius: 8,
+    backgroundColor: color.blanco,
   },
   contenedorMultilinea: {
     minHeight: 112,
@@ -93,15 +95,15 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   contenedorEnfocado: {
-    borderColor: '#C9A9D1',
+    borderColor: color.accion,
   },
   contenedorError: {
-    borderColor: '#D89A9A',
+    borderColor: color.rosaTexto,
   },
   entrada: {
     flex: 1,
-    color: '#28232D',
-    fontSize: 12,
+    color: color.tinta,
+    fontSize: 15,
     paddingVertical: 0,
   },
   entradaMultilinea: {
@@ -109,26 +111,26 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   prefijo: {
-    color: '#9C80A4',
-    fontSize: 12,
+    color: color.accion,
+    fontSize: 15,
     fontWeight: '600',
     marginRight: 6,
   },
   sufijo: {
-    color: '#817987',
-    fontSize: 9,
+    color: color.secundario,
+    fontSize: 12,
     marginLeft: 6,
   },
   ayuda: {
-    color: '#817987',
-    fontSize: 9,
-    lineHeight: 13,
+    color: color.secundario,
+    fontSize: 12,
+    lineHeight: 18,
     marginTop: 4,
   },
   textoError: {
-    color: '#B23A3A',
-    fontSize: 9,
-    lineHeight: 13,
+    color: color.rosaTexto,
+    fontSize: 12,
+    lineHeight: 18,
     marginTop: 4,
   },
 });

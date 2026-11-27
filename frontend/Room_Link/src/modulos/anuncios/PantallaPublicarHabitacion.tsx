@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 
 import React, { useState } from "react";
 
@@ -332,134 +334,134 @@ export default function PantallaPublicarHabitacion({
 
 
 
-const validarDatos = (
-  intencion: IntencionPublicacion
-): boolean => {
+  const validarDatos = (
+    intencion: IntencionPublicacion
+  ): boolean => {
 
-  // ==================================================
-  // VALIDACIONES PARA BORRADOR Y PUBLICACIÓN
-  // ==================================================
+    // ==================================================
+    // VALIDACIONES PARA BORRADOR Y PUBLICACIÓN
+    // ==================================================
 
-  // TÍTULO: obligatorio para ambas acciones.
+    // TÍTULO: obligatorio para ambas acciones.
 
-  if (!titulo.trim()) {
-    Alert.alert(
-      "Campo requerido",
-      "Escribe el título de la publicación."
-    );
-    return false;
-  }
-
-  if (
-    titulo.trim().length < 5 ||
-    titulo.trim().length > 200
-  ) {
-    Alert.alert(
-      "Título incorrecto",
-      "El título debe tener entre 5 y 200 caracteres."
-    );
-    return false;
-  }
-
-  // RENTA: obligatoria para ambas acciones.
-
-  if (!renta.trim()) {
-    Alert.alert(
-      "Campo requerido",
-      "Escribe la renta mensual."
-    );
-    return false;
-  }
-
-  const rentaLimpia = renta.replace(/[$,\s]/g, "");
-  const rentaNumerica = Number(rentaLimpia);
-
-  if (
-    !/^\d+(\.\d{1,2})?$/.test(rentaLimpia) ||
-    !Number.isFinite(rentaNumerica) ||
-    rentaNumerica <= 0 ||
-    rentaNumerica > 99999999.99
-  ) {
-    Alert.alert(
-      "Renta incorrecta",
-      "Ingresa una renta válida, mayor a cero y con máximo dos decimales."
-    );
-    return false;
-  }
-
-  // ==================================================
-  // SI ES BORRADOR, NO EXIGIR LOS DEMÁS CAMPOS
-  // ==================================================
-
-  if (intencion === "draft") {
-    return true;
-  }
-
-  // ==================================================
-  // VALIDACIONES EXCLUSIVAS PARA PUBLICAR
-  // ==================================================
-
-  // DESCRIPCIÓN
-
-  if (descripcion.trim().length > 5000) {
-    Alert.alert(
-      "Descripción demasiado larga",
-      "La descripción no puede superar los 5000 caracteres."
-    );
-    return false;
-  }
-
-  // FECHA DE DISPONIBILIDAD
-
-  const fecha = availableFrom.trim();
-
-  if (!fecha) {
-    Alert.alert(
-      "Campo requerido",
-      "Indica desde qué fecha estará disponible la habitación."
-    );
-    return false;
-  }
-
-  if (!fechaValida(fecha)) {
-    Alert.alert(
-      "Fecha incorrecta",
-      "Selecciona una fecha válida en el calendario."
-    );
-    return false;
-  }
-
-  if (fecha < obtenerFechaActualMexico()) {
-    Alert.alert(
-      "Fecha no válida",
-      "La fecha de disponibilidad no puede ser anterior al día de hoy."
-    );
-    return false;
-  }
-
-  // MÁXIMO DE COMPAÑEROS
-
-  const cantidadTexto = maxRoommates.trim();
-
-  if (cantidadTexto) {
-    const cantidad = Number(cantidadTexto);
-
-    if (
-      !/^\d+$/.test(cantidadTexto) ||
-      !Number.isInteger(cantidad) ||
-      cantidad < 1 ||
-      cantidad > 100
-    ) {
+    if (!titulo.trim()) {
       Alert.alert(
-        "Dato incorrecto",
-        "El máximo de compañeros debe ser un número entero entre 1 y 100."
+        "Campo requerido",
+        "Escribe el título de la publicación."
       );
       return false;
     }
-  }
 
-  return true;
-};
+    if (
+      titulo.trim().length < 5 ||
+      titulo.trim().length > 200
+    ) {
+      Alert.alert(
+        "Título incorrecto",
+        "El título debe tener entre 5 y 200 caracteres."
+      );
+      return false;
+    }
+
+    // RENTA: obligatoria para ambas acciones.
+
+    if (!renta.trim()) {
+      Alert.alert(
+        "Campo requerido",
+        "Escribe la renta mensual."
+      );
+      return false;
+    }
+
+    const rentaLimpia = renta.replace(/[$,\s]/g, "");
+    const rentaNumerica = Number(rentaLimpia);
+
+    if (
+      !/^\d+(\.\d{1,2})?$/.test(rentaLimpia) ||
+      !Number.isFinite(rentaNumerica) ||
+      rentaNumerica <= 0 ||
+      rentaNumerica > 99999999.99
+    ) {
+      Alert.alert(
+        "Renta incorrecta",
+        "Ingresa una renta válida, mayor a cero y con máximo dos decimales."
+      );
+      return false;
+    }
+
+    // ==================================================
+    // SI ES BORRADOR, NO EXIGIR LOS DEMÁS CAMPOS
+    // ==================================================
+
+    if (intencion === "draft") {
+      return true;
+    }
+
+    // ==================================================
+    // VALIDACIONES EXCLUSIVAS PARA PUBLICAR
+    // ==================================================
+
+    // DESCRIPCIÓN
+
+    if (descripcion.trim().length > 5000) {
+      Alert.alert(
+        "Descripción demasiado larga",
+        "La descripción no puede superar los 5000 caracteres."
+      );
+      return false;
+    }
+
+    // FECHA DE DISPONIBILIDAD
+
+    const fecha = availableFrom.trim();
+
+    if (!fecha) {
+      Alert.alert(
+        "Campo requerido",
+        "Indica desde qué fecha estará disponible la habitación."
+      );
+      return false;
+    }
+
+    if (!fechaValida(fecha)) {
+      Alert.alert(
+        "Fecha incorrecta",
+        "Selecciona una fecha válida en el calendario."
+      );
+      return false;
+    }
+
+    if (fecha < obtenerFechaActualMexico()) {
+      Alert.alert(
+        "Fecha no válida",
+        "La fecha de disponibilidad no puede ser anterior al día de hoy."
+      );
+      return false;
+    }
+
+    // MÁXIMO DE COMPAÑEROS
+
+    const cantidadTexto = maxRoommates.trim();
+
+    if (cantidadTexto) {
+      const cantidad = Number(cantidadTexto);
+
+      if (
+        !/^\d+$/.test(cantidadTexto) ||
+        !Number.isInteger(cantidad) ||
+        cantidad < 1 ||
+        cantidad > 100
+      ) {
+        Alert.alert(
+          "Dato incorrecto",
+          "El máximo de compañeros debe ser un número entero entre 1 y 100."
+        );
+        return false;
+      }
+    }
+
+    return true;
+  };
 
 
   // ====================================================
@@ -587,7 +589,25 @@ const validarDatos = (
         <CampoFormulario
           etiqueta="Renta mensual · MXN"
           value={renta}
-          onChangeText={setRenta}
+          onChangeText={(texto) => {
+            // Solo permite números y un punto decimal.
+            const limpio = texto.replace(/[^0-9.]/g, "");
+
+            // Evita que se escriban varios puntos.
+            const partes = limpio.split(".");
+            const numero =
+              partes.length > 1
+                ? `${partes[0]}.${partes.slice(1).join("")}`
+                : limpio;
+
+            // Máximo dos decimales.
+            const valorFinal = numero.replace(
+              /^(\d+\.?\d{0,2}).*$/,
+              "$1"
+            );
+
+            setRenta(valorFinal);
+          }}
           placeholder="Ej. 3500"
           keyboardType="decimal-pad"
         />
@@ -716,7 +736,7 @@ const validarDatos = (
 const styles = StyleSheet.create({
   pantalla: {
     flex: 1,
-    backgroundColor: "#F8F5F9",
+    backgroundColor: color.blanco,
   },
 
   contenido: {
@@ -726,7 +746,7 @@ const styles = StyleSheet.create({
   },
 
   marca: {
-    color: "#8A6C91",
+    color: color.accion,
     fontSize: 9,
     letterSpacing: 0.7,
     marginBottom: 8,
@@ -744,19 +764,19 @@ const styles = StyleSheet.create({
   },
 
   textoVolver: {
-    color: "#806487",
+    color: color.accion,
     fontSize: 30,
     lineHeight: 32,
   },
 
   tituloPrincipal: {
-    color: "#332A37",
+    color: color.tinta,
     fontSize: 21,
     fontWeight: "700",
   },
 
   subtitulo: {
-    color: "#948798",
+    color: color.secundario,
     fontSize: 10,
     marginTop: -4,
     marginBottom: 13,
@@ -774,7 +794,7 @@ const styles = StyleSheet.create({
 
   campoFecha: {
     minHeight: 48,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: color.blanco,
     borderWidth: 1,
     borderColor: "#E5DCE8",
     borderRadius: 10,
@@ -795,13 +815,13 @@ const styles = StyleSheet.create({
   },
 
   textoCambiarFecha: {
-    color: "#806487",
+    color: color.accion,
     fontSize: 12,
     fontWeight: "700",
   },
 
   contenedorCalendario: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: color.blanco,
     borderRadius: 12,
     padding: 10,
     marginTop: 10,
@@ -810,7 +830,7 @@ const styles = StyleSheet.create({
   },
 
   botonListoFecha: {
-    backgroundColor: "#806487",
+    backgroundColor: color.accion,
     borderRadius: 9,
     padding: 11,
     alignItems: "center",
@@ -818,7 +838,7 @@ const styles = StyleSheet.create({
   },
 
   textoBotonListo: {
-    color: "#FFFFFF",
+    color: color.blanco,
     fontWeight: "700",
   },
 
@@ -826,7 +846,7 @@ const styles = StyleSheet.create({
 
   botonBorrador: {
     height: 45,
-    backgroundColor: "#E9DDEA",
+    backgroundColor: color.menta,
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
@@ -834,14 +854,14 @@ const styles = StyleSheet.create({
   },
 
   textoBotonBorrador: {
-    color: "#654C6D",
+    color: color.accion,
     fontSize: 13,
     fontWeight: "700",
   },
 
   botonContinuar: {
     height: 45,
-    backgroundColor: "#806487",
+    backgroundColor: color.accion,
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
@@ -849,13 +869,13 @@ const styles = StyleSheet.create({
   },
 
   textoBoton: {
-    color: "#FFFFFF",
+    color: color.blanco,
     fontSize: 13,
     fontWeight: "700",
   },
 
   textoAyuda: {
-    color: "#948798",
+    color: color.secundario,
     fontSize: 10,
     textAlign: "center",
     lineHeight: 16,

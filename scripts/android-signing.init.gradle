@@ -1,0 +1,18 @@
+// Se aplica al proyecto generado por Expo, sin versionar android/ ni credenciales.
+gradle.beforeProject { project ->
+    project.plugins.withId('com.android.application') {
+        project.extensions.getByName('androidComponents').finalizeDsl { android ->
+            def required = { name ->
+                def value = System.getenv(name)
+                if (!value) throw new GradleException("Falta la variable de firma " + name)
+                return value
+            }
+            def signing = android.signingConfigs.maybeCreate('roomlinkRelease')
+            signing.storeFile = new File(required('ANDROID_KEYSTORE_PATH'))
+            signing.storePassword = required('ANDROID_KEYSTORE_PASSWORD')
+            signing.keyAlias = required('ANDROID_KEY_ALIAS')
+            signing.keyPassword = required('ANDROID_KEY_PASSWORD')
+            android.buildTypes.getByName('release').signingConfig = signing
+        }
+    }
+}

@@ -13,6 +13,7 @@ import { ThemedText } from './themed-text';
 const iconos: Record<string, string> = {
   Descubrir: '⌕',
   Anuncios: '⌂',
+  Conexiones: '♧',
   Chats: '○',
   Perfil: '♙',
 };
@@ -28,6 +29,9 @@ export default function NavegacionPestanas() {
           </TabTrigger>
           <TabTrigger name="anuncios" href="/anuncios" asChild>
             <BotonPestana>Anuncios</BotonPestana>
+          </TabTrigger>
+          <TabTrigger name="solicitudes" href="/solicitudes" asChild>
+            <BotonPestana>Conexiones</BotonPestana>
           </TabTrigger>
           <TabTrigger name="chats" href="/chats" asChild>
             <BotonPestana>Chats</BotonPestana>

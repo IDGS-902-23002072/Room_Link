@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { expect, test } from '@playwright/test'
 
@@ -10,7 +11,7 @@ const answers = { schedule: 3, cleanliness: 4, noise: 2, pets: 4, smoking: 1, vi
 const icon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
 
 async function call(path, { token, method = 'GET', body, want = 200 } = {}) {
-  const options = { method, headers: {} }
+  const options = { method, headers: {}, signal: AbortSignal.timeout(10_000) }
   if (token) options.headers.Authorization = `Bearer ${token}`
   if (body instanceof FormData) options.body = body
   else if (body !== undefined) {
@@ -18,8 +19,9 @@ async function call(path, { token, method = 'GET', body, want = 200 } = {}) {
     options.body = JSON.stringify(body)
   }
   const res = await fetch(api.href.replace(/\/$/, '') + path, options)
-  const data = await res.json()
-  expect(res.status, `${method} ${path} (${data.code ?? data.error ?? 'sin código'})`).toBe(want)
+  const data = await res.json().catch(() => undefined)
+  expect(res.status, `${method} ${path} (${data?.code ?? data?.error ?? 'sin código'})`).toBe(want)
+  expect(data, `${method} ${path} debe responder JSON`).toBeDefined()
   return data
 }
 
@@ -28,6 +30,9 @@ function loopback(url) {
 }
 
 test.beforeEach(({ baseURL }) => {
+  // E2E_ALLOW_REMOTE=1 habilita correr contra un entorno remoto (p.ej. prod)
+  // para pruebas que solo usan la API HTTP; por defecto se exige loopback.
+  if (process.env.E2E_ALLOW_REMOTE === '1') return
   if (![api.href, baseURL, smtpInbox].every((url) => url && loopback(url))) {
     throw new Error('Las pruebas con fixtures requieren servicios QA locales.')
   }
@@ -75,7 +80,19 @@ async function login(page, user) {
   const response = page.waitForResponse((res) => res.url().endsWith('/auth/login') && res.request().method() === 'POST')
   await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click()
   expect((await response).status()).toBe(200)
-  await expect(page.getByRole('link', { name: 'Mi perfil' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible()
+}
+
+// La navegación vive tras un drawer lateral que queda `inert` mientras está
+// cerrado; hay que abrirlo con el botón «Abrir menú» antes de pulsar un enlace.
+async function abrirMenu(target) {
+  const toggle = target.getByRole('button', { name: 'Abrir menú' })
+  if (await toggle.isVisible().catch(() => false)) await toggle.click()
+}
+
+async function irA(target, name) {
+  await abrirMenu(target)
+  await target.getByRole('link', { name, exact: true }).click()
 }
 
 async function listing(token, { publish = true } = {}) {
@@ -107,12 +124,12 @@ test('buscador, arrendador y admin recorren postulación, chat y moderación', a
     const adminPage = await adminContext.newPage()
     await Promise.all([login(page, seeker), login(hostPage, host), login(adminPage, admin)])
     await call(`/profiles/${host.id}/verification/request`, { method: 'POST', token: host.token })
-    await hostPage.goto('/perfil/cuenta')
+    await hostPage.goto('/perfil/arrendador')
     await hostPage.getByRole('checkbox', { name: /términos de responsabilidad/ }).check()
     await hostPage.getByRole('button', { name: 'Convertirme en arrendador' }).click()
-    await expect(hostPage.getByText('Tu cuenta ya tiene el rol de arrendador.')).toBeVisible()
+    await expect(hostPage.getByText('Tu cuenta de arrendador está lista.')).toBeVisible()
     await hostPage.reload()
-    await expect(hostPage.getByText('Tu cuenta ya tiene el rol de arrendador.')).toBeVisible()
+    await expect(hostPage.getByText('Tu cuenta de arrendador está lista.')).toBeVisible()
     const room = await listing(host.token)
 
     await page.goto(`/perfil/candidato/${host.id}`)
@@ -177,14 +194,16 @@ test('web publica con reglas y costos, conserva la postulación y permite cerrar
   await Promise.all([
     page.route('https://tile.openstreetmap.org/**', (route) => route.fulfill(tile)),
     hostPage.route('https://tile.openstreetmap.org/**', (route) => route.fulfill(tile)),
+    page.route('https://*.basemaps.cartocdn.com/**', (route) => route.fulfill(tile)),
+    hostPage.route('https://*.basemaps.cartocdn.com/**', (route) => route.fulfill(tile)),
   ])
   try {
     await Promise.all([login(page, seeker), login(hostPage, host)])
     await call(`/profiles/${host.id}/verification/request`, { method: 'POST', token: host.token })
-    await hostPage.goto('/perfil/cuenta')
+    await hostPage.goto('/perfil/arrendador')
     await hostPage.getByRole('checkbox', { name: /términos de responsabilidad/ }).check()
     await hostPage.getByRole('button', { name: 'Convertirme en arrendador' }).click()
-    await hostPage.getByRole('link', { name: 'Mis habitaciones' }).click()
+    await irA(hostPage, 'Gestionar habitaciones')
     await hostPage.getByRole('link', { name: 'Nueva habitación' }).click()
     await hostPage.getByLabel('Título').fill(title)
     await hostPage.getByLabel('Renta mensual en MXN').fill('3800')
@@ -242,7 +261,7 @@ test('web publica con reglas y costos, conserva la postulación y permite cerrar
     await expect(hostPage.getByRole('button', { name: 'Pausar anuncio' })).toBeVisible()
     const listingId = new URL(hostPage.url()).pathname.split('/').at(-1)
 
-    await page.getByRole('link', { name: 'Explorar habitaciones' }).click()
+    await irA(page, 'Todas las habitaciones')
     await page.getByRole('searchbox').fill(title)
     await page.getByRole('button', { name: 'Buscar', exact: true }).click()
     await page.getByRole('link', { name: title, exact: true }).click()
@@ -276,6 +295,12 @@ test('web publica con reglas y costos, conserva la postulación y permite cerrar
 
     await hostPage.getByRole('link', { name: 'Ver postulaciones' }).click()
     await expect(hostPage.getByRole('heading', { name: 'RoomLink QA buscador-web' })).toBeVisible()
+    const applicant = hostPage.getByRole('article').filter({
+      has: hostPage.getByRole('heading', { name: 'RoomLink QA buscador-web', exact: true }),
+    })
+    await applicant.getByText('Perfil del postulante', { exact: true }).click()
+    await expect(applicant.getByRole('link', { name: 'Ver perfil y compatibilidad' }))
+      .toHaveAttribute('href', `/perfil/candidato/${seeker.id}`)
     await expect(hostPage.getByText(/\d+% de afinidad/)).toBeVisible()
     const [application] = await call('/applications/me', { token: seeker.token })
     const decisionPath = `/applications/${application.id}/decide`
@@ -309,6 +334,95 @@ test('web publica con reglas y costos, conserva la postulación y permite cerrar
     await expect(page.getByText('Aceptada', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Abrir conversación' }).click()
     await expect(page).toHaveURL(/\/mensajes\/[^/]+$/)
+  } finally {
+    await hostContext.close()
+  }
+})
+
+test('Explorar de Omar refleja el estado de anuncios de Avril y conserva la postulación', async ({ page, browser, baseURL }) => {
+  const seeker = await account('explorar-web')
+  const host = await account('anuncios-web')
+  await call(`/profiles/${host.id}/verification/request`, { method: 'POST', token: host.token })
+  await call('/auth/become-host', { method: 'POST', token: host.token, body: { acceptedTerms: true } })
+  const room = await listing(host.token)
+  const hostContext = await browser.newContext({ baseURL })
+
+  try {
+    const hostPage = await hostContext.newPage()
+    await Promise.all([login(page, seeker), login(hostPage, host)])
+    await irA(hostPage, 'Mis anuncios')
+    const ad = hostPage.getByRole('article').filter({ has: hostPage.getByRole('heading', { name: room.title, exact: true }) })
+    await ad.getByRole('button', { name: 'Ver', exact: true }).click()
+    await expect(hostPage).toHaveURL(new URL(`/anuncios/${room.id}`, baseURL).href)
+    await expect(hostPage.getByRole('heading', { name: room.title, exact: true })).toBeVisible()
+    await hostPage.getByRole('button', { name: 'Volver a mis anuncios' }).click()
+
+    await irA(page, 'Encuentra tu habitación')
+    await expect(page.getByRole('heading', { name: 'Encuentra tu habitación' })).toBeVisible()
+    const search = page.getByRole('searchbox', { name: 'Buscar habitaciones' })
+    const rent = page.getByLabel('Renta', { exact: true })
+    const roomButton = page.getByRole('button', { name: `Ver habitación ${room.title}`, exact: true })
+    await rent.selectOption('3000')
+    const filteredFeed = page.waitForResponse((response) => {
+      const url = new URL(response.url())
+      return url.pathname === '/api/v1/rooms/feed'
+        && url.searchParams.get('q') === room.title
+        && url.searchParams.get('maxRent') === '3000'
+    })
+    await search.fill(room.title)
+    expect((await filteredFeed).ok()).toBe(true)
+    await expect(page.getByRole('heading', { name: 'No encontramos habitaciones' })).toBeVisible()
+    await rent.selectOption('5000')
+    await roomButton.click()
+
+    await expect(page).toHaveURL(new URL(`/habitacion/${room.id}`, baseURL).href)
+    await expect(page.getByRole('heading', { name: room.title, exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Reglas de la casa' })).toBeVisible()
+    const cost = page.locator('dt').filter({ hasText: /^Sin cargos adicionales/ })
+    await expect(cost).toBeVisible()
+    await expect(cost.locator('..').locator('dd')).toHaveText('Incluido')
+    const message = 'Me gustaría conocer la habitación.'
+    await page.getByLabel('Mensaje para el anfitrión', { exact: true }).fill(message)
+    await page.getByRole('button', { name: 'Postularme', exact: true }).click()
+    const sent = page.getByRole('status').filter({ hasText: 'Postulación enviada · en revisión' })
+    await expect(sent).toBeVisible()
+    await page.reload()
+    await expect(sent).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Postularme', exact: true })).toHaveCount(0)
+    expect(await call('/applications/me', { token: seeker.token })).toEqual([
+      expect.objectContaining({ listingId: room.id, message, status: 'pending' }),
+    ])
+
+    const onDialog = (dialog) => dialog.accept()
+    hostPage.on('dialog', onDialog)
+    try {
+      await ad.getByRole('button', { name: 'Pausar', exact: true }).click()
+      await expect(ad.getByRole('button', { name: 'Activar', exact: true })).toBeVisible()
+      const closedWhilePaused = await call(`/rooms/${room.id}/close`, { method: 'PATCH', token: host.token, want: 409 })
+      expect(closedWhilePaused.error).toMatch(/publicación activa/)
+      await irA(page, 'Encuentra tu habitación')
+      const [pausedFeed] = await Promise.all([
+        page.waitForResponse((response) => {
+          const url = new URL(response.url())
+          return url.pathname === '/api/v1/rooms/feed' && url.searchParams.get('q') === room.title
+        }),
+        search.fill(room.title),
+      ])
+      expect(pausedFeed.ok()).toBe(true)
+      expect((await pausedFeed.json()).items).toEqual([])
+      await expect(page.getByRole('heading', { name: 'No encontramos habitaciones' })).toBeVisible()
+      await expect(roomButton).toHaveCount(0)
+
+      await ad.getByRole('button', { name: 'Activar', exact: true }).click()
+      await expect(ad.getByRole('button', { name: 'Pausar', exact: true })).toBeVisible()
+      await page.reload()
+      await search.fill(room.title)
+      await roomButton.click()
+      await expect(sent).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Postularme', exact: true })).toHaveCount(0)
+    } finally {
+      hostPage.off('dialog', onDialog)
+    }
   } finally {
     await hostContext.close()
   }
@@ -377,30 +491,33 @@ test('HU-03 y HU-04 guardan las siete respuestas y ordenan los perfiles por afin
     method: 'POST', token: high.token, body: photo, want: 201,
   })
   await login(page, viewer)
+  await irA(page, 'Para ti')
   await expect(page.getByRole('link', { name: 'Hacer mi test' })).toBeVisible()
   await expect(page.locator('.compatibility-badge')).toHaveCount(0)
   await page.getByRole('link', { name: 'Hacer mi test' }).click()
   await expect(page.getByRole('button', { name: 'Siguiente' })).toBeDisabled()
+  const options = page.getByRole('group', { name: 'Selecciona una respuesta' }).locator('label')
   for (let index = 0; index < 7; index++) {
-    await page.locator('.answer-option').first().click()
+    await options.first().click()
     await page.getByRole('button', { name: index === 6 ? 'Ver resultados' : 'Siguiente' }).click()
   }
-  const dimensions = page.locator('.result-dimension')
+  const dimensions = page.getByRole('progressbar')
+  const schedules = page.getByRole('progressbar', { name: /^Horarios:/ })
   await expect(dimensions).toHaveCount(7)
-  await expect(dimensions.first()).toContainText('0%')
-  await page.getByRole('button', { name: 'Guardar respuestas' }).click()
+  await expect(schedules).toHaveAttribute('aria-valuenow', '0')
+  await page.getByRole('button', { name: 'Guardar mis respuestas' }).click()
   await expect(page.getByText('Tus respuestas se guardaron correctamente.')).toBeVisible()
   await page.reload()
   await expect(dimensions).toHaveCount(7)
   await page.getByRole('button', { name: 'Editar respuestas' }).click()
-  await page.locator('.answer-option').last().click()
+  await options.last().click()
   await page.getByRole('button', { name: 'Finalizar y guardar test' }).click()
-  await expect(dimensions.first()).toContainText('100%')
+  await expect(schedules).toHaveAttribute('aria-valuenow', '100')
   await expect(page.getByText('Tus respuestas se guardaron correctamente.')).toBeVisible()
-  await page.getByRole('link', { name: 'Ver roomies compatibles' }).click()
+  await irA(page, 'Para ti')
   const cards = page.locator('.candidate-card')
   const featured = cards.filter({ hasText: 'RoomLink QA ' + featuredTag })
-  await expect(featured.getByRole('heading')).toContainText(new RegExp(`RoomLink QA ${featuredTag}, \\d+`))
+  await expect(featured.getByRole('heading')).toHaveText(new RegExp(`^RoomLink QA ${featuredTag}, [0-9]+$`))
   await expect(featured.locator('img')).toHaveAttribute('src', gallery.items[0].url)
   await expect(featured).toContainText(zone)
   await expect(featured).toContainText('León')
@@ -413,6 +530,16 @@ test('HU-03 y HU-04 guardan las siete respuestas y ordenan los perfiles por afin
   await expect(page.getByRole('heading', { name: 'No encontramos coincidencias' })).toBeVisible()
   await page.getByRole('button', { name: 'Limpiar filtros' }).click()
   await expect(cards.first()).toBeVisible()
+  await featured.getByRole('button', { name: /^Vista rápida de/ }).click()
+  const preview = page.getByRole('dialog', { name: 'Vista rápida' })
+  await expect(preview).toContainText('RoomLink QA ' + featuredTag)
+  await preview.getByRole('button', { name: 'Ver perfil completo' }).click()
+  await expect(page.getByRole('table', { name: 'Comparación de hábitos' })).toBeVisible()
+  await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Guardar perfil', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await irA(page, 'Para ti')
+  await page.getByRole('button', { name: 'Guardados', exact: true }).click()
+  await expect(page.getByRole('link', { name: 'RoomLink QA ' + featuredTag, exact: true })).toBeVisible()
 })
 
 test('HU-05 combina zona, presupuesto y edad con total coherente, cero resultados y limpieza', async ({ page }) => {
@@ -466,35 +593,97 @@ test('HU-05 combina zona, presupuesto y edad con total coherente, cero resultado
   await expect(total).not.toHaveText('0 perfiles encontrados')
 })
 
-test('M10 abre chat desde una conexión aceptada y conserva el mensaje al recargar', async ({ page, browser, baseURL }) => {
+test('Conexiones de Avril acepta una solicitud y Mis roomies abre el chat persistente', async ({ page, browser, baseURL }) => {
   const sender = await account('chat-origen')
   const receiver = await account('chat-receptor')
   const other = await account('chat-ajeno', false)
-  const connection = await call(`/compatibility/${sender.id}/connections`, {
-    method: 'POST', token: sender.token, body: { candidateId: receiver.id, introMessage: 'Hola' }, want: 201,
+  const connection = await call('/connections', {
+    method: 'POST', token: sender.token, body: { addresseeId: receiver.id, introMessage: 'Hola' }, want: 201,
   })
-  await login(page, sender)
-  await page.goto('/mensajes')
-  const chatEntry = page.getByRole('button', { name: /RoomLink QA chat-receptor/ })
-  await expect(chatEntry).toHaveCount(0)
-  await call(`/connections/${connection.id}`, { method: 'PATCH', token: receiver.token, body: { decision: 'accept' } })
-  await page.reload()
-  await chatEntry.click()
-  await expect(page).toHaveURL(/\/mensajes\/[^/]+$/)
-  const roomId = new URL(page.url()).pathname.split('/').at(-1)
-  await page.getByRole('button', { name: 'Detalles', exact: true }).click()
-  await expect(page.getByText('Conexión aceptada', { exact: true })).toBeVisible()
-  await page.getByRole('textbox', { name: 'Mensaje' }).fill('Conversación desde una conexión')
-  await page.getByRole('button', { name: 'Enviar', exact: true }).click()
-  await call(`/messages/rooms/${roomId}/messages`, { token: other.token, want: 403 })
+  await call('/connections', {
+    method: 'POST', token: receiver.token, body: { addresseeId: sender.id }, want: 409,
+  })
+  const pendingChat = await call('/messages/rooms', {
+    method: 'POST', token: sender.token, body: { connectionId: connection.id }, want: 403,
+  })
+  expect(pendingChat.code).toBe('CHAT_ORIGIN_NOT_AUTHORIZED')
   const context = await browser.newContext({ baseURL })
   try {
     const incoming = await context.newPage()
-    await login(incoming, receiver)
+    await Promise.all([login(page, sender), login(incoming, receiver)])
+    await irA(page, 'Conexiones')
+    const outgoing = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'RoomLink QA chat-receptor' }) })
+    await expect(outgoing.getByText('Solicitud enviada', { exact: true })).toBeVisible()
+    await page.locator('#contenido').getByRole('link', { name: 'Mis roomies', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Aún no tienes roomies' })).toBeVisible()
+
+    await irA(incoming, 'Conexiones')
+    await incoming.getByRole('button', { name: /^Recibidas/ }).click()
+    const request = incoming.getByRole('article').filter({ has: incoming.getByRole('heading', { name: 'RoomLink QA chat-origen' }) })
+    await expect(request.getByText('Solicitud recibida', { exact: true })).toBeVisible()
+    await request.getByRole('button', { name: 'Aceptar', exact: true }).click()
+    await expect(incoming.getByRole('heading', { name: 'No tienes solicitudes recibidas' })).toBeVisible()
+    await incoming.getByRole('button', { name: /^Aceptadas/ }).click()
+    await expect(request.getByText('Conexión aceptada', { exact: true })).toBeVisible()
+    expect(await call('/connections?direction=outgoing', { token: sender.token })).toEqual([
+      expect.objectContaining({ id: connection.id, status: 'accepted' }),
+    ])
+
+    await page.reload()
+    const roomie = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'RoomLink QA chat-receptor' }) })
+    await roomie.getByRole('button', { name: 'Ir al chat' }).click()
+    await expect(page).toHaveURL(/\/mensajes\/[^/]+$/)
+    const roomId = new URL(page.url()).pathname.split('/').at(-1)
+    await page.getByRole('button', { name: 'Detalles', exact: true }).click()
+    await expect(page.getByText('Conexión aceptada', { exact: true })).toBeVisible()
+    const message = 'Conversación desde una conexión'
+    await page.getByRole('textbox', { name: 'Mensaje' }).fill(message)
+    await page.getByRole('button', { name: 'Enviar', exact: true }).click()
+    await expect(page.getByText(message, { exact: true }).last()).toBeVisible()
+    await call(`/messages/rooms/${roomId}/messages`, { token: other.token, want: 403 })
     await incoming.goto(`/mensajes/${roomId}`)
-    await expect(incoming.getByText('Conversación desde una conexión', { exact: true }).last()).toBeVisible()
+    await expect(incoming.getByText(message, { exact: true }).last()).toBeVisible()
     await incoming.reload()
-    await expect(incoming.getByText('Conversación desde una conexión', { exact: true }).last()).toBeVisible()
+    await expect(incoming.getByText(message, { exact: true }).last()).toBeVisible()
+  } finally {
+    await context.close()
+  }
+})
+
+test('HU-08 conserva el rechazo y mantiene bloqueado el chat para ambos participantes', async ({ page, browser, baseURL }) => {
+  const sender = await account('rechazo-origen')
+  const recipient = await account('rechazo-destino')
+  const connection = await call('/connections', {
+    method: 'POST', token: sender.token, body: { addresseeId: recipient.id }, want: 201,
+  })
+  const context = await browser.newContext({ baseURL })
+  try {
+    const recipientPage = await context.newPage()
+    await Promise.all([login(page, sender), login(recipientPage, recipient)])
+    await irA(recipientPage, 'Conexiones')
+    const request = recipientPage.getByRole('article').filter({
+      has: recipientPage.getByRole('heading', { name: 'RoomLink QA rechazo-origen', exact: true }),
+    })
+    await request.getByRole('button', { name: 'Rechazar', exact: true }).click()
+    const empty = { name: 'Todavía no tienes conexiones', exact: true }
+    await expect(recipientPage.getByRole('heading', empty)).toBeVisible()
+    await recipientPage.reload()
+    await expect(recipientPage.getByRole('heading', empty)).toBeVisible()
+
+    await irA(page, 'Conexiones')
+    await expect(page.getByRole('heading', empty)).toBeVisible()
+    expect(await call('/connections?direction=incoming', { token: recipient.token })).toEqual([
+      expect.objectContaining({ id: connection.id, status: 'rejected' }),
+    ])
+    expect(await call('/connections?direction=outgoing', { token: sender.token })).toEqual([
+      expect.objectContaining({ id: connection.id, status: 'rejected' }),
+    ])
+    for (const token of [sender.token, recipient.token]) {
+      const chat = await call('/messages/rooms', {
+        method: 'POST', token, body: { connectionId: connection.id }, want: 403,
+      })
+      expect(chat.code).toBe('CHAT_ORIGIN_NOT_AUTHORIZED')
+    }
   } finally {
     await context.close()
   }
@@ -543,10 +732,14 @@ test('HU-02 revela el contacto solo a conexiones según la privacidad y M02 apru
   await call(`/profiles/${owner.id}`, { method: 'PUT', token: owner.token, body: { fullName: ownerName, phone: '4770001122' } })
   await call(`/profiles/${owner.id}/socials`, { method: 'PUT', token: owner.token, body: { instagram: '@roomlink_qa' } })
 
-  // Conexión aceptada entre el dueño y la cuenta "conectada".
+  // Una solicitud pendiente no concede acceso al contacto.
   const connection = await call(`/compatibility/${connected.id}/connections`, {
     method: 'POST', token: connected.token, body: { candidateId: owner.id, introMessage: 'Hola' }, want: 201,
   })
+  const pendingView = await call(`/profiles/${owner.id}`, { token: connected.token })
+  expect(pendingView.phone).toBeNull()
+  expect(pendingView.instagram).toBeNull()
+  expect(pendingView.email ?? null).toBeNull()
   await call(`/connections/${connection.id}`, { method: 'PATCH', token: owner.token, body: { decision: 'accept' } })
 
   // Una cuenta ajena (sin conexión) no ve ningún dato de contacto.
@@ -564,6 +757,7 @@ test('HU-02 revela el contacto solo a conexiones según la privacidad y M02 apru
   // El dueño habilita "Compartir correo" desde el panel de privacidad fusionado.
   await login(page, owner)
   await page.goto('/perfil/cuenta')
+  await page.getByRole('group', { name: 'Secciones de preferencias' }).getByRole('button', { name: 'Privacidad', exact: true }).click()
   const privacy = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Privacidad de contacto' }) })
   await privacy.getByRole('switch', { name: 'Compartir correo' }).check()
   await privacy.getByRole('button', { name: 'Guardar privacidad' }).click()
@@ -591,12 +785,23 @@ test('HU-02 revela el contacto solo a conexiones según la privacidad y M02 apru
     await login(adminPage, admin)
     await adminPage.goto('/admin/identidad')
     await expect(adminPage.getByRole('heading', { name: 'Solicitudes de identidad' })).toBeVisible()
-    const card = adminPage.locator('section').filter({ hasText: ownerName })
-    for (let i = 0; i < 12 && (await card.count()) === 0; i++) {
-      const next = adminPage.getByRole('button', { name: 'Siguiente' })
-      if ((await next.count()) === 0 || !(await next.isEnabled())) break
-      await next.click()
-      await adminPage.waitForLoadState('networkidle')
+    const card = adminPage.locator('section.room-panel').filter({
+      has: adminPage.getByRole('heading', { name: ownerName, exact: true }),
+    })
+    for (let pageNumber = 1; pageNumber <= 12; pageNumber++) {
+      await expect(adminPage.getByText('Cargando solicitudes.', { exact: true })).toHaveCount(0)
+      if (await card.count()) break
+      const next = adminPage.getByRole('button', { name: 'Siguiente', exact: true })
+      if (pageNumber === 12 || !(await next.count()) || !(await next.isEnabled())) break
+      const [response] = await Promise.all([
+        adminPage.waitForResponse((result) => {
+          const url = new URL(result.url())
+          return url.pathname === '/api/v1/profiles/verification/pending'
+            && url.searchParams.get('page') === String(pageNumber + 1)
+        }),
+        next.click(),
+      ])
+      expect(response.ok()).toBe(true)
     }
     await expect(card).toBeVisible()
     adminPage.once('dialog', (dialog) => dialog.accept())
@@ -624,11 +829,17 @@ test('M12 registra las dos firmas, crea una nueva versión y niega el acceso a t
   await call(`/applications/${application.id}/decide`, { method: 'PATCH', token: host.token, body: { decision: 'accept' } })
 
   // El host genera el acuerdo v1 (snapshot de las reglas del anuncio, sin firmas).
+  const details = {
+    title: 'Acuerdo con reglas personalizadas',
+    startDate: '2030-02-01',
+    rules: [{ category: 'Pagos', title: 'Fecha de pago', description: 'Pagar el primer día del mes.' }],
+  }
   const agreement = await call('/agreements', {
     method: 'POST', token: host.token,
-    body: { listingId: room.id, hostId: host.id, roomieId: roomie.id }, want: 201,
+    body: { listingId: room.id, hostId: host.id, roomieId: roomie.id, details }, want: 201,
   })
   expect(agreement.version).toBe(1)
+  expect(agreement.rulesSnapshot.details).toEqual(details)
   expect(agreement.fullyAccepted).toBe(false)
   const reviewPath = `/acuerdos/revisar/${agreement.id}`
 
@@ -646,6 +857,9 @@ test('M12 registra las dos firmas, crea una nueva versión y niega el acceso a t
     const roomiePage = await roomieContext.newPage()
     await login(roomiePage, roomie)
     await roomiePage.goto(reviewPath)
+    await expect(roomiePage.getByRole('heading', { name: details.title, exact: true })).toBeVisible()
+    await expect(roomiePage.getByText(details.startDate, { exact: true })).toBeVisible()
+    await expect(roomiePage.getByText(details.rules[0].description, { exact: true })).toBeVisible()
     await roomiePage.getByRole('checkbox', { name: /He leído y acepto/ }).check()
     await roomiePage.getByRole('button', { name: 'Aceptar versión 1' }).click()
     await expect(roomiePage.getByText(/Tu aceptación se registró/)).toBeVisible()
@@ -664,6 +878,7 @@ test('M12 registra las dos firmas, crea una nueva versión y niega el acceso a t
   // Nueva versión (host-only): reinicia las firmas y supera a la anterior.
   const v2 = await call(`/agreements/${agreement.id}/versions`, { method: 'POST', token: host.token, want: 201 })
   expect(v2.version).toBe(2)
+  expect(v2.rulesSnapshot.details).toEqual(details)
   expect(v2.supersedesAgreementId).toBe(agreement.id)
   expect(v2.fullyAccepted).toBe(false)
   expect(v2.acceptances.filter((a) => a.acceptedAt).length).toBe(0)
@@ -718,6 +933,44 @@ test('M15 valida métricas del dashboard por rango, rol y estado vacío', async 
   await page.goto('/admin/dashboard')
   await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible()
   await expect(page.getByLabel('Indicadores clave')).toBeVisible()
+  const metrics = page.getByLabel('Indicadores clave')
+  await expect(metrics.getByText('Ocupación estimada', { exact: true })).toBeVisible()
+  await expect(metrics.getByText('Afinidad promedio de postulaciones', { exact: true })).toBeVisible()
+})
+
+test('Bitácora de Omar protege el acceso y exporta solo los registros filtrados', async ({ page }) => {
+  const viewer = await account('bitacora-usuario', false)
+  const admin = await account('admin', false)
+  await grantQaAdmin(admin.id)
+  await call('/admin/activity-log', { token: viewer.token, want: 403 })
+  await login(page, viewer)
+  await page.goto('/admin/bitacora')
+  await expect(page).toHaveURL(/\/explorar$/)
+  await expect(page.getByRole('link', { name: 'Bitácora', exact: true })).toHaveCount(0)
+  await abrirMenu(page)
+  await page.getByRole('button', { name: 'Cerrar sesión' }).click()
+  await expect(page).toHaveURL(/\/login$/)
+
+  await login(page, admin)
+  await irA(page, 'Bitácora')
+  await expect(page.getByRole('heading', { name: 'Bitácora', exact: true })).toBeVisible()
+  await page.getByLabel('Evento').selectOption('UserRegisteredEvent')
+  await page.getByLabel('Usuario (ID)', { exact: true }).fill(viewer.id)
+  await page.getByRole('button', { name: 'Filtrar', exact: true }).click()
+  await expect(page.getByText('1 registro', { exact: true })).toBeVisible()
+  const entry = page.getByRole('listitem').filter({ hasText: viewer.id })
+  await expect(entry.getByText('Registro de usuario', { exact: true })).toBeVisible()
+  await entry.getByRole('button', { name: 'Ver detalle' }).click()
+  await expect(entry.getByText(viewer.email, { exact: false })).toBeVisible()
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Exportar página (CSV)' }).click(),
+  ])
+  expect(download.suggestedFilename()).toMatch(/^bitacora-roomlink-.*\.csv$/)
+  const csv = await readFile(await download.path(), 'utf8')
+  expect(csv).toContain(viewer.id)
+  expect(csv).toContain('UserRegisteredEvent')
+  expect(csv).not.toContain(admin.id)
 })
 
 test('SMTP entrega el enlace y el reemplazo de contraseña revoca la sesión', async ({ page }) => {
@@ -787,12 +1040,50 @@ test('Explorar móvil conserva la postulación tras recargar Expo', async ({ pag
   const room = await listing(host.token)
   await loginMobile(page, seeker)
   await page.goto(new URL('/explorar', mobileWeb).href)
+  const search = page.getByRole('textbox', { name: 'Buscar habitaciones', exact: true })
   const card = page.getByTestId(`habitacion-${room.id}`)
+  await search.fill(room.title)
   await card.getByRole('button', { name: 'Postularme', exact: true }).click()
   await expect(card.getByText(/Postulación enviada/)).toBeVisible()
   await page.reload()
+  await search.fill(room.title)
   await expect(card.getByText(/Postulación enviada/)).toBeVisible()
-  expect(await call(`/applications/listing/${room.id}`, { token: host.token })).toHaveLength(1)
+  await expect(card.getByRole('button', { name: 'Postularme', exact: true })).toHaveCount(0)
+  expect(await call(`/applications/listing/${room.id}`, { token: host.token })).toEqual([
+    expect.objectContaining({ applicantId: seeker.id, listingId: room.id }),
+  ])
+})
+
+test('Expo abre el chat de un roomie desde Solicitudes y conserva el historial al recargar', async ({ page }) => {
+  test.skip(!mobileWeb, 'Requiere el cliente Expo de QA.')
+  expect(loopback(mobileWeb)).toBe(true)
+  const sender = await account('roomie-expo-origen')
+  const receiver = await account('roomie-expo-receptor')
+  const connection = await call('/connections', {
+    method: 'POST', token: sender.token, body: { addresseeId: receiver.id }, want: 201,
+  })
+  await call(`/connections/${connection.id}`, {
+    method: 'PATCH', token: receiver.token, body: { decision: 'accept' },
+  })
+  const chat = await call('/messages/rooms', {
+    method: 'POST', token: receiver.token, body: { connectionId: connection.id }, want: 201,
+  })
+  const message = 'Mensaje de una conexión aceptada en Expo'
+  await call(`/messages/rooms/${chat.id}/messages`, {
+    method: 'POST', token: sender.token, body: { body: message }, want: 201,
+  })
+
+  await loginMobile(page, receiver)
+  await page.goto(new URL('/solicitudes', mobileWeb).href)
+  await expect(page.getByText('Mis conexiones', { exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'Mis roomies', exact: true }).click()
+  await expect(page).toHaveURL(new URL('/mis-roomies', mobileWeb).href)
+  await expect(page.getByText('RoomLink QA roomie-expo-origen', { exact: true }).filter({ visible: true })).toBeVisible()
+  await page.getByText('Ir al chat', { exact: true }).filter({ visible: true }).click()
+  await expect(page).toHaveURL((url) => url.pathname === '/chats' && url.searchParams.get('roomId') === chat.id)
+  await expect(page.getByText(message, { exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByText(message, { exact: true })).toBeVisible()
 })
 
 test('Expo publica un borrador con reglas y costos y resuelve la lista de espera', async ({ page }) => {

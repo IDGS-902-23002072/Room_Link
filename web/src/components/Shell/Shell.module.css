@@ -1,0 +1,150 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.skipLink {
+  position: absolute;
+  z-index: 20;
+  top: -100px;
+  left: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--plum);
+  color: var(--paper);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.skipLink:focus-visible {
+  top: var(--space-2);
+}
+
+.topbar {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  display: grid;
+  min-height: 76px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 max(5vw, calc((100vw - 1380px) / 2));
+  border-bottom: 1px solid var(--line);
+  background: rgb(255 255 255 / 94%);
+  backdrop-filter: blur(14px);
+}
+
+.brand {
+  display: inline-flex;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+}
+
+.navLink,
+.navDisabled {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0 2px;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.navLink {
+  color: var(--plum);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.navLink:hover {
+  color: var(--plum-hover);
+  text-decoration-thickness: 2px;
+}
+
+.navLinkActive {
+  color: var(--plum-strong);
+  font-weight: var(--weight-bold);
+  text-decoration-thickness: 2px;
+}
+
+.navDisabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.account {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.accountName {
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main {
+  width: min(1380px, calc(100% - 48px));
+  flex: 1;
+  margin: 0 auto;
+  padding: var(--space-8) 0 var(--space-12);
+  scroll-margin-top: 100px;
+}
+
+@media (max-width: 980px) {
+  .topbar {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2) var(--space-4);
+    padding: var(--space-3) var(--space-5);
+  }
+
+  .nav {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    gap: var(--space-5);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .accountName {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .accountAvatar {
+    display: none;
+  }
+
+  .navLink,
+  .navDisabled {
+    font-size: var(--text-xs);
+  }
+
+  .main {
+    width: min(100% - 32px, 640px);
+    padding: var(--space-6) 0 var(--space-12);
+  }
+}

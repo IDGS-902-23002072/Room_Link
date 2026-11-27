@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  Connection,
-  type ConnectionDirection,
-  type IConnectionRepository,
-} from "../../src/domain/index.js";
+import { Connection } from "../../src/domain/index.js";
+import { InMemoryConnectionRepository } from "../helpers/in-memory-repos.js";
 import { ConnectionsService } from "../../src/modules/connections/index.js";
 import type { DomainEventPublisher } from "../../src/modules/auth/index.js";
 
@@ -11,23 +8,6 @@ interface DomainEvent {
   type: string;
   aggregateId: string;
   payload: Record<string, unknown>;
-}
-
-class InMemoryConnectionRepository implements IConnectionRepository {
-  readonly items = new Map<string, Connection>();
-  async findById(id: string) {
-    return this.items.get(id) ?? null;
-  }
-  async listForUser(userId: string, direction: ConnectionDirection) {
-    return Array.from(this.items.values()).filter((c) => {
-      if (direction === "incoming") return c.addresseeId === userId;
-      if (direction === "outgoing") return c.requesterId === userId;
-      return c.addresseeId === userId || c.requesterId === userId;
-    });
-  }
-  async update(connection: Connection) {
-    this.items.set(connection.id, connection);
-  }
 }
 
 function makePending(id: string, requesterId = "req", addresseeId = "addr"): Connection {
@@ -58,6 +38,21 @@ describe("ConnectionsService", () => {
     events = [];
     publisher = { publish: async (event) => void events.push(event) };
     service = new ConnectionsService(repo, publisher, createFixedClock());
+  });
+
+  it("creates a pending request and rejects an active request for the same pair", async () => {
+    const connection = await service.send({
+      requesterId: "req",
+      addresseeId: "addr",
+      introMessage: "  Hola  ",
+    });
+
+    expect(connection).toMatchObject({ status: "pending", introMessage: "Hola" });
+    expect(await repo.findById(connection.id)).toBe(connection);
+    await expect(service.send({
+      requesterId: "addr",
+      addresseeId: "req",
+    })).rejects.toMatchObject({ status: 409, code: "CONNECTION_ALREADY_EXISTS" });
   });
 
   it("only the addressee can respond", async () => {

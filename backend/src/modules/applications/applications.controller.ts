@@ -131,4 +131,19 @@ export class ApplicationsController {
       return c.json({ error, code }, status as 400 | 404 | 409 | 500);
     }
   };
+
+  cancel = async (c: AuthContext) => {
+    try {
+      const id = c.req.param("id");
+      if (!id) {
+        return c.json({ error: "id es obligatorio" }, 400);
+      }
+      const principal = c.get("auth");
+      await this.applicationsService.cancel(id, principal.userId);
+      return c.body(null, 204);
+    } catch (err: unknown) {
+      const { error, code, status } = errorResponse(err);
+      return c.json({ error, code }, status as 400 | 403 | 404 | 409 | 500);
+    }
+  };
 }

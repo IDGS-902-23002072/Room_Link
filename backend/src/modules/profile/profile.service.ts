@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { AppError } from "../../shared/AppError.js";
 import {
   Profile,
   ProfilePhoto,
@@ -184,6 +185,33 @@ export class ProfileService {
   async getContactPrivacy(userId: string): Promise<ContactPrivacy> {
     const found = await this.profileRepo.findContactPrivacy(userId);
     return found ?? ContactPrivacy.defaultsFor(userId);
+  }
+
+  async getHousingPreferences(userId: string) {
+    return (
+      (await this.profileRepo.findHousingPreferences(userId)) ?? {
+        budgetMin: null,
+        budgetMax: null,
+        desiredZoneId: null,
+      }
+    );
+  }
+
+  async saveHousingPreferences(
+    userId: string,
+    input: { budgetMin: number | null; budgetMax: number | null; desiredZoneId: string | null },
+  ) {
+    if (input.budgetMin != null && input.budgetMin < 0) {
+      throw new AppError("El presupuesto mínimo no puede ser negativo.", 400, "INVALID_BUDGET");
+    }
+    if (input.budgetMax != null && input.budgetMax < 0) {
+      throw new AppError("El presupuesto máximo no puede ser negativo.", 400, "INVALID_BUDGET");
+    }
+    if (input.budgetMin != null && input.budgetMax != null && input.budgetMin > input.budgetMax) {
+      throw new AppError("El presupuesto mínimo no puede superar el máximo.", 400, "INVALID_BUDGET");
+    }
+    await this.profileRepo.upsertHousingPreferences({ userId, ...input });
+    return this.getHousingPreferences(userId);
   }
 
   async updateContactPrivacy(

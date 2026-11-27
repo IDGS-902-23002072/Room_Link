@@ -164,7 +164,7 @@ jobs:
           DB_NAME: roomlink
           FRONTEND_ORIGIN: http://localhost:8081
         run: |
-          npm run start:node &
+          npm run start:node > /tmp/roomlink-regression-api.log 2>&1 &
           for i in $(seq 1 30); do
             curl -sf http://localhost:3000/health >/dev/null && { echo "backend up"; exit 0; }
             sleep 1
@@ -201,3 +201,14 @@ jobs:
           E2E_API_URL: http://localhost:3000/api/v1
           E2E_WEB_URL: http://localhost:8081
         run: npm run test:e2e
+
+      - name: Publicar evidencias de fallo E2E
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: roomlink-regression-mobile
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            /tmp/roomlink-regression-api.log
+            frontend/test-results/

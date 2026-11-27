@@ -7,4 +7,5 @@ export interface IApplicationRepository {
   findByApplicantId(applicantId: string): Promise<Application[]>;
   create(app: Application): Promise<Application>;
   update(app: Application, previousStatus: ApplicationStatus): Promise<boolean>;
+  deleteById(id: string): Promise<boolean>;
 }

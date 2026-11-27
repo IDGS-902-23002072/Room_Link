@@ -1,3 +1,5 @@
+import { color } from '@/constants/roomlink';
+
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -98,12 +100,12 @@ export default function PantallaUbicacion({
 const estilos = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   contenido: { padding: 24, gap: 16 },
-  titulo: { fontSize: 24, fontWeight: '800', color: '#2b2430' },
-  nota: { fontSize: 14, color: '#6b6472' },
-  input: { borderWidth: 1, borderColor: '#e4dbe9', borderRadius: 14, padding: 14, fontSize: 16, color: '#2b2430' },
+  titulo: { fontSize: 24, fontWeight: '800', color: color.tinta },
+  nota: { fontSize: 14, color: color.secundario },
+  input: { borderWidth: 1, borderColor: color.borde, borderRadius: 14, padding: 14, fontSize: 16, color: color.tinta },
   acciones: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   boton: { borderRadius: 14, padding: 15, alignItems: 'center' },
-  primario: { backgroundColor: '#CFEFE8' },
+  primario: { backgroundColor: color.menta },
   primarioTexto: { color: '#214E42', fontWeight: '700' },
   secundario: { backgroundColor: '#f0eaf3' },
   secundarioTexto: { color: '#514458', fontWeight: '700' },

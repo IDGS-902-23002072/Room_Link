@@ -1,11 +1,9 @@
-
-import React, { useState } from "react";
+import { PortadaHabitacion } from "../../exploracion/componentes/PortadaHabitacion";
 
 import {
   View,
   Text,
   Pressable,
-  Image,
   StyleSheet,
 } from "react-native";
 
@@ -13,21 +11,14 @@ export type Publicacion = {
   id: string;
   titulo: string;
   precio: string;
-  estado:
-  | "Activa"
-  | "Pausada"
-  | "Cerrada"
-  | "Borrador";
-  imagen?: string;
+  estado: "Activa" | "Pausada" | "Cerrada" | "Borrador";
   detalle?: string;
   fotosCount?: number;
 };
 
-const imagenPredeterminada =
-  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800";
-
 type Props = {
   publicacion: Publicacion;
+  onVerDetalles?: (id: string) => void;
   onEditar?: (id: string) => void;
   onPausar?: (id: string) => void;
   onReactivar?: (id: string) => void;
@@ -37,33 +28,22 @@ type Props = {
 
 export default function TarjetaPublicacion({
   publicacion,
+  onVerDetalles,
   onEditar,
   onPausar,
   onReactivar,
   onCerrar,
   onVerPostulaciones,
 }: Props) {
-  const [imagenConError, setImagenConError] = useState<string | null>(null);
-
   const activa = publicacion.estado === "Activa";
-
   const cerrada = publicacion.estado === "Cerrada";
-
   const borrador = publicacion.estado === "Borrador";
-
-  const imagenMostrar =
-    publicacion.imagen && imagenConError !== publicacion.imagen
-      ? publicacion.imagen
-      : imagenPredeterminada;
 
   return (
     <View style={styles.tarjeta}>
-      <Image
-        source={{ uri: imagenMostrar }}
-        style={styles.imagen}
-        resizeMode="cover"
-        onError={() => setImagenConError(publicacion.imagen ?? null)}
-      />
+      <View style={styles.imagen}>
+        <PortadaHabitacion id={publicacion.id} fotos={publicacion.fotosCount ?? 0} />
+      </View>
 
       <View style={styles.contenido}>
         <Text style={styles.estado}>
@@ -75,46 +55,56 @@ export default function TarjetaPublicacion({
         </Text>
 
         <Text style={styles.detalle}>
-          {publicacion.precio}
+          {publicacion.precio} MXN / mes
           {publicacion.detalle ? ` · ${publicacion.detalle}` : ""}
         </Text>
 
-        {!cerrada && (
-          <View style={styles.acciones}>
-            <Pressable onPress={() => onEditar?.(publicacion.id)}>
-              <Text style={styles.accion}>Editar</Text>
-            </Pressable>
+        <View style={styles.acciones}>
+          <Pressable accessibilityRole="button" onPress={() => onVerDetalles?.(publicacion.id)}>
+            <Text style={styles.accion}>Ver detalles</Text>
+          </Pressable>
 
-            {!borrador && (
-              <>
-                <Text style={styles.separador}> · </Text>
+          {!cerrada && (
+            <>
+              <Text style={styles.separador}> · </Text>
 
-                {activa ? (
-                  <Pressable onPress={() => onPausar?.(publicacion.id)}>
-                    <Text style={styles.accion}>Pausar</Text>
-                  </Pressable>
-                ) : (
-                  <Pressable onPress={() => onReactivar?.(publicacion.id)}>
-                    <Text style={styles.accion}>Reactivar</Text>
-                  </Pressable>
-                )}
+              <Pressable onPress={() => onEditar?.(publicacion.id)}>
+                <Text style={styles.accion}>Editar</Text>
+              </Pressable>
+            </>
+          )}
 
-                <Text style={styles.separador}> · </Text>
+          {!cerrada && !borrador && (
+            <>
+              <Text style={styles.separador}> · </Text>
 
-                <Pressable onPress={() => onCerrar?.(publicacion.id)}>
-                  <Text style={styles.accionCerrar}>Cerrar</Text>
+              {activa ? (
+                <Pressable onPress={() => onPausar?.(publicacion.id)}>
+                  <Text style={styles.accion}>Pausar</Text>
                 </Pressable>
-              </>
-            )}
-          </View>
-        )}
+              ) : (
+                <Pressable onPress={() => onReactivar?.(publicacion.id)}>
+                  <Text style={styles.accion}>Reactivar</Text>
+                </Pressable>
+              )}
+
+              <Text style={styles.separador}> · </Text>
+
+              <Pressable onPress={() => onCerrar?.(publicacion.id)}>
+                <Text style={styles.accionCerrar}>Cerrar</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
 
         {!borrador && onVerPostulaciones ? (
           <Pressable
             style={styles.postulaciones}
             onPress={() => onVerPostulaciones(publicacion)}
           >
-            <Text style={styles.postulacionesTexto}>Ver postulaciones ›</Text>
+            <Text style={styles.postulacionesTexto}>
+              Ver postulaciones ›
+            </Text>
           </Pressable>
         ) : null}
       </View>
@@ -164,6 +154,7 @@ const styles = StyleSheet.create({
   acciones: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     marginTop: 7,
   },
 
@@ -190,6 +181,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#EDE5EE",
   },
+
   postulacionesTexto: {
     color: "#84658D",
     fontSize: 13,

@@ -489,6 +489,9 @@ export class InMemoryApplicationRepository implements IApplicationRepository {
     this.items.set(app.id, app);
     return true;
   }
+  async deleteById(id: string) {
+    return this.items.delete(id);
+  }
 }
 
 export class InMemoryCompatibilityRepository implements ICompatibilityRepository {
@@ -541,8 +544,28 @@ export class InMemoryConnectionRepository implements IConnectionRepository {
       return c.addresseeId === userId || c.requesterId === userId;
     });
   }
+  async create(connection: Connection) {
+    this.items.set(connection.id, connection);
+  }
+
   async update(connection: Connection) {
     this.items.set(connection.id, connection);
+  }
+
+  async existsActiveBetween(userA: string, userB: string) {
+    return this.hasPair(userA, userB, ["pending", "accepted"]);
+  }
+
+  async existsAcceptedBetween(userA: string, userB: string) {
+    return this.hasPair(userA, userB, ["accepted"]);
+  }
+
+  private hasPair(userA: string, userB: string, statuses: Connection["status"][]) {
+    return [...this.items.values()].some((connection) =>
+      statuses.includes(connection.status) &&
+      ((connection.requesterId === userA && connection.addresseeId === userB) ||
+        (connection.requesterId === userB && connection.addresseeId === userA)),
+    );
   }
 }
 

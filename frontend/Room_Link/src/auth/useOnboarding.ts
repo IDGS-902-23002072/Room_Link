@@ -16,6 +16,18 @@ export interface EstadoOnboarding {
   refrescar: () => void;
 }
 
+async function consultarOnboarding() {
+  const [perfil, encuesta] = await Promise.allSettled([
+    obtenerPerfil(),
+    obtenerTestCompatibilidad(),
+  ]);
+  return {
+    cargando: false,
+    tienePerfil: perfil.status === 'fulfilled' || !(perfil.reason instanceof PerfilNoEncontrado),
+    tieneEncuesta: encuesta.status === 'rejected' || encuesta.value.answers != null,
+  };
+}
+
 export function useOnboarding(): EstadoOnboarding {
   const [estado, setEstado] = useState({
     cargando: true,
@@ -23,34 +35,22 @@ export function useOnboarding(): EstadoOnboarding {
     tieneEncuesta: false,
   });
 
-  const comprobar = useCallback(async () => {
-    setEstado((e) => ({ ...e, cargando: true }));
-    let tienePerfil = true;
-    let tieneEncuesta = true;
-    try {
-      await obtenerPerfil();
-      tienePerfil = true;
-    } catch (e) {
-      // Solo un 404 explícito significa "sin perfil"; cualquier otro error
-      // (red, 500) no debe encerrar al usuario.
-      tienePerfil = !(e instanceof PerfilNoEncontrado);
-    }
-    try {
-      const test = await obtenerTestCompatibilidad();
-      tieneEncuesta = test.answers != null;
-    } catch {
-      tieneEncuesta = true;
-    }
-    setEstado({ cargando: false, tienePerfil, tieneEncuesta });
+  const refrescar = useCallback(() => {
+    setEstado((actual) => ({ ...actual, cargando: true }));
+    void consultarOnboarding().then(setEstado);
   }, []);
 
   useEffect(() => {
-    comprobar();
-  }, [comprobar]);
+    let activo = true;
+    void consultarOnboarding().then((resultado) => {
+      if (activo) setEstado(resultado);
+    });
+    return () => { activo = false; };
+  }, []);
 
   return {
     ...estado,
     completo: estado.tienePerfil && estado.tieneEncuesta,
-    refrescar: comprobar,
+    refrescar,
   };
 }

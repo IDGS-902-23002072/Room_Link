@@ -144,7 +144,7 @@ export default function Login({ mode }) {
           </div>}
           {error && <p className="feature-feedback feature-error" role="alert">{error}</p>}
           {message && <p className="feature-feedback feature-success" role="status">{message}</p>}
-          <button className="button button-mint button-wide" disabled={submitting}>
+          <button className="button button-mint button-wide" disabled={submitting} aria-busy={submitting}>
             {submitting ? 'Un momento…' : action}
           </button>
           {(login || register) && <GoogleButton registration={register} enabled={!submitting && (login || accepted)} onCredential={(idToken) => submit(() => authenticate('oauth/google', { idToken, termsAccepted: accepted }))} />}

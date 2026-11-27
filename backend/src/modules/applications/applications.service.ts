@@ -42,6 +42,25 @@ export class ApplicationsService {
     return await this.appRepo.findById(id);
   }
 
+  /** El postulante retira su propia solicitud mientras siga pendiente o en lista de espera. */
+  async cancel(id: string, applicantId: string): Promise<void> {
+    const app = await this.appRepo.findById(id);
+    if (!app) {
+      throw new AppError("Solicitud no encontrada.", 404, "APPLICATION_NOT_FOUND");
+    }
+    if (app.applicantId !== applicantId) {
+      throw new AppError("Solo puedes cancelar tus propias postulaciones.", 403, "FORBIDDEN");
+    }
+    if (app.status !== "pending" && app.status !== "waitlisted") {
+      throw new AppError(
+        `No se puede cancelar una postulación en estado '${app.status}'.`,
+        409,
+        "APPLICATION_INVALID_STATE",
+      );
+    }
+    await this.appRepo.deleteById(id);
+  }
+
   async decide(id: string, decision: ApplicationDecision): Promise<Application> {
     const app = await this.appRepo.findById(id);
     if (!app) {
