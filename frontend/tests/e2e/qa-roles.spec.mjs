@@ -1033,7 +1033,7 @@ test('Explorar móvil conserva la postulación tras recargar Expo', async ({ pag
   const room = await listing(host.token)
   await loginMobile(page, seeker)
   await page.goto(new URL('/explorar', mobileWeb).href)
-  const search = page.getByPlaceholder('Buscar habitaciones', { exact: true })
+  const search = page.getByRole('textbox', { name: 'Buscar habitaciones', exact: true })
   const card = page.getByTestId(`habitacion-${room.id}`)
   await search.fill(room.title)
   await card.getByRole('button', { name: 'Postularme', exact: true }).click()

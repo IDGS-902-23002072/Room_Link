@@ -69,7 +69,7 @@ else
 fi
 ln -s "$root/uploads" "$staged/uploads"
 
-# El APK se sube aparte (nunca por GitHub) y sobrevive a cada release.
+# El workflow android-release.yml publica el APK aparte; sobrevive a cada release.
 mkdir -p downloads
 ln -s "$root/downloads" "$staged/public/descargas"
 
