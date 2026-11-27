@@ -125,6 +125,10 @@ import {
   createActivityLogRoutes,
 } from "./modules/activity-log/index.js";
 import { cors } from "hono/cors";
+import { createRequestLogger } from "./monitoring/requestLogger.js";
+import { createMonitorActivityListener } from "./monitoring/activityListener.js";
+import { DrizzleMonitorSink } from "./monitoring/sink.js";
+import { BatchedMonitorWriter } from "./monitoring/writer.js";
 
 export interface AppDependencies {
   checkDatabase?: () => Promise<void>;
@@ -145,10 +149,15 @@ export interface AppDependencies {
   analyticsRepo?: IAnalyticsRepository;
   analyticsSource?: IAnalyticsSource;
   searchRepo?: ISearchRepository;
+  /** Inyectable en pruebas: permite verificar el registro sin base de monitoreo. */
+  monitorWriter?: BatchedMonitorWriter;
 }
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const app = new Hono();
+  const monitorWriter =
+    dependencies.monitorWriter ?? new BatchedMonitorWriter(new DrizzleMonitorSink());
+
   // Cabeceras de seguridad transversales (RNF-05.1)
   app.use("*", async (c, next) => {
     await next();
@@ -157,6 +166,9 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     c.header("X-Frame-Options", "DENY");
     c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   });
+
+  // F1: medir y encolar. Nunca espera a la base de monitoreo.
+  app.use("*", createRequestLogger(monitorWriter));
 
   // Permitir consultar las fotografías almacenadas
   app.use("/uploads/*", serveStatic({ root: "./" }));
@@ -196,6 +208,11 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     new AsyncEventPublisher(new DrizzleOutboxEventPublisher(db)),
   );
   const resolvedBus = dependencies.authDependencies?.eventPublisher ?? defaultBus;
+
+  // Bitácora descriptiva (F1): solo encola; el bus ya tolera listeners lentos.
+  if (resolvedBus instanceof InProcessEventBus) {
+    resolvedBus.subscribe(createMonitorActivityListener(monitorWriter));
+  }
 
   // Sanctions service construido primero para poder exponerlo como SessionGuard a auth.
   const sanctionsService = new SanctionsService(
