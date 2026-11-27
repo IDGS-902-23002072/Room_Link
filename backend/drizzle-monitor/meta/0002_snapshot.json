@@ -735,10 +735,11 @@
         },
         "message": {
           "name": "message",
-          "type": "text",
+          "type": "varchar(200)",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
         }
       },
       "indexes": {

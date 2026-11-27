@@ -1,4 +1,4 @@
-ALTER TABLE `mon_request_log` ADD `message` text DEFAULT '';
+ALTER TABLE `mon_request_log` ADD `message` varchar(200) NOT NULL DEFAULT '';
 --> statement-breakpoint
 CREATE OR REPLACE VIEW `mon_v_logbook` AS
 SELECT

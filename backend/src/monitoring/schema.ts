@@ -38,7 +38,7 @@ export const monRequestLog = mysqlTable(
     isGood: tinyint("is_good").notNull(),
     source: varchar("source", { length: 16 }).notNull().default("real"),
     /** Explicación en lenguaje simple de lo que ocurrió en la petición. */
-    message: text("message"),
+    message: varchar("message", { length: 200 }).default(""),
   },
   (table) => [
     index("idx_mon_request_occurred").on(table.occurredAt),
