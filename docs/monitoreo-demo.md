@@ -95,7 +95,7 @@ transacciones se usa la ventana de 3 meses y el panel lo etiqueta.
 ## Cómo verlo en el panel
 
 Con el backend en marcha, iniciar sesión con un usuario con rol `admin` y abrir
-`/admin/monitoring`. El frontend oculta la ruta para otros roles y el backend devuelve
+`/admin/monitoreo`. El frontend oculta la ruta para otros roles y el backend devuelve
 `403` sin ese rol. Las seis rutas de solo lectura están bajo
 `/api/v1/admin/monitoring`:
 
