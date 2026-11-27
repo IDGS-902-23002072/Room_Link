@@ -129,6 +129,11 @@ import { createRequestLogger } from "./monitoring/requestLogger.js";
 import { createMonitorActivityListener } from "./monitoring/activityListener.js";
 import { DrizzleMonitorSink } from "./monitoring/sink.js";
 import { BatchedMonitorWriter } from "./monitoring/writer.js";
+import {
+  MonitoringIngestController,
+  MonitoringIngestService,
+  createMonitoringIngestRoutes,
+} from "./modules/monitoring/index.js";
 
 export interface AppDependencies {
   checkDatabase?: () => Promise<void>;
@@ -151,12 +156,21 @@ export interface AppDependencies {
   searchRepo?: ISearchRepository;
   /** Inyectable en pruebas: permite verificar el registro sin base de monitoreo. */
   monitorWriter?: BatchedMonitorWriter;
+  monitorIngestToken?: string;
 }
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const app = new Hono();
   const monitorWriter =
     dependencies.monitorWriter ?? new BatchedMonitorWriter(new DrizzleMonitorSink());
+  const monitoringIngestService = new MonitoringIngestService(
+    monitorWriter,
+    dependencies.monitorIngestToken ?? config.monitor.ingestToken,
+  );
+  const monitoringIngestController = new MonitoringIngestController(
+    monitoringIngestService,
+    256 * 1024,
+  );
 
   // Cabeceras de seguridad transversales (RNF-05.1)
   app.use("*", async (c, next) => {
@@ -415,6 +429,12 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   app.route(
     "/api/v1/admin/activity-log",
     createActivityLogRoutes(activityLogController, authService),
+  );
+
+  // Ingesta de monitoreo (F2/F3/F5): token de servicio, sin sesión de usuario.
+  app.route(
+    "/api/v1/admin/monitoring/ingest",
+    createMonitoringIngestRoutes(monitoringIngestController, monitoringIngestService),
   );
 
   // Endpoints del sistema / orquestación
