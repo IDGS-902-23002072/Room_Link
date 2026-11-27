@@ -1,8 +1,11 @@
-# Guía de demo de monitoreo (mes simulado 2026-10)
+# Guía de demo de monitoreo (octubre y noviembre de 2026)
 
 Esta guía permite repetir la demostración del panel de monitoreo y del cálculo de
 SLI/SLO sin tocar la base principal `roomlink`. Todos los datos cargados por la demo
 son `synthetic` o `test`; por eso el tráfico real de F1/T.3 aparece como **sin dato**.
+
+La demo original quedó en `2026-10`. Además se cargó una copia sintética en
+`2026-11`, que es el mes que el panel abre por defecto. Cargar un mes no borra el otro.
 
 ## Qué se muestra
 
@@ -39,6 +42,24 @@ npm --prefix backend run monitor:seed:demo -- --period=2026-10
 npm --prefix backend run monitor:slo -- --period=2026-10
 ```
 
+Para dejar datos también en el mes actual del panel:
+
+```bash
+npm --prefix backend run monitor:seed:demo -- --period=2026-11
+npm --prefix backend run monitor:slo -- --period=2026-11
+```
+
+Salida observada en la carga de noviembre:
+
+```json
+{"origin":"monitoring","event":"monitor_step_finished","step":"seed_demo","period":"2026-11","records":3745}
+{"origin":"monitoring","event":"monitor_step_finished","step":"calculate_slo","period":"2026-11","records":67}
+```
+
+Después de recalcular noviembre, `mon_slo_compliance` tiene 67 filas: 28 cumplen,
+3 no cumplen y 36 siguen **sin dato** por falta de medición real. Ese resultado es
+correcto: el panel no inventa valores.
+
 Salida observada en la ejecución real:
 
 ```json
@@ -70,7 +91,8 @@ Conteo directo sobre `roomlink_monitor` después de la carga:
 | `mon_case_event` | 120 |
 | `mon_incident` | 6 |
 | `mon_slo_compliance` (periodo `2026-10`) | 67 |
-| `mon_v_logbook` | 3662 |
+| `mon_slo_compliance` (periodo `2026-11`) | 67 |
+| `mon_v_logbook` | 3662 (octubre) |
 
 Además, la consulta a `information_schema.TABLES` devolvió **0 tablas `mon_*` en
 `roomlink`**.
@@ -96,17 +118,59 @@ transacciones se usa la ventana de 3 meses y el panel lo etiqueta.
 
 Con el backend en marcha, iniciar sesión con un usuario con rol `admin` y abrir
 `/admin/monitoreo`. El frontend oculta la ruta para otros roles y el backend devuelve
-`403` sin ese rol. Las seis rutas de solo lectura están bajo
-`/api/v1/admin/monitoring`:
+`403` sin ese rol. Las rutas están bajo `/api/v1/admin/monitoring`:
 
 - `GET /summary?month=YYYY-MM`
 - `GET /slis?month=YYYY-MM`
+- `GET /tests/suites` y `POST /tests/run` (ejecución permitida desde el panel)
 - `GET /tests/runs` y `GET /tests/runs/:id`
 - `GET /logbook?from&to&module&type&status&cursor`
 - `GET /export/requests.csv?month=YYYY-MM`
 
 Si la base de monitoreo falla, el panel muestra el error y el resto de la app sigue
 funcionando.
+
+La bitácora muestra como columnas propias el **mensaje** y el **`request_id`**
+(`Solicitud`). Para eventos sin identificador se muestra `—`. El mensaje está acotado a
+160 caracteres en la vista y nunca incluye correos, tokens, IPs ni URLs con ids.
+
+## Ejecutar pruebas desde el panel
+
+En `Pruebas` hay un selector de suite y un botón **Ejecutar suite**. Solo se aceptan
+estas suites, definidas en `backend/src/monitoring/testRunner.ts`:
+
+| Id | Qué corre |
+|---|---|
+| `monitor` | `npm run test:monitor:json` (F1/F2/F3/F5) |
+| `backend:unit` | `npm run test:unit:json` |
+| `backend:smoke` | `npm run test:smoke:json` |
+
+El botón no envía comandos: el cliente solo manda `{"suite":"..."}` y el servidor
+usa una allowlist, `spawn` sin shell, timeout de 3 minutos y una sola corrida a la
+vez. El resultado se encola en `roomlink_monitor` con el escritor existente, sin que
+ninguna petición espere a la base. Después se recarga la lista y se abre el detalle
+con todas las pruebas visibles (el botón alterna a «Solo fallidas»).
+
+Evidencia real de la ejecución del endpoint contra MySQL:
+
+```json
+{"origin":"monitoring","event":"test_run_executed","suite":"monitor","exitCode":0,"totalTests":16,"passedTests":16,"failedTests":0}
+{"origin":"verificacion","event":"endpoint_result","suite":"monitor","runId":"f2e42f49-c149-48e2-9068-eb6219d57596","totalTests":16,"passedTests":16,"failedTests":0,"queued":17}
+```
+
+Eso escribió 1 fila en `mon_test_run` y 16 en `mon_test_result`, con `source='test'`.
+
+Las mismas suites se pueden ejecutar desde la terminal en cualquier momento:
+
+```bash
+npm --prefix backend run test:monitor:json
+npm --prefix backend run test:unit:json
+npm --prefix backend run test:smoke:json
+npm --prefix web run test
+```
+
+La web sigue ejecutándose en terminal/CI: su competencia es `node --test` y todavía
+no entrega un reporte JSON comparable al de Vitest, por eso no está en la allowlist.
 
 ## Export y retención
 
@@ -134,6 +198,20 @@ npm --prefix backend run monitor:retention -- --apply --csv-dir=../reports
 
 Sin `--apply` solo imprime el plan. Con `--apply` borra únicamente meses que tienen
 foto en `mon_slo_compliance`, CSV válido y 90 días cumplidos.
+
+## Aclaraciones frecuentes
+
+- **«Sin dato» en Indicadores.** El panel consulta el mes seleccionado en UTC-6; si
+  no hay foto mensual para ese mes, muestra «sin dato». Con la demo de noviembre
+  cargada, 28 SLI tienen dato y 36 siguen sin medición. T.3 sigue sin dato porque
+  depende de transacciones reales y la demo es sintética. No se inventan valores.
+- **`user_id` en el CSV.** La regla de privacidad del proyecto permite guardar solo
+  patrón de ruta, estado, duración, **rol** y `request_id`. El CSV ya incluye
+  `request_id` y `role`; agregar `user_id` (o un hash del mismo) rompería esa regla,
+  así que no se hace.
+- **Bitácora.** Los campos Desde, Hasta, Módulo, Tipo de evento y Estado son
+  filtros. La tabla incluye además fecha, operación, mensaje, solicitud, estado y
+  duración.
 
 ## Límites de la demo
 

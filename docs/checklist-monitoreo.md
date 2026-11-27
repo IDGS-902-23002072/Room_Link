@@ -12,17 +12,17 @@ regla o sin entorno). La fecha de verificación es 2026-11-27.
 | 4 | Eventos de negocio separados de resultados de prueba (F2/F4) | Hecho | `mon_activity_log` para bitácora de negocio y `mon_test_result` para pruebas; la guía usa `mon_activity_log` en lugar de `mon_business_event` por decisión acordada |
 | 5 | Un fallo de la base de monitoreo no afecta ninguna respuesta de la API (F2) | Hecho | escritor asíncrono con cola acotada y stdout JSON; `/ready` no consulta `roomlink_monitor`; prueba “con la base de monitoreo caída la API responde igual” |
 | 6 | Pruebas de disponibilidad: `/ready` sondeado cada minuto y guardado (F3) | Parcial | `scripts/probe-ready.mjs` y `scripts/record-backup.mjs` listos; la demo guardó 1860 sondeos sintéticos; GitHub Actions solo permite cada 5 min y falta el cron de 1 min en la VM |
-| 7 | Pruebas de funcionalidad por módulo ligadas a su SLI de regla, en cada versión (F4) | Hecho | 15 SLI de regla en `docs/sli-catalog.md`; `npm --prefix backend run test:unit`: 249/249 pasan; CI usa `MONITOR_INGEST_TOKEN` |
+| 7 | Pruebas de funcionalidad por módulo ligadas a su SLI de regla, en cada versión (F4) | Hecho | 15 SLI de regla en `docs/sli-catalog.md`; `npm --prefix backend run test:unit`: 255/255 pasan; CI usa `MONITOR_INGEST_TOKEN` |
 | 8 | Pruebas de flujos críticos y de manejo de errores incluidas (F4) | Parcial | flujos y errores cubiertos en unitario y smoke (12/12); suite móvil **BLOCKED** (`vitest` no instalado en `frontend/`), E2E móvil/web **BLOCKED** (sin entorno desplegado, ver T-31…T-33) |
 | 9 | Resultados y eventos almacenados con fecha, commit y estado (F4) | Hecho | `mon_test_run`, `mon_test_result`, `mon_request_log` y `mon_activity_log`; ingesta con `x-monitor-token` |
 | 10 | Los 67 SLI están en el catálogo; sin endpoint se muestran “sin dato” (F1/F5) | Hecho | `backend/drizzle-monitor/` semilla y `docs/sli-catalog.md`; 67 filas cargadas en la base real; T.3 sale “sin dato” en la demo |
 | 11 | Cálculos: mes UTC-6, exclusiones, tx buena, ventana de 3 meses, truncado a 1 decimal (F5) | Hecho | `backend/src/monitoring/sliCalculator.ts`, `time.ts`; verificación SQL de la foto `2026-10`; T.1 = 99.5 % con `floor(good*1000/total)/10` |
-| 12 | Pantalla de administración con resumen, indicadores, pruebas y bitácora con filtros (F6) | Hecho | `web/src/pages/Monitoring/` con cuatro pestañas; rutas en `backend/src/modules/monitoring-admin/`; `npm --prefix web run test` y `build` pasan |
+| 12 | Pantalla de administración con resumen, indicadores, pruebas y bitácora con filtros (F6) | Hecho | `web/src/pages/Monitoring/` con cuatro pestañas; bitácora con mensaje y `request_id` visibles; `Pruebas` ejecuta suites permitidas y muestra resultados; `npm --prefix web run test` y `build` pasan |
 | 13 | Pantalla solo para administradores; otro rol recibe 403 (F6) | Hecho | middleware `createAuthMiddleware` + `requireAdmin` por ruta; prueba “niega el panel a un usuario sin rol admin”; la ruta se oculta en navegación |
 | 14 | Comparación entre resultado y SLO visible por módulo (F6) | Hecho | pestaña Indicadores: valor, SLO, margen y semáforo; estados verde/rojo/gris |
 | 15 | CSV mensual de F1 y retención de 90 días (F7) | Parcial | `scripts/export-monthly.mjs` y `backend/src/monitoring/retention.ts` con modo seco por defecto; descarga HTTP real **BLOCKED** (no se creó sesión admin en `roomlink`), cobertura unitaria del script |
 | 16 | Evidencia verificable: cálculo repetible con CSV o SQL directo (F7) | Parcial | verificación SQL real de la demo y prueba unitaria del export con BOM; el CSV real descargado de la API queda **BLOCKED** por el punto 15 |
-| 17 | Demo funcional y usable con un mes simulado (F7) | Hecho | `docs/monitoreo-demo.md`; `npm --prefix backend run monitor:seed:demo -- --period=2026-10` cargó 3806 registros y `monitor:slo` guardó 67 filas |
+| 17 | Demo funcional y usable con un mes simulado (F7) | Hecho | `docs/monitoreo-demo.md`; octubre cargó 3806 registros y noviembre 3745; `monitor:slo` guardó 67 filas por mes (28 cumplen en noviembre) |
 
 ## Cómo reproducir la evidencia
 
