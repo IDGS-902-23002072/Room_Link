@@ -1,5 +1,6 @@
 const baseUrl = process.env.ROOMLINK_BASE_URL ?? 'http://127.0.0.1:3000'
-const ingestUrl = process.env.MONITOR_INGEST_URL ?? `${baseUrl}/api/v1/admin/monitoring/ingest/backup`
+const ingestBase = (process.env.MONITOR_INGEST_URL || `${baseUrl}/api/v1/admin/monitoring/ingest`).replace(/\/$/, '')
+const ingestUrl = `${ingestBase}/backup`
 const token = process.env.MONITOR_INGEST_TOKEN ?? ''
 
 const date = process.env.BACKUP_DATE ?? new Date().toISOString().slice(0, 10)

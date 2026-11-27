@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
 
 const baseUrl = process.env.ROOMLINK_BASE_URL ?? 'http://127.0.0.1:3000'
-const ingestUrl = process.env.MONITOR_INGEST_URL ?? `${baseUrl}/api/v1/admin/monitoring/ingest/probe`
+const ingestBase = (process.env.MONITOR_INGEST_URL || `${baseUrl}/api/v1/admin/monitoring/ingest`).replace(/\/$/, '')
+const ingestUrl = `${ingestBase}/probe`
 const token = process.env.MONITOR_INGEST_TOKEN ?? ''
 const requestId = randomUUID()
 

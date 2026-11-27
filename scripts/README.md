@@ -14,7 +14,9 @@ Variables comunes:
 
 - `ROOMLINK_BASE_URL` (por defecto `http://127.0.0.1:3000`).
 - `MONITOR_INGEST_TOKEN` (obligatorio; el mismo que `MONITOR_INGEST_TOKEN` del backend).
-- `MONITOR_INGEST_URL` (opcional; reemplaza la URL completa del endpoint).
+- `MONITOR_INGEST_URL` (opcional; base del endpoint, por ejemplo
+  `http://127.0.0.1:3000/api/v1/admin/monitoring/ingest`). Cada script le añade
+  `/probe`, `/backup` o `/test-run`. Si se deja vacía, se usa `ROOMLINK_BASE_URL`.
 
 Sondeo de `/ready` cada minuto (cron propio, fuera de GitHub Actions):
 

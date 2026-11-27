@@ -11,7 +11,8 @@ const reportPath = argValue('report', process.env.VITEST_JSON_REPORT ?? 'reports
 const suite = argValue('suite', process.env.MONITOR_TEST_SUITE ?? 'backend:unit')
 const complete = args.includes('--complete')
 const baseUrl = process.env.ROOMLINK_BASE_URL ?? 'http://127.0.0.1:3000'
-const ingestUrl = process.env.MONITOR_INGEST_URL ?? `${baseUrl}/api/v1/admin/monitoring/ingest/test-run`
+const ingestBase = (process.env.MONITOR_INGEST_URL || `${baseUrl}/api/v1/admin/monitoring/ingest`).replace(/\/$/, '')
+const ingestUrl = `${ingestBase}/test-run`
 const token = process.env.MONITOR_INGEST_TOKEN ?? ''
 
 if (!token) {
