@@ -86,7 +86,7 @@ class InMemoryCompatibilityRepository implements ICompatibilityRepository {
 }
 
 describe("Compatibility module", () => {
-  it("validates that the test has exactly seven integer answers from 1 to 5", () => {
+  it("[SLI 3.3] validates that the test has exactly seven integer answers from 1 to 5", () => {
     expect(CompatibilityService.isValidAnswers(answers)).toBe(true);
     expect(
       CompatibilityService.isValidAnswers({ ...answers, noise: "3" }),
@@ -122,7 +122,7 @@ describe("Compatibility module", () => {
     );
   });
 
-  it("serves affinity pages with twelve profiles per page", async () => {
+  it("[SLI 4.2] serves affinity pages with twelve profiles per page", async () => {
     const repository = new InMemoryCompatibilityRepository();
     repository.profiles.set("viewer", createProfile("viewer", 3));
     repository.feed = Array.from({ length: 13 }, (_, index) => ({
@@ -197,7 +197,7 @@ describe("Compatibility module", () => {
     expect(request.addresseeId).toBe("candidate");
   });
 
-  it("exposes test saving and feed through the HTTP API", async () => {
+  it("[E-01][SLI 3.3] exposes test saving and feed through the HTTP API", async () => {
     const repository = new InMemoryCompatibilityRepository();
     repository.feed = [
       {

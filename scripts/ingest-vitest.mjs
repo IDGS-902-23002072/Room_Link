@@ -16,7 +16,7 @@ const token = process.env.MONITOR_INGEST_TOKEN ?? ''
 
 if (!token) {
   console.error(JSON.stringify({ origin: 'monitoring', event: 'test_ingest_skipped', reason: 'sin token de ingesta' }))
-  process.exit(1)
+  process.exit(0)
 }
 
 let report
@@ -24,7 +24,7 @@ try {
   report = JSON.parse(await readFile(reportPath, 'utf8'))
 } catch {
   console.error(JSON.stringify({ origin: 'monitoring', event: 'test_ingest_skipped', reason: 'no se pudo leer el reporte JSON', reportPath }))
-  process.exit(1)
+  process.exit(0)
 }
 
 const sliFromName = (name) => {
@@ -79,7 +79,7 @@ try {
   })
 } catch {
   console.error(JSON.stringify({ origin: 'monitoring', event: 'test_ingest_failed', reason: 'endpoint de ingesta no disponible' }))
-  process.exit(1)
+  process.exit(0)
 }
 
 const body = await response.json().catch(() => ({}))
@@ -96,4 +96,4 @@ console.log(JSON.stringify({
   code: body.code ?? null,
 }))
 
-if (!response.ok) process.exit(1)
+if (!response.ok) process.exit(0)

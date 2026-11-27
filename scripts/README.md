@@ -38,3 +38,9 @@ MONITOR_INGEST_TOKEN=... npm --prefix backend run monitor:ingest -- --suite=back
 ```
 
 El reporte JSON se escribe en `reports/` y ese directorio está ignorado por Git.
+Si no hay token o el endpoint no responde, el script solo imprime un evento JSON y
+termina con éxito: la monitorización nunca rompe una corrida de pruebas.
+
+`.github/workflows/monitoring.yml` programa el sondeo cada 5 minutos (mínimo de
+GitHub Actions). Para cumplir los 60 sondeos por hora de T.1 se recomienda el
+cron de una VM con `* * * * *`, según el bloque superior.

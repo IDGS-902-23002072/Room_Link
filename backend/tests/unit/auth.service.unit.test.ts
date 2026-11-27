@@ -11,7 +11,7 @@ const register = (service: AuthService, overrides: Record<string, unknown> = {})
   });
 
 describe("AuthService", () => {
-  it("requires explicit terms and a password of at least 8 characters", async () => {
+  it("[E-01][SLI 1.5] requires explicit terms and a password of at least 8 characters", async () => {
     const users = new InMemoryUserRepository();
     const fakes = createAuthFakes();
     const service = new AuthService(users, fakes.dependencies);

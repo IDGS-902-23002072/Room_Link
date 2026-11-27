@@ -87,7 +87,7 @@ describe("NotificationsService", () => {
     service = new NotificationsService(repo, () => now);
   });
 
-  it("creates a notification when there is no preference stored (default allowed)", async () => {
+  it("[SLI 14.4] creates a notification when there is no preference stored (default allowed)", async () => {
     const created = await service.createIfAllowed({
       userId: "u1",
       type: "system",

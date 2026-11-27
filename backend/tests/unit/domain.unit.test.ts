@@ -120,7 +120,7 @@ describe("Domain Entities & Business Rules", () => {
       expect(() => room.publish()).toThrow(/al menos 3 fotografías/);
     });
 
-    it("allows publishing when listing has 3 or more photos and a location", () => {
+    it("[SLI 7.6] allows publishing when listing has 3 or more photos and a location", () => {
       const room = new RoomListing({
         id: "r-4",
         hostId: "u-1",

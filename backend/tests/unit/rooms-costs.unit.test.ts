@@ -39,7 +39,7 @@ describe("RoomsService.saveCostItems — costos incluidos vs renta (M08)", () =>
     ).rejects.toThrow(/incluidos en la renta no pueden superar/i);
   });
 
-  it("rechaza cuando la SUMA de los incluidos supera la renta aunque cada uno no", async () => {
+  it("[SLI 8.3] rechaza cuando la SUMA de los incluidos supera la renta aunque cada uno no", async () => {
     await expect(
       service.saveCostItems("r1", [
         { kind: "service", concept: "Luz", amount: 1500, isIncluded: true, isProrated: false },

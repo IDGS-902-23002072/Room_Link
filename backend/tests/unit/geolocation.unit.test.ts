@@ -21,7 +21,7 @@ describe("GeolocationService", () => {
     await expect(service.search("  ")).rejects.toMatchObject({ status: 400 });
   });
 
-  it("uses only fixed nearby categories and excludes points outside the radius", async () => {
+  it("[SLI 6.3] uses only fixed nearby categories and excludes points outside the radius", async () => {
     const request = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ elements: [
       { type: "way", id: 2, center: { lat: 21.125, lon: -101.683 }, tags: { shop: "supermarket", name: "Mercado" } },
       { type: "node", id: 1, lat: 21.123, lon: -101.683, tags: { highway: "bus_stop" } },

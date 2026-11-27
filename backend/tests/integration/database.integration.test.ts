@@ -129,7 +129,7 @@ describe("MySQL schema", () => {
     expect(rows[0]?.main_photo).toBe(`/api/v1/rooms/${listingId}/photos/first`);
   });
 
-  it("keeps one application per listing and applicant when a request is retried", async () => {
+  it("[E-03][SLI 9.5] keeps one application per listing and applicant when a request is retried", async () => {
     const repository = new DrizzleApplicationRepository(db);
     const application = () => new Application({
       id: randomUUID(),

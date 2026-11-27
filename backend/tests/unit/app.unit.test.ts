@@ -48,7 +48,7 @@ describe("Room_Link API health", () => {
     expect(checkDatabase).toHaveBeenCalledOnce();
   });
 
-  it("returns 503 when MySQL is unavailable", async () => {
+  it("[D-03] returns 503 when MySQL is unavailable", async () => {
     const checkDatabase = vi
       .fn<() => Promise<void>>()
       .mockRejectedValue(new Error("connection refused"));
