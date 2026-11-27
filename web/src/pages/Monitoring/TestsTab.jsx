@@ -232,18 +232,56 @@ export default function TestsTab({ token }) {
             <ul className={styles.results}>
               {visibleResults.map((result, index) => (
                 <li key={`${result.testName}-${index}`} className={styles.result}>
-                  <Badge tone={result.result === 'passed' ? 'success' : 'danger'}>
-                    {result.result === 'passed' ? 'Aprobada' : result.result === 'skipped' ? 'Omitida' : 'Fallida'}
-                  </Badge>
-                  <div className={styles.resultBody}>
+                  <div className={styles.resultHead}>
+                    <Badge tone={result.result === 'passed' ? 'success' : 'danger'}>
+                      {result.result === 'passed' ? 'Aprobada' : result.result === 'skipped' ? 'Omitida' : 'Fallida'}
+                    </Badge>
                     <span className={styles.resultName}>{result.testName}</span>
+                  </div>
+                  <div className={styles.resultBody}>
                     {result.message ? (
-                      <p className={styles.resultDescription}>{result.message}</p>
+                      <p className={styles.resultLine}>
+                        <span className={styles.resultLabel}>Qué se verificó</span>
+                        <span>{result.message}</span>
+                      </p>
                     ) : null}
-                    <span className={styles.resultMeta}>
-                      {result.sliId ?? 'sin SLI'} · {result.module}
-                      {result.dataSummary ? ` · Datos: ${result.dataSummary}` : ''}
-                    </span>
+                    {result.obtained ? (
+                      <p className={styles.resultLine}>
+                        <span className={styles.resultLabel}>Qué pasó</span>
+                        <span>{result.obtained}</span>
+                      </p>
+                    ) : null}
+                    {result.dataSummary ? (
+                      <p className={styles.resultLine}>
+                        <span className={styles.resultLabel}>Datos</span>
+                        <span>{result.dataSummary}</span>
+                      </p>
+                    ) : null}
+                    <details className={styles.resultDetails}>
+                      <summary>Detalle técnico</summary>
+                      <dl className={styles.resultFacts}>
+                        <div>
+                          <dt>SLI</dt>
+                          <dd>{result.sliId ?? 'sin SLI'}</dd>
+                        </div>
+                        <div>
+                          <dt>Módulo</dt>
+                          <dd>{result.module}</dd>
+                        </div>
+                        {result.durationMs !== null && result.durationMs !== undefined ? (
+                          <div>
+                            <dt>Duración</dt>
+                            <dd>{result.durationMs} ms</dd>
+                          </div>
+                        ) : null}
+                        {result.expected ? (
+                          <div>
+                            <dt>Esperado</dt>
+                            <dd>{result.expected}</dd>
+                          </div>
+                        ) : null}
+                      </dl>
+                    </details>
                   </div>
                 </li>
               ))}
