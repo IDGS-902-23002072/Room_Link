@@ -1,5 +1,10 @@
 # Room_Link: guía para que opencode implemente el monitoreo y los SLI/SLO
 
+> El plan completo (secciones 1 a 11, con las fórmulas y los ejemplos numéricos)
+> está en `docs/plan-monitoreo-completo.pdf`. Este archivo solo resume los
+> prompts de cada fase. En caso de duda manda el PDF y, sobre la medición, el
+> `docs/SLA.pdf`.
+
 ## Antes de empezar (lo haces tú, una vez)
 
 1. Crea la rama de trabajo desde `develop` actualizado (es la que tiene los módulos más nuevos, como `geolocation`, que `feature/omar` aún no trae): `git checkout develop && git pull && git checkout -b feature/monitoreo`. Si `develop` cambia mucho, repite la fase 0 antes de seguir.

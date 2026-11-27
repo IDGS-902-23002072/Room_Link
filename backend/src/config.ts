@@ -27,6 +27,11 @@ export const config = {
     password: process.env.MONITOR_DB_PASSWORD ?? "roomlink_monitor_school",
     database: process.env.MONITOR_DB_NAME ?? "roomlink_monitor",
     ingestToken: process.env.MONITOR_INGEST_TOKEN ?? "",
+    // Solo lectura sobre la base principal para los casos F4.
+    readOnlyUser: process.env.MONITOR_READONLY_DB_USER ?? process.env.DB_USER ?? "roomlink_app",
+    readOnlyPassword:
+      process.env.MONITOR_READONLY_DB_PASSWORD ?? process.env.DB_PASSWORD ?? "roomlink_school",
+    readOnlyDatabase: process.env.DB_NAME ?? "roomlink",
   },
   auth: {
     googleClientId: process.env.GOOGLE_CLIENT_ID,
