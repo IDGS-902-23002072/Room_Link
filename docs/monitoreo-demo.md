@@ -167,6 +167,29 @@ vez. El resultado se encola en `roomlink_monitor` con el escritor existente, sin
 ninguna petición espere a la base. Después se recarga la lista y se abre el detalle
 con todas las pruebas visibles (el botón alterna a «Solo fallidas»).
 
+Además del resultado, las suites dejan sus pasos reales en la bitácora. La suite
+corre en un proceso hijo con `ROOMLINK_EMIT_MONITOR_RECORDS=1`; el puente
+`backend/src/monitoring/testRecordBridge.ts` escribe líneas marcadas
+`"event":"monitor_record"` y el proceso padre solo lee esas líneas. Todo lo demás
+que imprima Vitest se descarta. Antes de encolar, el padre vuelve a sanear cada
+registro y fuerza `source='test'`, con lo que estas filas **no cuentan para el SLA**.
+
+En la pestaña Bitácora esos pasos se ven con su nombre de negocio, no como «se hizo
+un test»:
+
+| Tipo que muestra el panel | Qué significa |
+|---|---|
+| Operación de negocio | «Creación de anuncio», «Publicación de anuncio», «Envío de postulación», «Decisión de postulación», «Cierre de anuncio», inicios de sesión y conexiones |
+| Petición API | La petición HTTP del paso, saneada y con el mismo `request_id` que su operación |
+| Sondeo /ready | Comprobaciones de `/health` y `/ready` de la suite de disponibilidad |
+| Prueba automática | Solo el resumen de cada caso de prueba |
+
+La corrida local verificada dejó 42 registros de la suite `funcional` (operaciones
+y peticiones) y 5 sondeos de `disponibilidad`, todos con `source='test'` y con su
+`request_id`. Las acciones de los eventos de dominio también se muestran en español;
+antes aparecían nombres técnicos como `ApplicationStatusChanged`, que además se
+descartaban por parecer un secreto al tener 24 caracteres seguidos.
+
 Evidencia real de una ejecución anterior del endpoint contra MySQL (cuando la
 suite `monitor` tenía 16 pruebas; hoy tiene 20):
 
@@ -176,8 +199,40 @@ suite `monitor` tenía 16 pruebas; hoy tiene 20):
 ```
 
 Eso escribió 1 fila en `mon_test_run` y 16 en `mon_test_result`, con `source='test'`.
-Las corridas locales actuales son: `monitor` 20/20, `funcional` 8/8 y
+Con el puente de registros, además se encolan las operaciones y los sondeos de la
+suite. Las corridas locales actuales son: `monitor` 20/20, `funcional` 8/8 y
 `disponibilidad` 4/4 (2026-11-27).
+
+Para comprobarlo en MySQL después de ejecutar `funcional` y `disponibilidad` desde
+el panel:
+
+```sql
+SELECT type, source, COUNT(*) AS filas
+FROM roomlink_monitor.mon_v_logbook
+WHERE source = 'test'
+GROUP BY type, source;
+
+SELECT occurred_at, type, operation, message, request_id
+FROM roomlink_monitor.mon_v_logbook
+WHERE source = 'test' AND type IN ('business', 'probe')
+ORDER BY occurred_at DESC
+LIMIT 20;
+```
+
+En la tabla `type` sale `business` y `probe` (el panel lo muestra como
+«Operación de negocio» y «Sondeo /ready»), además de `test`. Todas tienen
+`source='test'` y las de negocio llevan `request_id`.
+
+Verificación real hecha en `roomlink_monitor` con el escritor de Drizzle y la ingesta
+(`queued: 4`: 1 corrida, 1 resultado, 1 operación y 1 sondeo):
+
+| `type` | `operation` | `message` | `source` | `request_id` | `excluded` |
+|---|---|---|---|---|---|
+| `business` | Publicación de anuncio | Se publicó el anuncio de habitación. | `test` | `22222222-2222-4222-8222-222222222222` | 1 |
+| `probe` | sondeo de disponibilidad | El sondeo de /ready fue correcto. | `test` | `22222222-2222-4222-8222-222222222222` | 1 |
+
+Eso confirma que la fila de negocio ya no se disfraza de prueba y que ambas quedan
+fuera del cálculo SLA.
 
 Las mismas suites se pueden ejecutar desde la terminal en cualquier momento:
 
@@ -232,7 +287,11 @@ foto en `mon_slo_compliance`, CSV válido y 90 días cumplidos.
   así que no se hace.
 - **Bitácora.** Los campos Desde, Hasta, Módulo, Tipo de evento y Estado son
   filtros. La tabla incluye además fecha, operación, mensaje, solicitud, estado y
-  duración.
+  duración. El Tipo de evento se muestra en español: «Petición API», «Operación de
+  negocio», «Sondeo /ready», «Prueba automática», «Incidente» y «Respaldo». Las filas
+  de una suite pueden aparecer como «Operación de negocio», «Petición API»,
+  «Sondeo /ready» o «Prueba automática», siempre con `source='test'`; no se mezclan
+  con el tráfico real.
 
 ## Límites de la demo
 
