@@ -614,7 +614,7 @@ test('Conexiones de Avril acepta una solicitud y Mis roomies abre el chat persis
     await irA(page, 'Conexiones')
     const outgoing = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'RoomLink QA chat-receptor' }) })
     await expect(outgoing.getByText('Solicitud enviada', { exact: true })).toBeVisible()
-    await page.getByRole('link', { name: 'Mis roomies', exact: true }).click()
+    await page.locator('#contenido').getByRole('link', { name: 'Mis roomies', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Aún no tienes roomies' })).toBeVisible()
 
     await irA(incoming, 'Conexiones')
