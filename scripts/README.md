@@ -47,8 +47,9 @@ La configuración rechaza valores fuera del rango de Android.
 
 ### Resultado
 
-- Artifact `roomlink-apk-<commit>`: APK, SHA-256 y `build.json` con commit, versión
-  y API; disponible durante 14 días, incluso si falla posteriormente Azure.
+- Compilación y publicación ocurren en un solo job: el APK no se guarda en GitHub
+  (ni artifact ni release) y se borra del runner al terminar. Si Azure falla,
+  se vuelve a ejecutar el workflow (`workflow_dispatch`).
 - URL permanente: `<EXPO_PUBLIC_API_URL>/descargas/roomlink.apk`.
 - Azure debe tener el enlace `current/public/descargas → /opt/roomlink/downloads`
   que configura `deploy-azure-release.sh`.

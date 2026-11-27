@@ -13,14 +13,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Compila y publica en un solo job: el APK nunca se guarda en GitHub
+  # (ni artifact ni release), solo pasa del runner a la VM.
   build:
-    name: Compilar APK firmado
+    name: Compilar y publicar APK
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    environment: production
-    outputs:
-      api_url: ${{ steps.config.outputs.api_url }}
+    timeout-minutes: 70
+    environment:
+      name: production
+      url: ${{ steps.config.outputs.api_url }}/descargas/roomlink.apk
+    concurrency:
+      group: roomlink-production
+      cancel-in-progress: false
     env:
       CI: '1'
       NODE_ENV: production
@@ -120,39 +125,19 @@ jobs:
           writeFileSync('build.json', JSON.stringify({ commit: process.env.GITHUB_SHA, versionCode: Number(process.env.ANDROID_VERSION_CODE), apiUrl: process.env.EXPO_PUBLIC_API_URL, runId: process.env.GITHUB_RUN_ID }, null, 2));
           NODE
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: roomlink-apk-${{ github.sha }}
-          path: apk/
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Eliminar firma temporal
         if: always()
         run: rm -f "$RUNNER_TEMP/roomlink-release.keystore"
 
-  publish:
-    name: Publicar APK en Azure
-    needs: build
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    environment:
-      name: production
-      url: ${{ needs.build.outputs.api_url }}/descargas/roomlink.apk
-    concurrency:
-      group: roomlink-production
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: roomlink-apk-${{ github.sha }}
-          path: apk
-      - name: Subir y verificar APK
+      - name: Subir y verificar APK en Azure
         env:
           SSH_HOST: ${{ secrets.AZURE_VM_HOST }}
           SSH_USER: ${{ secrets.AZURE_VM_USER }}
           SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
-          API_URL: ${{ needs.build.outputs.api_url }}
+          API_URL: ${{ steps.config.outputs.api_url }}
         run: bash scripts/deploy-android-apk.sh
+
+      - name: Borrar APK del runner
+        if: always()
+        run: rm -rf apk frontend/Room_Link/android/app/build/outputs
