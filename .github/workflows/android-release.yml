@@ -39,6 +39,11 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: android-actions/setup-android@v3
+        with:
+          # El default del action incluye el paquete 'tools', que Google eliminó
+          # del SDK y hace fallar a sdkmanager. platform-tools basta; el resto
+          # (platform + build-tools) lo provisiona Gradle con las licencias ya aceptadas.
+          packages: platform-tools
 
       - name: Validar automatización de publicación
         run: |
