@@ -53,6 +53,9 @@ export interface TestResultRow {
   result: string;
   durationMs: number | null;
   message: string;
+  dataSummary?: string | null;
+  expected?: string | null;
+  obtained?: string | null;
 }
 
 export interface BackupRow {

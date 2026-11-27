@@ -308,6 +308,42 @@ describe("F6 · panel de monitoreo para administradores", () => {
     await writer.close();
   });
 
+  it("muestra la explicación y los datos de cada prueba en el detalle de una corrida", async () => {
+    const repo = fullRepo();
+    const runId = repo.lastRun!.id;
+    repo.results = [
+      {
+        id: 1,
+        sliId: "7.1",
+        module: "M7 · Publicación",
+        testName: "Crear anuncio",
+        result: "passed",
+        durationMs: 12,
+        message: "Se verificó que el anfitrión creara un anuncio en borrador. Resultado: passed.",
+        dataSummary: "Datos mon-test-20261127-abcd en repositorios en memoria",
+        expected: "201 en borrador",
+        obtained: "201 en borrador",
+      },
+    ];
+    const { app, writer } = setup(repo);
+    const token = await tokenFor(app, "admin@roomlink.test");
+    const response = await app.request(`/api/v1/admin/monitoring/tests/runs/${runId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.results).toEqual([
+      expect.objectContaining({
+        testName: "Crear anuncio",
+        message: "Se verificó que el anfitrión creara un anuncio en borrador. Resultado: passed.",
+        dataSummary: "Datos mon-test-20261127-abcd en repositorios en memoria",
+        expected: "201 en borrador",
+        obtained: "201 en borrador",
+      }),
+    ]);
+    await writer.close();
+  });
+
   it("exporta CSV con patrón de ruta y sin correos ni tokens", async () => {
     const repo = fullRepo();
     repo.exported = [{

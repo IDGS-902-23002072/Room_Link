@@ -147,6 +147,54 @@ describe("F2/F3/F5 · ingesta protegida", () => {
     await writer.close();
   });
 
+  it("guarda la explicación legible y conserva los datos de prueba seguros", async () => {
+    const { app, sink, writer } = setup();
+    const response = await app.request("/api/v1/admin/monitoring/ingest/test-run", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        run: {
+          id: randomUUID(),
+          startedAt: "2026-11-27T12:00:00.000Z",
+          finishedAt: "2026-11-27T12:00:05.000Z",
+          suite: "funcional",
+          complete: true,
+          totalTests: 1,
+          passedTests: 1,
+          failedTests: 0,
+          commitSha: null,
+        },
+        results: [
+          {
+            sliId: "9.1",
+            module: "M9 · Postulaciones",
+            testName: "Enviar postulación",
+            description: "Se verificó que el solicitante pudiera postularse al anuncio.",
+            dataSummary: "Datos mon-test-20261127-abcd en repositorios en memoria",
+            expected: "201 pendiente",
+            obtained: "201 pendiente",
+            result: "passed",
+            durationMs: 12,
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(202);
+    await writer.flush();
+
+    const result = sink.records.find((record) => record.kind === "testResult");
+    expect(result?.kind).toBe("testResult");
+    if (result?.kind === "testResult") {
+      expect(result.value.message).toContain("Se verificó que el solicitante pudiera postularse al anuncio.");
+      expect(result.value.message).toContain("Resultado: passed");
+      expect(result.value.dataSummary).toContain("mon-test-20261127-abcd");
+      expect(result.value.expected).toBe("201 pendiente");
+      expect(result.value.obtained).toBe("201 pendiente");
+    }
+    await writer.close();
+  });
+
   it("limpia texto sensible antes de guardarlo", () => {
     expect(safeText("usuario@correo.test")).toBeNull();
     expect(safeText("Bearer abc.def.ghi")).toBeNull();

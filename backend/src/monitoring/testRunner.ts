@@ -16,9 +16,16 @@ export interface TestSuiteDefinition {
 
 export const TEST_SUITES: readonly TestSuiteDefinition[] = [
   {
+    id: "funcional",
+    label: "Funcional · flujos principales",
+    description:
+      "Login, publicación de habitaciones, postulaciones y cierre con la propia app. Datos etiquetados en memoria; no escribe en roomlink.",
+  },
+  {
     id: "monitor",
-    label: "Monitoreo (F1/F2/F3/F5)",
-    description: "Pruebas unitarias del middleware y de la ingesta.",
+    label: "Monitoreo · infraestructura (F1/F2/F3/F5)",
+    description:
+      "Comprueba la bitácora, privacidad, exclusiones y tolerancia a fallos. No prueba login ni flujos de negocio.",
   },
   {
     id: "backend:unit",
@@ -38,6 +45,12 @@ export interface TestCaseOutcome {
   testName: string;
   result: string;
   durationMs: number | null;
+  /** Texto en lenguaje natural: qué se verificó y qué pasó. */
+  description?: string | null;
+  /** Patrón de datos de prueba, sin correos, tokens ni identificadores de URL. */
+  dataSummary?: string | null;
+  expected?: string | null;
+  obtained?: string | null;
 }
 
 export interface TestExecutionOutcome {
@@ -77,6 +90,11 @@ interface SuiteCommand {
 }
 
 const COMMANDS: Record<string, SuiteCommand> = {
+  funcional: {
+    cwd: backendDir,
+    args: ["run", "test:functional:json"],
+    report: resolve(repoDir, "reports/vitest-functional.json"),
+  },
   monitor: {
     cwd: backendDir,
     args: ["run", "test:monitor:json"],
@@ -100,6 +118,24 @@ const asCount = (value: unknown): number | null =>
 const sliFromName = (name: string): string | null => {
   const match = name.match(/\[SLI\s+(\d{1,2}\.\d{1,2}|T\.\d{1,2})\]/i);
   return match ? match[1]! : null;
+};
+
+/**
+ * Los títulos de las pruebas pueden traer texto legible separado por ` :: `:
+ * título :: qué se verificó :: datos :: esperado :: obtenido.
+ * Así el panel no muestra el nombre técnico de Vitest sino una explicación.
+ */
+export const explainTest = (title: string) => {
+  const parts = title.split(" :: ").map((part) => part.trim());
+  const taggedName = parts[0] || "prueba sin nombre";
+  const sliTag = taggedName.match(/\[SLI\s+[^\]]+\]/i)?.[0] ?? null;
+  return {
+    testName: sliTag ? taggedName.replace(sliTag, "").trim() : taggedName,
+    description: parts[1] || null,
+    dataSummary: parts[2] || null,
+    expected: parts[3] || null,
+    obtained: parts[4] || null,
+  };
 };
 
 const moduleFromSli = (sliId: string | null): string =>
@@ -217,24 +253,26 @@ export class ProcessTestRunExecutor implements TestRunExecutor {
       if (!isRecord(file) || !Array.isArray(file.assertionResults)) continue;
       for (const raw of file.assertionResults) {
         if (!isRecord(raw)) continue;
-        const name =
-          typeof raw.fullName === "string"
+        const fullName =
+          typeof raw.fullName === "string" && raw.fullName.trim()
             ? raw.fullName
             : typeof raw.title === "string"
               ? raw.title
               : "prueba sin nombre";
+        const title =
+          typeof raw.title === "string" && raw.title.trim() ? raw.title : fullName;
         const status =
           raw.status === "passed" || raw.status === "failed" || raw.status === "skipped"
             ? raw.status
             : "failed";
         const duration = typeof raw.duration === "number" ? Math.max(0, Math.round(raw.duration)) : null;
-        const sliId = sliFromName(name);
+        const sliId = sliFromName(fullName);
         results.push({
           sliId,
           module: moduleFromSli(sliId),
-          testName: name,
           result: status,
           durationMs: duration,
+          ...explainTest(title),
         });
       }
     }

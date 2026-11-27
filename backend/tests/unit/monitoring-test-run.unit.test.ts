@@ -8,7 +8,11 @@ import {
   type MonitorRecord,
   type MonitorSink,
 } from "../../src/monitoring/writer.js";
-import type { TestExecutionOutcome, TestRunExecutor } from "../../src/monitoring/testRunner.js";
+import {
+  explainTest,
+  type TestExecutionOutcome,
+  type TestRunExecutor,
+} from "../../src/monitoring/testRunner.js";
 import { FakeMonitoringAdminRepo } from "../helpers/monitoring-admin-repo.js";
 import { createAuthFakes } from "../helpers/auth-fakes.js";
 
@@ -113,6 +117,20 @@ const post = (app: ReturnType<typeof createApp>, token: string, body: string) =>
   });
 
 describe("F6 · ejecución de pruebas desde el panel", () => {
+  it("separa el título técnico de la explicación legible", () => {
+    expect(
+      explainTest(
+        "[SLI 7.1] Crear anuncio :: El anfitrión creó un borrador :: Datos mon-test-20261127-abcd en memoria :: 201 :: 201",
+      ),
+    ).toEqual({
+      testName: "Crear anuncio",
+      description: "El anfitrión creó un borrador",
+      dataSummary: "Datos mon-test-20261127-abcd en memoria",
+      expected: "201",
+      obtained: "201",
+    });
+  });
+
   it("publica solo las suites permitidas", async () => {
     const { app, writer } = setup({ run: async () => outcome("monitor") });
     const token = await tokenFor(app, "admin@roomlink.test");
@@ -122,6 +140,7 @@ describe("F6 · ejecución de pruebas desde el panel", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.items.map((item: { id: string }) => item.id)).toEqual([
+      "funcional",
       "monitor",
       "backend:unit",
       "backend:smoke",
@@ -143,6 +162,39 @@ describe("F6 · ejecución de pruebas desde el panel", () => {
       .map((record) => record.kind)
       .filter((kind) => kind === "testRun" || kind === "testResult");
     expect(kinds).toEqual(["testRun", "testResult", "testResult"]);
+  });
+
+  it("guarda la explicación y los datos seguros en el registro de cada prueba", async () => {
+    const detailed: TestExecutionOutcome = {
+      ...outcome("funcional"),
+      results: [
+        {
+          sliId: "7.1",
+          module: "M7 · Publicación",
+          testName: "Crear anuncio",
+          description: "Se verificó que el anfitrión creara un anuncio en borrador.",
+          dataSummary: "Datos mon-test-20261127-abcd en repositorios en memoria",
+          expected: "201",
+          obtained: "201",
+          result: "passed",
+          durationMs: 12,
+        },
+      ],
+    };
+    const { app, writer, sink } = setup({ run: async () => detailed });
+    const token = await tokenFor(app, "admin@roomlink.test");
+    const response = await post(app, token, JSON.stringify({ suite: "funcional" }));
+    expect(response.status).toBe(200);
+    await writer.close();
+
+    const result = sink.records.find((record) => record.kind === "testResult");
+    expect(result?.kind).toBe("testResult");
+    if (result?.kind === "testResult") {
+      expect(result.value.message).toContain("Se verificó que el anfitrión creara un anuncio en borrador.");
+      expect(result.value.dataSummary).toContain("mon-test-20261127-abcd");
+      expect(result.value.expected).toBe("201");
+      expect(result.value.obtained).toBe("201");
+    }
   });
 
   it("rechaza comandos y suites fuera de la allowlist", async () => {

@@ -189,6 +189,7 @@ export class MonitoringIngestService {
       if (!isRecord(raw)) continue;
       const module = safeText(raw.module, 48);
       const testName = safeText(raw.testName, 300);
+      const description = safeText(raw.description, 300);
       const result =
         raw.result === "passed" || raw.result === "failed" || raw.result === "skipped"
           ? raw.result
@@ -215,7 +216,7 @@ export class MonitoringIngestService {
         obtained,
         durationMs,
         source: "test",
-        message: `La prueba ${testName} terminó en estado ${result} dentro de la corrida ${suite}.`,
+        message: `${description ?? `Se verificó ${testName}.`} Resultado: ${result}.`,
       });
     }
 

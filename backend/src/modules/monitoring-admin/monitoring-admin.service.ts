@@ -70,6 +70,9 @@ export interface TestResultPanelRow {
   result: string;
   durationMs: number | null;
   message: string;
+  dataSummary?: string | null;
+  expected?: string | null;
+  obtained?: string | null;
 }
 
 export interface LogbookResponse {
@@ -295,6 +298,9 @@ export class MonitoringAdminService {
         result: result.result,
         durationMs: result.durationMs,
         message: result.message,
+        dataSummary: result.dataSummary ?? null,
+        expected: result.expected ?? null,
+        obtained: result.obtained ?? null,
       })),
     };
   };

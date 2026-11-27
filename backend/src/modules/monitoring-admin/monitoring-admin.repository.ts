@@ -107,7 +107,8 @@ export class DrizzleMonitoringAdminRepository implements MonitoringAdminReposito
   getResults = async (runId: string): Promise<TestResultRow[]> =>
     this.rows<TestResultRow>(
       `SELECT id, sli_id AS sliId, module, test_name AS testName, result,
-              duration_ms AS durationMs, message
+              duration_ms AS durationMs, message,
+              data_summary AS dataSummary, expected, obtained
          FROM mon_test_result WHERE run_id = ? ORDER BY occurred_at DESC, id DESC`,
       [runId],
     );
