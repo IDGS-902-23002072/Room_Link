@@ -155,7 +155,7 @@
 .filters {
   display: grid;
   flex: 1;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: var(--space-4);
   align-items: end;
   width: 100%;
@@ -181,6 +181,23 @@
   width: 18px;
   height: 18px;
   accent-color: var(--plum);
+}
+
+@media (min-width: 1080px) {
+  .filters {
+    grid-template-columns: repeat(5, minmax(125px, 1fr)) max-content max-content;
+    gap: var(--space-3) var(--space-4);
+  }
+
+  .checks {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+
+  .filterActions {
+    justify-content: flex-end;
+  }
 }
 
 .tableWrap {
