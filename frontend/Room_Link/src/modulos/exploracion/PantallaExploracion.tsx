@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   area: { flex: 1, backgroundColor: color.blanco },
   contenido: {
     width: '100%', maxWidth: 520, alignSelf: 'center',
-    paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40, gap: 20,
+    paddingHorizontal: 20, paddingTop: 0, paddingBottom: 110, gap: 20,
   },
   barra: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: color.blanco, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.borde },
   campana: {
