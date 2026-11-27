@@ -104,7 +104,7 @@ describe("ProfileService (Roberto, HU-02)", () => {
   });
 
   describe("Galería — EL-02.2 / EL-02.5", () => {
-    it("agrega hasta 6 fotos y rechaza la séptima", async () => {
+    it("[SLI 2.6] agrega hasta 6 fotos y rechaza la séptima", async () => {
       for (let i = 1; i <= 6; i++) {
         await service.addPhoto(uid, {
           url: `https://cdn.example.com/${i}.jpg`,

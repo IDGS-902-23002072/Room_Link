@@ -124,7 +124,7 @@ class InMemoryMessagingRepository implements MessagingRepository {
 }
 
 describe("MessagingService", () => {
-  it("opens a room only from exactly one accepted origin", async () => {
+  it("[SLI 10.5] opens a room only from exactly one accepted origin", async () => {
     const repository = new InMemoryMessagingRepository();
     const service = new MessagingService(repository, new InMemoryMessageEventPublisher());
 

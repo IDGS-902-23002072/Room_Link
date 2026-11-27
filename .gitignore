@@ -46,6 +46,7 @@ ios/*.xcodeproj/project.xcworkspace/xcuserdata/
 coverage/
 .jest-cache/
 *.lcov
+reports/
 
 # ---------- Env / secrets ----------
 .env

@@ -125,6 +125,27 @@ import {
   createActivityLogRoutes,
 } from "./modules/activity-log/index.js";
 import { cors } from "hono/cors";
+import { createRequestLogger } from "./monitoring/requestLogger.js";
+import { recordAvailabilityProbe } from "./monitoring/availabilityProbe.js";
+import { createMonitorActivityListener } from "./monitoring/activityListener.js";
+import { DrizzleMonitorSink } from "./monitoring/sink.js";
+import { BatchedMonitorWriter } from "./monitoring/writer.js";
+import {
+  ProcessTestRunExecutor,
+  type TestRunExecutor,
+} from "./monitoring/testRunner.js";
+import {
+  MonitoringIngestController,
+  MonitoringIngestService,
+  createMonitoringIngestRoutes,
+} from "./modules/monitoring/index.js";
+import {
+  DrizzleMonitoringAdminRepository,
+  MonitoringAdminController,
+  MonitoringAdminService,
+  createMonitoringAdminRoutes,
+  type MonitoringAdminRepository,
+} from "./modules/monitoring-admin/index.js";
 
 export interface AppDependencies {
   checkDatabase?: () => Promise<void>;
@@ -145,10 +166,28 @@ export interface AppDependencies {
   analyticsRepo?: IAnalyticsRepository;
   analyticsSource?: IAnalyticsSource;
   searchRepo?: ISearchRepository;
+  /** Inyectable en pruebas: permite verificar el registro sin base de monitoreo. */
+  monitorWriter?: BatchedMonitorWriter;
+  monitorIngestToken?: string;
+  /** Inyectable en pruebas: el panel solo lee `roomlink_monitor`. */
+  monitoringAdminRepo?: MonitoringAdminRepository;
+  /** Inyectable en pruebas: ejecuta solo suites de la allowlist. */
+  testRunner?: TestRunExecutor;
 }
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
   const app = new Hono();
+  const monitorWriter =
+    dependencies.monitorWriter ?? new BatchedMonitorWriter(new DrizzleMonitorSink());
+  const monitoringIngestService = new MonitoringIngestService(
+    monitorWriter,
+    dependencies.monitorIngestToken ?? config.monitor.ingestToken,
+  );
+  const monitoringIngestController = new MonitoringIngestController(
+    monitoringIngestService,
+    256 * 1024,
+  );
+
   // Cabeceras de seguridad transversales (RNF-05.1)
   app.use("*", async (c, next) => {
     await next();
@@ -157,6 +196,9 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     c.header("X-Frame-Options", "DENY");
     c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   });
+
+  // F1: medir y encolar. Nunca espera a la base de monitoreo.
+  app.use("*", createRequestLogger(monitorWriter));
 
   // Permitir consultar las fotografías almacenadas
   app.use("/uploads/*", serveStatic({ root: "./" }));
@@ -196,6 +238,11 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     new AsyncEventPublisher(new DrizzleOutboxEventPublisher(db)),
   );
   const resolvedBus = dependencies.authDependencies?.eventPublisher ?? defaultBus;
+
+  // Bitácora descriptiva (F1): solo encola; el bus ya tolera listeners lentos.
+  if (resolvedBus instanceof InProcessEventBus) {
+    resolvedBus.subscribe(createMonitorActivityListener(monitorWriter));
+  }
 
   // Sanctions service construido primero para poder exponerlo como SessionGuard a auth.
   const sanctionsService = new SanctionsService(
@@ -400,16 +447,40 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     createActivityLogRoutes(activityLogController, authService),
   );
 
-  // Endpoints del sistema / orquestación
-  app.get("/health", (context) =>
-    context.json({ status: "ok", service: "room-link-backend" }),
+  // Panel de monitoreo (F6): solo admin; lee `roomlink_monitor` y ejecuta suites permitidas.
+  const monitoringAdminService = new MonitoringAdminService(
+    dependencies.monitoringAdminRepo ?? new DrizzleMonitoringAdminRepository(),
+    dependencies.testRunner ?? new ProcessTestRunExecutor(),
+    monitoringIngestService,
+  );
+  const monitoringAdminController = new MonitoringAdminController(monitoringAdminService);
+  app.route(
+    "/api/v1/admin/monitoring",
+    createMonitoringAdminRoutes(monitoringAdminController, authService),
   );
 
+  // Ingesta de monitoreo (F2/F3/F5): token de servicio, sin sesión de usuario.
+  app.route(
+    "/api/v1/admin/monitoring/ingest",
+    createMonitoringIngestRoutes(monitoringIngestController, monitoringIngestService),
+  );
+
+  // Endpoints del sistema / orquestación. Siguen fuera del F1, pero dejan
+  // un sondeo legible en mon_probe para las pruebas de disponibilidad.
+  app.get("/health", (context) => {
+    const startedAt = Date.now();
+    recordAvailabilityProbe(monitorWriter, context, "/health", "up", 200, startedAt);
+    return context.json({ status: "ok", service: "room-link-backend" });
+  });
+
   app.get("/ready", async (context) => {
+    const startedAt = Date.now();
     try {
       await checkDb();
+      recordAvailabilityProbe(monitorWriter, context, "/ready", "up", 200, startedAt);
       return context.json({ status: "ready", database: "connected" });
     } catch {
+      recordAvailabilityProbe(monitorWriter, context, "/ready", "down", 503, startedAt);
       return context.json(
         { status: "unavailable", database: "disconnected" },
         503,
