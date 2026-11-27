@@ -1123,7 +1123,7 @@ export default function PantallaUbicacion() {
 
           <div className="ubicacion-acciones">
             <BotonAnuncio
-              tipo="secundario"
+              tipo="peligro"
               onClick={cancelarEdicion}
               disabled={avanzando}
             >

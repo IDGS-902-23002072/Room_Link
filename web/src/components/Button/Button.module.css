@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: 0 var(--space-5);
+  padding: 12px var(--space-5);
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -31,12 +31,14 @@
 }
 
 .primary {
-  background: var(--plum);
-  color: var(--paper);
+  background: var(--mint);
+  color: var(--mint-dark);
+  border-color: var(--mint-strong);
+  box-shadow: 0 3px 0 rgb(32 95 81 / 10%);
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--plum-hover);
+  background: var(--mint-hover);
 }
 
 .secondary {
@@ -70,3 +72,9 @@
   padding: 0 var(--space-3);
   font-size: var(--text-xs);
 }
+
+.danger { background: var(--rose); color: var(--rose-dark); border-color: var(--rose-hover); }
+.danger:hover:not(:disabled) { background: var(--rose-hover); }
+.spinner { width: 16px; height: 16px; flex: 0 0 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: button-spin .8s linear infinite; }
+@keyframes button-spin { to { transform: rotate(360deg); } }
+@media (hover: hover) { .button:hover:not(:disabled) { transform: translateY(-2px); } }

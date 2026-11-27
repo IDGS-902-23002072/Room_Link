@@ -27,33 +27,31 @@
   --tracking-tight: -1.6px;
   --tracking-wide: 1.15px;
 
-  /* --- Color · 60% dominante (neutros cálidos) ------------------- */
-  --canvas: #fbf9fc;
+  /* --- Color · Base blanca y neutros ------------------- */
+  --canvas: #f7faf9;
   --paper: #fff;
-  --surface-soft: #f6f3f7;
+  --surface-soft: #eef3f2;
 
-  /* --- Color · 30% secundaria (ciruela) -------------------------- */
-  --plum: #84658d;
-  --plum-hover: #72547b;
-  --plum-strong: #5f4768;
-  --pale-plum: #e9daec;
-  --plum-wash: #f5eff6;
+  /* --- Neutral navigation (legacy aliases) --------------------- */
+  --plum: #425c69;
+  --plum-hover: #304853;
+  --plum-strong: #263e49;
+  --pale-plum: #e9eff2;
+  --plum-wash: #f1f5f7;
 
-  /* --- Color · 10% acento (menta) -------------------------------- */
-  --teal: #63c8c2;
-  --teal-strong: #2e9e96;
+  /* --- Color · Acciones positivas (menta) -------------------------------- */
+  --teal: #21745b;
+  --teal-strong: #205f51;
   --teal-soft: #e8f6f3;
-  /* Tonalidad menta oscurecida exclusivamente para marcas de datos
-     (barras, líneas y polígonos). Cumple 3:1 sobre papel/canvas sin
-     convertirse en color de texto ni en sustituto del ciruela de acción. */
+  /* Accessible data accent on white surfaces. */
   --data-mint: #2f8b85;
 
   /* --- Texto y líneas -------------------------------------------- */
-  --ink: #28232d;
-  --muted: #6b6375;
+  --ink: #20352f;
+  --muted: #5d7069;
   --disabled: #948c9a;
-  --line: #e9e2eb;
-  --control-border: #8f8794;
+  --line: #dfe8e4;
+  --control-border: #879c93;
 
   /* --- Semánticos (fuera del 60-30-10) --------------------------- */
   --danger: #983d46;
@@ -67,7 +65,7 @@
   --info-soft: #edf2f7;
 
   /* --- Indicador de foco (WCAG 2.4.11 / 1.4.11: ≥ 3:1) ----------- */
-  --focus-ring: #2e9e96;
+  --focus-ring: #21745b;
   --focus-offset: 3px;
 
   /* --- Espaciado (base 4px) -------------------------------------- */
@@ -96,12 +94,12 @@
   /* --- Movimiento ------------------------------------------------ */
   --duration-fast: 160ms;
   --duration-base: 200ms;
-  --ease: ease;
+  --ease: cubic-bezier(.2, .8, .2, 1);
 
   /* --- Composiciones de marca ------------------------------------ */
-  --glow-plum: rgb(233 218 236 / 65%);
+  --glow-plum: rgb(225 238 233 / 65%);
   --glow-teal: rgb(99 200 194 / 19%);
-  --hairline: rgb(233 226 235 / 80%);
+  --hairline: rgb(223 232 228 / 80%);
 
   font-family: var(--font-sans);
   color: var(--ink);
@@ -142,7 +140,8 @@ a {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
-select:focus-visible {
+select:focus-visible,
+textarea:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: var(--focus-offset);
 }

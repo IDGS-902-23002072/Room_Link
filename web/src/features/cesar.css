@@ -6,11 +6,11 @@
   --rose: #f7e3e1;
   --rose-hover: #f2d6d2;
   --rose-dark: #883d49;
-  --feature-ink: #2b2430;
-  --feature-muted: #645d6c;
-  --feature-line: #e7e1e9;
-  --feature-ground: #faf9fb;
-  --feature-lavender: #f0e8f3;
+  --feature-ink: var(--ink);
+  --feature-muted: var(--muted);
+  --feature-line: var(--line);
+  --feature-ground: var(--canvas);
+  --feature-lavender: var(--info-soft);
 }
 
 .visually-hidden {
@@ -186,7 +186,7 @@
   font-size: 12px;
   font-weight: 730;
   background: var(--feature-lavender);
-  color: #5f456a;
+  color: var(--info);
 }
 .feature-badge.feature-success { background: var(--mint); color: var(--mint-dark); }
 .feature-badge.feature-error { background: var(--rose); color: var(--rose-dark); }

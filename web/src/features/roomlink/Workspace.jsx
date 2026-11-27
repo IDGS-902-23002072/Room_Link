@@ -1,10 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import './workspace.css'
+import LoadingState from '../../components/LoadingState/LoadingState.jsx'
 
 const sections = {
   profile: ['Perfil de usuario', [
-    ['/perfil', 'Datos personales'], ['/perfil/fotos', 'Fotos y verificación'],
-    ['/perfil/cuenta', 'Cuenta y notificaciones'],
+    ['/perfil', 'Mi perfil'], ['/perfil/fotos', 'Fotos e identidad'],
+    ['/perfil/cuenta', 'Preferencias'], ['/perfil/arrendador', 'Ser arrendador'],
   ]],
   search: ['Búsqueda avanzada', [
     ['/buscar', 'Filtros generales'], ['/buscar/habitos', 'Hábitos y compatibilidad'],
@@ -69,7 +70,7 @@ export function Avatar({ name, src }) {
 }
 
 export function ResourceStatus({ resource, label }) {
-  if (resource.loading) return <p className="room-note" role="status">{label}</p>
+  if (resource.loading) return <LoadingState label={label} />
   if (!resource.error) return null
   return <div className="room-stack"><Feedback error={resource.error} /><button className="button button-subtle" onClick={resource.refresh} type="button">Reintentar</button></div>
 }

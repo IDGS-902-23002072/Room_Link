@@ -1,6 +1,11 @@
 .header {
   display: flex;
   align-items: flex-end;
+  flex-wrap: wrap;
+  padding: clamp(24px, 4vw, 42px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(115deg, var(--paper) 25%, var(--teal-soft));
   justify-content: space-between;
   gap: var(--space-6);
   margin-bottom: var(--space-7);
@@ -36,7 +41,7 @@
 
 .actions {
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   flex-wrap: wrap;
   gap: var(--space-3);
 }

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCandidate } from '../compatibility/compatibility.js'
+import LoadingState from '../../components/LoadingState/LoadingState.jsx'
 import Button from '../../components/Button/Button.jsx'
 import EmptyState from '../../components/EmptyState/EmptyState.jsx'
 import Field from '../../components/Field/Field.jsx'
 import Notice from '../../components/Notice/Notice.jsx'
-import PageHeader from '../../components/PageHeader/PageHeader.jsx'
+import ExploreHero from './ExploreHero.jsx'
 import { asyncEffect } from '../../hooks/asyncEffect.js'
 import { useAuth } from '../../hooks/useAuth.js'
 import { push } from '../../routes/navigation.js'
@@ -120,14 +121,9 @@ export default function RoomFeed() {
 
   return (
     <section className={styles.page}>
-      <PageHeader
-        actions={<Button href="/cuestionario" variant="secondary">Revisar mi test</Button>}
-        description="Habitaciones publicadas en renta. Revisa los detalles y postúlate a la que más te guste."
-        eyebrow="EXPLORAR · HABITACIONES"
-        title="Encuentra tu habitación"
-      />
+      <ExploreHero />
 
-      <div className={styles.toolbar}>
+      <div className={styles.toolbar} id="room-results">
         <div className={styles.search}>
           <label className="sr-only" htmlFor="room-search">Buscar habitaciones</label>
           <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -164,10 +160,12 @@ export default function RoomFeed() {
         </Field>
       </div>
 
+      <div className={styles.results}>
+      <div className={styles.resultsHeading}><div><p className="eyebrow">ENCUENTRA TU LUGAR</p><h2>Habitaciones para descubrir</h2></div><Button href="/cuestionario" variant="quiet">Mejorar mis recomendaciones</Button></div>
       {error ? <Notice tone="error">{error}</Notice> : null}
 
       {loading ? (
-        <div className={styles.loading} role="status">Buscando habitaciones…</div>
+        <LoadingState label="Buscando tu próximo espacio…" cards />
       ) : items.length ? (
         <div className={styles.grid}>
           {items.map((room) => (
@@ -213,6 +211,7 @@ export default function RoomFeed() {
           </Button>
         </nav>
       ) : null}
+      </div>
     </section>
   )
 }

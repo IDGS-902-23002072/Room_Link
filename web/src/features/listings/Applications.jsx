@@ -9,7 +9,7 @@ import { Feedback, Panel } from '../roomlink/Workspace.jsx'
 import { applicationsPath, applicationStatuses, hostLink, json, roomLink, roomPath } from './listings.js'
 
 export function QueryStatus({ query, onRetry }) {
-  if (query.loading) return <FeatureNotice>Cargando…</FeatureNotice>
+  if (query.loading) return <FeatureNotice loading>Cargando…</FeatureNotice>
   if (query.error) return <FeatureNotice error={query.error} retry={onRetry} />
   return null
 }

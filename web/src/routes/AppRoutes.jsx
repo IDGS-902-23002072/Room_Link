@@ -1,12 +1,13 @@
-import { Fragment, useState } from 'react'
-import { Navigate, NavLink, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { Fragment } from 'react'
+import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import ActivityLog from '../pages/ActivityLog/ActivityLog.jsx'
 import Dashboard from '../pages/Dashboard/Dashboard.jsx'
 import Login from '../pages/Login/Login.jsx'
 import { useAuth } from '../hooks/useAuth.js'
-import { useRoomLinkQuery } from '../hooks/useRoomLinkQuery.js'
+import Shell from '../components/Navigation/AppShell.jsx'
+import LoadingState from '../components/LoadingState/LoadingState.jsx'
 import { AppLink } from '../components/AppLink.jsx'
-import { Brand, FeatureNotice } from '../features/cesar-ui.jsx'
+import { FeatureNotice } from '../features/cesar-ui.jsx'
 import Notifications from '../features/Notifications.jsx'
 import Messages from '../features/messaging/Messages.jsx'
 import Moderation, { ModerationListing, ReportDirectory, ReportListing } from '../features/moderation/Moderation.jsx'
@@ -15,7 +16,7 @@ import Recommendations from '../features/compatibility/Recommendations.jsx'
 import RoomDetail from '../features/rooms/RoomDetail.jsx'
 import RoomFeed from '../features/rooms/RoomFeed.jsx'
 import { Workspace } from '../features/roomlink/Workspace.jsx'
-import { AccountPage, IdentityReviewsPage, PhotosPage, ProfilePage } from '../features/roomlink/Profile.jsx'
+import { AccountPage, HostEnrollmentPage, IdentityReviewsPage, PhotosPage, ProfilePage } from '../features/roomlink/Profile.jsx'
 import { SearchPage } from '../features/roomlink/Search.jsx'
 import { AgreementsPage } from '../features/roomlink/Agreements.jsx'
 import { ListingDetail, ListingDirectory } from '../features/listings/ListingDirectory.jsx'
@@ -31,80 +32,8 @@ import ConexionesPage from '../features/conexiones/pages/ConexionesPage.jsx'
 import MisRoomiesPage from '../features/conexiones/pages/MisRoomiesPage.jsx'
 import '../features/listings/listings.css'
 
-function Shell() {
-  const { session, logout } = useAuth()
-  const location = useLocation()
-  const [signingOut, setSigningOut] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const isAdmin = session?.user.roles?.includes('admin')
-  const accountInitial = session?.user.email?.[0]?.toUpperCase() ?? 'U'
-  const notifs = useRoomLinkQuery(session?.token ? '/api/v1/notifications?limit=1' : null, session?.token, location.pathname)
-  const unreadNotifs = notifs.data?.unreadCount ?? 0
-
-  async function signOut() {
-    setSigningOut(true)
-    try {
-      await logout()
-    } catch {
-      // The provider clears the local session even if the API is unavailable.
-    } finally {
-      setSigningOut(false)
-    }
-  }
-
-  return (
-    <div className="app-shell">
-      <a className="skip-link" href="#contenido">Saltar al contenido</a>
-      <header className="topbar">
-        <Brand />
-        <button
-          aria-controls="menu-principal"
-          aria-expanded={menuOpen}
-          aria-label="Menú de navegación"
-          className="nav-toggle"
-          onClick={() => setMenuOpen((open) => !open)}
-          type="button"
-        >
-          <span aria-hidden="true" className="nav-toggle-bars" />
-        </button>
-        <div className="account-menu">
-          <span aria-hidden="true" className="account-avatar">{accountInitial}</span>
-          <span className="account-name">{session?.user.email}</span>
-          <button className="button button-rose sign-out" disabled={signingOut} onClick={signOut} type="button">
-            {signingOut ? 'Cerrando…' : 'Cerrar sesión'}
-          </button>
-        </div>
-      </header>
-      {menuOpen && <div aria-hidden="true" className="nav-backdrop" onClick={() => setMenuOpen(false)} />}
-      <nav aria-label="Navegación principal" className={menuOpen ? 'main-nav main-nav-open' : 'main-nav'} id="menu-principal" onClick={() => setMenuOpen(false)}>
-        <NavLink to="/explorar">Explorar</NavLink>
-        <NavLink to="/recomendados">Recomendados</NavLink>
-        <NavLink to="/habitaciones">Habitaciones</NavLink>
-        <NavLink to="/mis-postulaciones">Mis postulaciones</NavLink>
-        {session?.user.roles?.includes('host') && <NavLink to="/anfitrion">Mis habitaciones</NavLink>}
-        <NavLink to="/buscar">Buscar roomies</NavLink>
-        <NavLink to="/cuestionario">Mi test</NavLink>
-        <NavLink to="/anuncios">Mis anuncios</NavLink>
-        <NavLink to="/conexiones">Conexiones</NavLink>
-        <NavLink to="/mensajes">Mensajes</NavLink>
-        <NavLink to="/notificaciones">Notificaciones{unreadNotifs > 0 && <span className="nav-badge">{unreadNotifs > 9 ? '9+' : unreadNotifs}</span>}</NavLink>
-        <NavLink to="/acuerdos">Acuerdos</NavLink>
-        <NavLink to="/perfil" end={location.pathname.startsWith('/perfil/candidato/')}>Mi perfil</NavLink>
-        <NavLink to="/denunciar" className={({ isActive }) => isActive || location.pathname.endsWith('/denunciar') ? 'active' : undefined}>Denunciar anuncio</NavLink>
-        {isAdmin && <NavLink to="/admin/moderacion">Moderación</NavLink>}
-        {isAdmin && <NavLink to="/admin/dashboard">Dashboard</NavLink>}
-        {isAdmin && <NavLink to="/admin/identidad">Identidad</NavLink>}
-        {isAdmin && <NavLink to="/admin/bitacora">Bitácora</NavLink>}
-      </nav>
-      <main id="contenido" className="page-container" tabIndex={-1}>
-        <Outlet />
-      </main>
-    </div>
-  )
-}
-
 function SessionLoading() {
-  return <div className="loading-screen" role="status">Preparando tu espacio…</div>
+  return <LoadingState label="Preparando tu espacio en RoomLink…" fullscreen />
 }
 
 function SessionError({ error, retry }) {
@@ -195,6 +124,7 @@ export default function AppRoutes() {
             <Route element={<ProfilePage />} index />
             <Route element={<PhotosPage />} path="fotos" />
             <Route element={<AccountPage />} path="cuenta" />
+            <Route element={<HostEnrollmentPage />} path="arrendador" />
           </Route>
           <Route element={<Workspace module="search" />} path="/buscar">
             <Route element={<SearchPage tab="filters" />} index />

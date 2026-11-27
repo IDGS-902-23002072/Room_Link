@@ -47,7 +47,7 @@ function ModalConfirmacion({
 
         <div className="modal-anuncio__acciones">
           <BotonAnuncio
-            tipo="secundario"
+            tipo="peligro"
             onClick={onCancelar}
             disabled={cargando}
           >

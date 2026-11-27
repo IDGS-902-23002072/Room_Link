@@ -1,0 +1,37 @@
+.shop-header { position: fixed; inset: 0 0 auto; z-index: 100; color: #202723; background: #fff; transition: background 240ms ease, color 240ms ease; }
+.shop-header-row { height: 80px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 clamp(24px, 3.5vw, 64px); }
+.shop-header .brand { color: inherit; font-size: 20px; letter-spacing: -.035em; flex-shrink: 0; }
+.shop-header-transparent { background: transparent; color: white; }
+.shop-header-transparent .brand { color: white; }
+.shop-header-transparent .brand img { filter: brightness(0) invert(1); }
+.shop-categories, .shop-actions { display: flex; align-items: center; gap: 6px; }
+.shop-categories button, .shop-actions button, .shop-actions a { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 0; border-radius: 5px; padding: 10px 17px; background: transparent; color: inherit; font: inherit; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 180ms ease; }
+.shop-actions a { padding: 10px; }
+.shop-categories button:hover, .shop-categories button.selected, .shop-actions a:hover, .shop-actions button:hover { background: rgb(100 150 120 / 10%); }
+.shop-header-transparent .shop-actions a:hover, .shop-header-transparent .shop-actions button:hover { background: rgb(255 255 255 / 15%); }
+.shop-preview { display: grid; grid-template-columns: 1.15fr repeat(3, 1fr); gap: 30px; padding: 32px max(40px, calc((100vw - 1280px)/2)) 48px; border-bottom: 1px solid var(--line); max-height: calc(100svh - 80px); overflow: auto; animation: preview-enter 220ms ease both; }
+.shop-preview[hidden] { display: none; }
+.shop-preview-intro img { width: 100%; height: 130px; object-fit: cover; border-radius: 6px; }
+.shop-preview-intro p { margin: 12px 0 0; max-width: 210px; font-size: 15px; font-weight: 550; line-height: 1.4; }
+.shop-preview-card { position: relative; display: flex; flex-direction: column; align-items: center; padding: 16px 10px; color: var(--ink); text-align: center; text-decoration: none; border-radius: 8px; }
+.shop-preview-icon { display: grid; place-items: center; width: 86px; height: 86px; margin-bottom: 22px; color: var(--mint-dark); background: #edf5f0; border-radius: 24px; transition: transform 220ms ease, background 220ms ease; }
+.shop-preview-card strong { font-size: 16px; font-weight: 600; }
+.shop-preview-card > span:not(.shop-preview-icon):not(.shop-preview-arrow) { max-width: 200px; margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.shop-preview-arrow { opacity: 0; position: absolute; top: 18px; right: 16px; color: var(--mint-dark); }
+.shop-preview-card:hover { background: #f8faf8; }
+.shop-preview-card:hover .shop-preview-icon { transform: translateY(-4px); background: var(--mint); }
+.shop-preview-card:hover .shop-preview-arrow { opacity: 1; }
+.shop-backdrop { position: fixed; inset: 80px 0 0; z-index: 90; border: 0; border-radius: 0; background: rgb(14 25 19 / 20%); backdrop-filter: blur(9px); cursor: default; }
+.navigation-shell { --floating-offset: 96px; }
+.navigation-shell.sidebar-pinned { padding-left: 0; }
+.navigation-shell.sidebar-pinned .shell-content { padding-top: 112px; }
+.navigation-shell .shell-content { padding-top: 112px; }
+.navigation-shell.shell-explore .shell-content { padding-top: 0; }
+.sidebar-pinned .shop-header { left: var(--sidebar-width); }
+.navigation-shell.sidebar-pinned { padding-left: var(--sidebar-width); }
+.sidebar-scrim { backdrop-filter: blur(8px); }
+.brand img { object-fit: contain; }
+@keyframes preview-enter { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@media (max-width: 1099px) { .shop-categories { display: none; } .shop-preview, .shop-backdrop { display: none; } .shop-header-row { height: 72px; padding: 0 22px; } .shop-header .brand { font-size: 18px; } .shop-actions { gap: 0; } .shop-actions button { padding: 10px; } }
+@media (max-width: 480px) { .shop-header-row { padding: 0 14px; gap: 12px; } .shop-header .brand { gap: 6px; font-size: 17px; } .shop-header .brand img { width: 29px; height: 29px; } .shop-menu-trigger span { display: none; } .shop-actions a, .shop-actions button { padding: 9px; } }
+@media (prefers-reduced-motion: reduce) { .shop-header, .shop-preview, .shop-preview-icon { animation: none; transition: none; } }

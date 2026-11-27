@@ -166,7 +166,7 @@ export default function TarjetaConexion({
 
               <button
                 type="button"
-                className="conexion-button conexion-button-outline"
+                className="conexion-button conexion-button-danger"
                 disabled={actualizando}
                 onClick={() =>
                   onResponder(conexion.id, "reject")
@@ -178,7 +178,7 @@ export default function TarjetaConexion({
           ) : (
             <button
               type="button"
-              className="conexion-button conexion-button-outline"
+              className="conexion-button conexion-button-danger"
               disabled={actualizando}
               onClick={() => onCancelar(conexion.id)}
             >

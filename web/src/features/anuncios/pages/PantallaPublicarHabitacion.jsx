@@ -1,4 +1,5 @@
 
+import HostGate from "../../roomlink/HostGate.jsx";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -235,6 +236,8 @@ export default function PantallaPublicarHabitacion() {
   // ====================================================
   // INTERFAZ
   // ====================================================
+
+  if (!session?.user?.roles?.includes("host")) return <HostGate />;
 
   return (
     <section className="publicar-habitacion">

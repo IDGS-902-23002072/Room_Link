@@ -979,7 +979,7 @@ export default function PantallaFotos() {
 
           <div className="fotos-acciones-finales">
             <BotonAnuncio
-              tipo="secundario"
+              tipo="peligro"
               onClick={cancelarEdicion}
               disabled={guardando}
             >

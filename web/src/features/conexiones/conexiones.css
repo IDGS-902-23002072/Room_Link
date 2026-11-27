@@ -4,7 +4,7 @@
   max-width: 1180px;
   margin: 0 auto;
   padding: 28px 12px 48px;
-  color: #30283a;
+  color: var(--ink);
 }
 
 .conexiones-heading {
@@ -16,7 +16,7 @@
 }
 
 .conexiones-eyebrow {
-  color: #6d3fa9;
+  color: var(--plum);
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.15em;
@@ -25,29 +25,29 @@
 .conexiones-heading h1 {
   margin: 8px 0;
   font-size: clamp(1.8rem, 4vw, 2.5rem);
-  color: #38264c;
+  color: var(--ink);
 }
 
 .conexiones-heading p {
   max-width: 600px;
   margin: 0;
-  color: #746b7b;
+  color: var(--muted);
   line-height: 1.6;
 }
 
 .conexion-refresh-button {
   flex-shrink: 0;
   padding: 11px 18px;
-  border: 1px solid #d8c9e8;
+  border: 1px solid var(--line);
   border-radius: 12px;
   background: white;
-  color: #6d3fa9;
+  color: var(--plum);
   font-weight: 700;
   cursor: pointer;
 }
 
 .conexion-refresh-button:hover {
-  background: #f5effb;
+  background: var(--surface-soft);
 }
 
 .conexion-refresh-button:disabled {
@@ -61,7 +61,7 @@
   gap: 10px;
   margin-bottom: 26px;
   padding-bottom: 18px;
-  border-bottom: 1px solid #e6dfeb;
+  border-bottom: 1px solid var(--line);
 }
 
 .conexiones-filter {
@@ -69,10 +69,10 @@
   align-items: center;
   gap: 9px;
   padding: 10px 16px;
-  border: 1px solid #e5ddec;
+  border: 1px solid var(--line);
   border-radius: 30px;
   background: white;
-  color: #655b6e;
+  color: var(--muted);
   font-size: 0.9rem;
   font-weight: 650;
   cursor: pointer;
@@ -80,13 +80,13 @@
 }
 
 .conexiones-filter:hover {
-  border-color: #a37ad9;
-  color: #6d3fa9;
+  border-color: var(--control-border);
+  color: var(--plum);
 }
 
 .conexiones-filter.active {
-  border-color: #6d3fa9;
-  background: #6d3fa9;
+  border-color: var(--plum);
+  background: var(--plum);
   color: white;
 }
 
@@ -94,8 +94,8 @@
   min-width: 21px;
   padding: 2px 6px;
   border-radius: 20px;
-  background: #f0e9f7;
-  color: #6d3fa9;
+  background: var(--info-soft);
+  color: var(--plum);
   font-size: 0.75rem;
   text-align: center;
 }
@@ -142,8 +142,8 @@
   overflow: hidden;
   place-items: center;
   border-radius: 50%;
-  background: #eee5f7;
-  color: #6d3fa9;
+  background: var(--info-soft);
+  color: var(--plum);
   font-size: 1.3rem;
   font-weight: 800;
 }
@@ -167,7 +167,7 @@
 .conexion-name-row h3 {
   overflow: hidden;
   margin: 0;
-  color: #38264c;
+  color: var(--ink);
   font-size: 1.05rem;
   text-overflow: ellipsis;
 }
@@ -195,7 +195,7 @@
   display: -webkit-box;
   overflow: hidden;
   margin: 18px 0;
-  color: #746b7b;
+  color: var(--muted);
   font-size: 0.9rem;
   line-height: 1.55;
   -webkit-box-orient: vertical;
@@ -226,7 +226,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #a37ad9;
+  background: var(--control-border);
 }
 
 .conexion-status-dot.accepted {
@@ -265,22 +265,22 @@
 }
 
 .conexion-button-primary {
-  background: #6d3fa9;
-  color: white;
+  background: var(--mint);
+  color: var(--mint-dark);
 }
 
 .conexion-button-primary:hover:not(:disabled) {
-  background: #563087;
+  background: var(--mint-hover);
 }
 
 .conexion-button-outline {
-  border-color: #ded2e9;
+  border-color: var(--line);
   background: white;
-  color: #6d3fa9;
+  color: var(--plum);
 }
 
 .conexion-button-outline:hover:not(:disabled) {
-  background: #f5effb;
+  background: var(--surface-soft);
 }
 
 .conexion-accepted-message {
@@ -311,14 +311,14 @@
   height: 78px;
   place-items: center;
   border-radius: 25px;
-  background: #eee5f7;
-  color: #6d3fa9;
+  background: var(--info-soft);
+  color: var(--plum);
   font-size: 2rem;
 }
 
 .conexiones-empty h3 {
   margin: 22px 0 8px;
-  color: #38264c;
+  color: var(--ink);
   font-size: 1.25rem;
 }
 
@@ -334,14 +334,14 @@
   align-items: center;
   gap: 14px;
   padding: 65px 20px;
-  color: #746b7b;
+  color: var(--muted);
 }
 
 .conexiones-spinner {
   width: 35px;
   height: 35px;
   border: 3px solid #e9def3;
-  border-top-color: #6d3fa9;
+  border-top-color: var(--plum);
   border-radius: 50%;
   animation: conexiones-spin 0.8s linear infinite;
 }
@@ -405,7 +405,7 @@
   max-width: 1150px;
   margin: 0 auto;
   padding: 32px 24px 48px;
-  color: #30283a;
+  color: var(--ink);
 }
 
 .mis-roomies-header {
@@ -417,7 +417,7 @@
 }
 
 .mis-roomies-eyebrow {
-  color: #6d3fa9;
+  color: var(--plum);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 1.5px;
@@ -426,13 +426,13 @@
 .mis-roomies-header h1 {
   margin: 9px 0;
   font-size: clamp(28px, 4vw, 38px);
-  color: #352641;
+  color: var(--ink);
 }
 
 .mis-roomies-header p {
   max-width: 580px;
   margin: 0;
-  color: #777080;
+  color: var(--muted);
   line-height: 1.6;
 }
 
@@ -442,18 +442,18 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #f3f0ea;
+  background: var(--canvas);
   border: 1px solid #e7dfed;
   border-radius: 18px;
 }
 
 .mis-roomies-count strong {
-  color: #6d3fa9;
+  color: var(--plum);
   font-size: 27px;
 }
 
 .mis-roomies-count span {
-  color: #777080;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -494,8 +494,8 @@
   justify-content: center;
   overflow: hidden;
   border-radius: 50%;
-  background: #eee5f7;
-  color: #6d3fa9;
+  background: var(--info-soft);
+  color: var(--plum);
   font-size: 23px;
   font-weight: 800;
 }
@@ -508,7 +508,7 @@
 
 .roomie-avatar-fallback::after {
   content: "♡";
-  color: #6d3fa9;
+  color: var(--plum);
   font-size: 30px;
 }
 
@@ -525,7 +525,7 @@
 
 .roomie-name-line h2 {
   margin: 2px 0 5px;
-  color: #352641;
+  color: var(--ink);
   font-size: 18px;
 }
 
@@ -546,7 +546,7 @@
 .roomie-age {
   display: block;
   margin: 3px 0;
-  color: #777080;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -568,7 +568,7 @@
   gap: 14px;
   padding-top: 17px;
   margin-top: 16px;
-  border-top: 1px solid #eee9f1;
+  border-top: 1px solid var(--line);
 }
 
 .roomie-connection-date {
@@ -595,7 +595,7 @@
   padding: 11px 17px;
   border: none;
   border-radius: 12px;
-  background: #6d3fa9;
+  background: var(--plum);
   color: #fff;
   font-size: 13px;
   font-weight: 700;
@@ -604,7 +604,7 @@
 }
 
 .roomie-chat-button:hover:not(:disabled) {
-  background: #563087;
+  background: var(--plum-hover);
 }
 
 .roomie-chat-button:disabled {
@@ -631,19 +631,19 @@
   justify-content: center;
   margin-bottom: 15px;
   border-radius: 50%;
-  background: #eee5f7;
-  color: #6d3fa9;
+  background: var(--info-soft);
+  color: var(--plum);
   font-size: 34px;
 }
 
 .mis-roomies-empty h2 {
   margin: 0 0 8px;
-  color: #352641;
+  color: var(--ink);
 }
 
 .mis-roomies-empty p {
   max-width: 420px;
-  color: #777080;
+  color: var(--muted);
   line-height: 1.6;
 }
 
@@ -661,14 +661,14 @@
 .mis-roomies-spinner {
   width: 35px;
   height: 35px;
-  border: 4px solid #e9e0f1;
-  border-top-color: #6d3fa9;
+  border: 4px solid var(--line);
+  border-top-color: var(--plum);
   border-radius: 50%;
   animation: roomies-spin 0.8s linear infinite;
 }
 
 .mis-roomies-loading p {
-  color: #777080;
+  color: var(--muted);
 }
 
 .mis-roomies-error {
@@ -723,3 +723,7 @@
     width: 100%;
   }
 }
+
+.conexion-button-danger { background: var(--rose); color: var(--rose-dark); border-color: var(--rose-hover); }
+.conexion-button-danger:hover:not(:disabled) { background: var(--rose-hover); }
+.conexion-button, .roomie-chat-button { min-height: 44px; }

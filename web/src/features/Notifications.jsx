@@ -55,7 +55,7 @@ export default function Notifications() {
         <Link className="access-link" to="/perfil/cuenta">Preferencias</Link>
       </div>
       {query.data && <p role="status">Sin leer: {query.data.unreadCount}</p>}
-      {query.loading && <FeatureNotice>Cargando notificaciones…</FeatureNotice>}
+      {query.loading && <FeatureNotice loading>Cargando notificaciones…</FeatureNotice>}
       {query.error && <FeatureNotice error={query.error} retry={() => setRefresh((value) => value + 1)} />}
       {error && <FeatureNotice error={error} />}
       {query.data && !query.data.items.length && <FeatureNotice>No hay notificaciones en esta vista.</FeatureNotice>}

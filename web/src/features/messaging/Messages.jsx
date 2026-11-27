@@ -235,7 +235,7 @@ function Conversation({ roomId, session, refreshInbox }) {
           update()
           if (contextError) setRetryContext((value) => value + 1)
         }} />}
-        {(loading || loadingContext) && <FeatureNotice>Cargando conversación…</FeatureNotice>}
+        {(loading || loadingContext) && <FeatureNotice loading>Cargando conversación…</FeatureNotice>}
         {recent?.length === pageSize && hasMore && <button className="button button-subtle chat-older" disabled={paging} type="button" onClick={loadOlder}>{paging ? 'Cargando…' : 'Ver mensajes anteriores'}</button>}
         {!loading && !error && !messages.length && <FeatureNotice>Envía un saludo para empezar la conversación.</FeatureNotice>}
         <ol className="chat-bubbles" aria-label="Historial de mensajes">
@@ -310,7 +310,7 @@ export default function Messages() {
         <aside className="chat-inbox" aria-label="Bandeja de conversaciones">
           <h2>Conversaciones <span className="feature-badge">{rooms.length}</span></h2>
           {error && <FeatureNotice error={error} retry={refreshInbox} />}
-          {loading && <FeatureNotice>Cargando conversaciones…</FeatureNotice>}
+          {loading && <FeatureNotice loading>Cargando conversaciones…</FeatureNotice>}
           {!loading && !error && !rooms.length && <FeatureNotice>Tus conversaciones aparecerán aquí.</FeatureNotice>}
           <nav className="chat-list" aria-label="Conversaciones">
             {rooms.map((item) => <InboxItem key={item.room.id} item={item} token={session.token} />)}

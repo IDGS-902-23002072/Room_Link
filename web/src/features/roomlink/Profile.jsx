@@ -1,3 +1,4 @@
+import './profile-ux.css'
 import { useCallback, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth.js'
@@ -28,7 +29,7 @@ export function ProfilePage() {
   const resource = useResource(load)
   return (
     <>
-      <Heading title="Datos personales">Edita cómo te presentas y mantén tus datos de contacto actualizados.</Heading>
+      <Heading title="Mi perfil">Preséntate a tu manera. Empieza por lo esencial y completa el resto cuando quieras.</Heading>
       <ResourceStatus label="Cargando tu perfil…" resource={resource} />
       {resource.data && <ProfileForm {...resource.data} path={path} token={token} user={user} />}
     </>
@@ -44,7 +45,6 @@ function ProfileForm({ profile, photos, path, token, user }) {
   }))
   const [age, setAge] = useState(profile?.age)
   const [values, setValues] = useState(saved)
-  const [preview, setPreview] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const dirty = Object.keys(saved).some((key) => saved[key] !== values[key])
@@ -80,52 +80,43 @@ function ProfileForm({ profile, photos, path, token, user }) {
   }
 
   const name = values.fullName || 'Tu nombre'
-  const progress = [values.fullName, values.occupation, values.city, values.bio, photos.length, profile?.isVerified].filter(Boolean).length
   return (
-    <form className="room-stack" onSubmit={save}>
-      <div className="room-grid">
-        <div className="room-stack">
-          <Panel title="Información visible">
-            <p className="muted">Edita los datos que utilizas para presentarte a otros usuarios.</p>
-            <div className="room-person"><Avatar name={name} src={mainPhoto} /><div><strong>{name}</strong><p className="muted">{values.city || 'Perfil en edición'}</p></div></div>
-            <div className="room-fields">
-              <label className="field">Nombre para mostrar<input autoComplete="name" maxLength={200} minLength={2} required {...field('fullName')} /></label>
-              <label className="field">Ocupación<input maxLength={160} {...field('occupation')} /></label>
-              <label className="field">Ciudad<input maxLength={120} {...field('city')} /><small>Guardada en este navegador.</small></label>
-              {age == null ? <label className="field">Fecha de nacimiento<input required type="date" {...field('birthDate')} /></label> : <label className="field">Edad visible<input readOnly value={`${age} años`} /></label>}
-            </div>
-            <label className="field">Biografía<textarea maxLength={300} {...field('bio')} /><small>{values.bio.length} / 300 caracteres</small></label>
-            <label className="field">Instagram (opcional)<input maxLength={255} placeholder="@usuario" {...field('instagram')} /></label>
-          </Panel>
-          <Panel title="Datos de contacto">
-            <div className="room-fields">
-              <label className="field">Correo electrónico<input readOnly type="email" value={user.email ?? ''} /></label>
-              <label className="field">Teléfono<input autoComplete="tel" maxLength={30} type="tel" {...field('phone')} /></label>
-            </div>
-          </Panel>
-        </div>
-        <div className="room-stack">
-          <Panel title="Tu perfil, a simple vista">
-            <Avatar name={name} src={mainPhoto} />
-            <h3>{name}{age == null ? '' : `, ${age}`}</h3>
-            {values.occupation && <p>{values.occupation}</p>}
-            {values.city && <p className="muted">{values.city}</p>}
-            <span className="room-pill">Perfil completo al {Math.round(progress / 6 * 100)} %</span>
-            <div className="room-actions">
-              <button aria-expanded={preview} className="button button-subtle" onClick={() => setPreview(!preview)} type="button">{preview ? 'Ocultar vista previa' : 'Ver perfil público'}</button>
-              <Link className="button button-subtle" to="/perfil/fotos">Gestionar fotos</Link>
-            </div>
-            {preview && <div className="room-rule"><h3>Vista previa</h3><p>{values.bio || 'Aún no has escrito una biografía.'}</p>{values.instagram && <p>Instagram {values.instagram}</p>}</div>}
-          </Panel>
-          <Panel title="Tú decides qué compartir"><p>Usa tu biografía para hablar de tus intereses y hábitos. Evita incluir datos personales en la descripción o las fotos.</p></Panel>
-        </div>
+    <form className="room-stack profile-editor" onSubmit={save}>
+      <div className="profile-overview">
+        <div className="room-person"><Avatar name={name} src={mainPhoto} /><div><strong>{name}</strong><p className="muted">Tu presentación para otros roomies</p></div></div>
+        <Link className="button button-subtle" to="/perfil/fotos">Editar foto</Link>
       </div>
+      <Panel title="Cuéntanos de ti">
+        <p className="muted">Lo esencial para que otras personas te conozcan.</p>
+        <div className="room-fields">
+          <label className="field">Nombre para mostrar<input autoComplete="name" maxLength={200} minLength={2} required {...field('fullName')} /></label>
+          <label className="field">Ocupación<input maxLength={160} placeholder="¿A qué te dedicas?" {...field('occupation')} /></label>
+          {age == null ? <label className="field">Fecha de nacimiento<input required type="date" {...field('birthDate')} /></label> : <label className="field">Edad visible<input readOnly value={`${age} años`} /></label>}
+          <label className="field">Ciudad<input maxLength={120} {...field('city')} /><small>Guardada en este navegador.</small></label>
+        </div>
+        <label className="field">Sobre ti<textarea maxLength={300} placeholder="Tus intereses, cómo es tu día a día y qué buscas al compartir hogar." {...field('bio')} /><small>{values.bio.length} / 300 caracteres · Evita incluir datos privados.</small></label>
+      </Panel>
+      <details className="profile-disclosure">
+        <summary>Contacto y redes <span>Opcional</span></summary>
+        <div className="room-stack">
+          <p className="muted">Controla quién ve estos datos en Preferencias → Privacidad.</p>
+          <div className="room-fields">
+            <label className="field">Correo electrónico<input readOnly type="email" value={user.email ?? ''} /></label>
+            <label className="field">Teléfono<input autoComplete="tel" maxLength={30} type="tel" {...field('phone')} /></label>
+          </div>
+          <label className="field">Instagram<input maxLength={255} placeholder="@usuario" {...field('instagram')} /></label>
+        </div>
+      </details>
+      <details className="profile-disclosure">
+        <summary>Vista previa de tu presentación</summary>
+        <div className="room-stack"><h3>{name}{age == null ? '' : `, ${age}`}</h3><p>{values.occupation}</p><p>{values.bio || 'Tu biografía aparecerá aquí.'}</p></div>
+      </details>
       <Feedback error={error} />
       <div className="room-save">
         <p className="muted" role="status">{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</p>
         <div className="room-actions">
           <button className="button button-rose" disabled={busy || !dirty} onClick={() => { setValues(saved); setError('') }} type="button">Cancelar</button>
-          <button className="button button-mint" disabled={busy || !dirty} type="submit">{busy ? 'Guardando…' : 'Guardar cambios'}</button>
+          <button className="button button-mint" aria-busy={busy} disabled={busy || !dirty} type="submit">{busy ? 'Guardando…' : 'Guardar cambios'}</button>
         </div>
       </div>
     </form>
@@ -317,7 +308,7 @@ function HostEnrollment() {
 
   return (
     <Panel title="Arrendador">
-      {isHost ? <p className="room-note" role="status">Tu cuenta ya tiene el rol de arrendador.</p> : (
+      {isHost ? <><p className="feature-feedback feature-success" role="status">Tu cuenta de arrendador está lista.</p><Link className="button button-mint" to="/anuncios/publicar">Crear mi habitación</Link></> : (
         <>
           <ResourceStatus label="Comprobando tu perfil…" resource={profile} />
           {!profile.loading && !profile.error && !hasProfile && (
@@ -338,7 +329,7 @@ function HostEnrollment() {
                 <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} required />
                 Acepto los términos de responsabilidad del arrendador.
               </label>
-              <button className="button button-mint" disabled={!accepted || saving}>
+              <button className="button button-mint" aria-busy={saving} disabled={!accepted || saving}>
                 {saving ? 'Activando…' : 'Convertirme en arrendador'}
               </button>
               <Feedback error={error} />
@@ -350,22 +341,29 @@ function HostEnrollment() {
   )
 }
 
+export function HostEnrollmentPage() {
+  return <div className="host-enrollment room-stack">
+    <Heading title="Comparte tu espacio">Activa tu cuenta de arrendador para publicar habitaciones.</Heading>
+    <ol className="host-steps"><li><span>1</span><div><strong>Tu perfil</strong><p>Cuéntanos quién eres.</p></div></li><li><span>2</span><div><strong>Tu identidad</strong><p>Envía tu solicitud de verificación.</p></div></li><li><span>3</span><div><strong>Tu primera habitación</strong><p>Acepta los términos y empieza a publicar.</p></div></li></ol>
+    <HostEnrollment />
+  </div>
+}
+
 export function AccountPage() {
   const { session: { token, user } } = useAuth()
+  const [tab, setTab] = useState('notifications')
   const load = useCallback((signal) => apiRequest(preferencePath, { token, signal }), [token])
   const resource = useResource(load)
-  return (
-    <>
-      <Heading title="Cuenta y notificaciones">Configura tus preferencias y decide qué avisos recibir en la web.</Heading>
-      <div className="room-stack">
-        <HostEnrollment />
-        <ResourceStatus label="Cargando tus preferencias…" resource={resource} />
-        {resource.data && <AccountForm preferences={resource.data.preferences} token={token} user={user} />}
-        <ContactPrivacy key={user.id} path={`${profilePath(user.id)}/privacy`} token={token} />
-        <HousingPreferences key={`housing-${user.id}`} userId={user.id} token={token} />
-      </div>
-    </>
-  )
+  const tabs = [['notifications', 'Notificaciones'], ['privacy', 'Privacidad'], ['housing', 'Vivienda']]
+  return <div className="room-stack preferences-page">
+    <Heading title="Tus preferencias">Ajusta solo lo que necesitas. Tú decides qué compartir.</Heading>
+    <div className="preferences-tabs" role="group" aria-label="Secciones de preferencias">
+      {tabs.map(([id, label]) => <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>)}
+    </div>
+    <div hidden={tab !== 'notifications'}><ResourceStatus label="Cargando tus preferencias…" resource={resource} />{resource.data && <AccountForm preferences={resource.data.preferences} token={token} user={user} />}</div>
+    <div hidden={tab !== 'privacy'}><ContactPrivacy key={user.id} path={`${profilePath(user.id)}/privacy`} token={token} /></div>
+    <div hidden={tab !== 'housing'}><HousingPreferences key={`housing-${user.id}`} userId={user.id} token={token} /></div>
+  </div>
 }
 
 const privacyFields = [
@@ -563,7 +561,7 @@ function AccountForm({ preferences, token, user }) {
     <form className="room-stack" onSubmit={save}>
       <div className="room-grid">
         <div className="room-stack">
-          <Panel title="Preferencias de cuenta">
+          <details className="profile-disclosure"><summary>Preferencias de cuenta</summary><div className="room-stack">
             <div className="room-fields">
               <label className="field">Idioma preferido<select onChange={(event) => set('locale', event.target.value)} value={values.locale}><option value="es-MX">Español (México)</option><option value="en-US">Inglés (Estados Unidos)</option></select></label>
               <label className="field">Zona horaria<select onChange={(event) => set('timeZone', event.target.value)} value={values.timeZone}><option value="America/Mexico_City">Ciudad de México</option><option value="America/Tijuana">Tijuana</option><option value="America/Cancun">Cancún</option><option value="America/Chihuahua">Chihuahua</option></select></label>
@@ -571,29 +569,29 @@ function AccountForm({ preferences, token, user }) {
             <Toggle checked={values.visible} description="Preferencia local de visibilidad." label="Mostrar mi perfil en búsquedas" onChange={(checked) => set('visible', checked)} />
             <Toggle checked={values.paused} description="Preferencia local de disponibilidad." label="Pausar mi búsqueda de roomies" onChange={(checked) => set('paused', checked)} />
             <p className="muted">Estas preferencias se guardan en este navegador. La visibilidad efectiva depende del servicio de búsqueda.</p>
-          </Panel>
+          </div></details>
           <Panel title="Notificaciones web">
             {notificationOptions.map(([key, label, description]) => <Toggle checked={Boolean(values[key])} description={description} key={key} label={label} onChange={(checked) => set(key, checked)} />)}
           </Panel>
-          <Panel title="Avisos por correo">
+          <details className="profile-disclosure"><summary>Avisos por correo</summary><div className="room-stack">
             <p>Los avisos se envían al correo verificado de tu cuenta.</p>
             {notificationOptions.filter(([type]) => ['application_status_changed', 'connection_request'].includes(type)).map(([type, label]) =>
               <Toggle key={type} label={label} checked={Boolean(emailPrefs[type])} onChange={(checked) => setEmailPrefs((current) => ({ ...current, [type]: checked }))} />
             )}
-          </Panel>
+          </div></details>
         </div>
         <div className="room-stack">
-          <Panel title="Permiso del navegador">
+          <details className="profile-disclosure"><summary>Permiso del navegador</summary><div className="room-stack">
             <span className={permission === 'denied' ? 'room-pill feature-error' : 'room-pill'}>{{ granted: 'Notificaciones permitidas', denied: 'Permiso bloqueado', default: 'Permiso pendiente', unsupported: 'No disponible' }[permission]}</span>
             <button className="button button-subtle" disabled={permission === 'denied' || permission === 'unsupported'} onClick={testNotice} type="button">{permission === 'granted' ? 'Enviar aviso de prueba' : 'Permitir avisos y probar'}</button>
             <p className="muted">Puedes cambiar el permiso desde la configuración del navegador.</p>
-          </Panel>
-          <Panel title="Seguridad de la cuenta">
+          </div></details>
+          <details className="profile-disclosure"><summary>Seguridad de la cuenta</summary><div className="room-stack">
             <p>Solicita instrucciones para cambiar tu contraseña.</p>
             <button className="button button-subtle" disabled={busy || !user.email} onClick={resetPassword} type="button">Cambiar contraseña</button>
             <h3>Sesión actual</h3><p className="muted">Navegador web · {user.email}</p>
             <p className="muted">La gestión de otras sesiones aún no está disponible.</p>
-          </Panel>
+          </div></details>
         </div>
       </div>
       <Feedback error={error}>{message}</Feedback>

@@ -780,7 +780,7 @@ export default function PantallaEditarPublicacion() {
           <div className="fotos-acciones-finales">
 
             <BotonAnuncio
-              tipo="secundario"
+              tipo="peligro"
               onClick={cancelarEdicion}
             >
               Cancelar

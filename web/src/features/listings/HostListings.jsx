@@ -1,3 +1,4 @@
+import HostGate from '../roomlink/HostGate.jsx'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth.js'
@@ -20,7 +21,7 @@ export function HostListings() {
   return (
     <section className="listing-page">
       <FeatureHeading title="Mis habitaciones" description="Administra tus anuncios y revisa quién quiere postularse.">
-        <Link className="button button-mint" to={host ? '/anfitrion/habitaciones/nueva' : '/perfil/cuenta'}>
+        <Link className="button button-mint" to={host ? '/anfitrion/habitaciones/nueva' : '/perfil/arrendador'}>
           {host ? 'Nueva habitación' : 'Activar cuenta de anfitrión'}
         </Link>
       </FeatureHeading>
@@ -156,13 +157,14 @@ function ListingForm({ room, token, onSaved }) {
 export function NewListing() {
   const { session } = useAuth()
   const navigate = useNavigate()
+  if (!session.user.roles?.includes('host')) return <HostGate />
   return (
     <section className="listing-page">
       <Link className="access-link" to="/anfitrion">Volver a mis habitaciones</Link>
       <FeatureHeading title="Nueva habitación" description="Agrega los datos del anuncio. Después podrás completar las reglas y los costos." />
       {session.user.roles?.includes('host') ? (
         <ListingForm token={session.token} onSaved={(room) => navigate(hostLink(room.id), { replace: true })} />
-      ) : <Link className="button button-mint" to="/perfil/cuenta">Activar cuenta de anfitrión</Link>}
+      ) : <HostGate />}
     </section>
   )
 }
@@ -230,7 +232,7 @@ function ManageListing({ room, token, refresh }) {
           <p>Al cerrar el anuncio dejará de recibir postulaciones. ¿Confirmas el cierre?</p>
           <div className="feature-actions">
             <button className="button button-rose" disabled={working} type="button" onClick={() => changeStatus('close')}>Confirmar cierre</button>
-            <button className="button button-subtle" disabled={working} type="button" onClick={() => setConfirmation(false)}>Cancelar</button>
+            <button className="button button-rose" disabled={working} type="button" onClick={() => setConfirmation(false)}>Cancelar</button>
           </div>
         </div>}
       </Panel>}

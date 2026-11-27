@@ -49,7 +49,7 @@ export function ListingDirectory() {
       }}>
         <label>Zona, ciudad o nombre<input name="q" type="search" defaultValue={q} /></label>
         <button className="button button-mint">Buscar</button>
-        {q && <button className="button button-rose" type="button" onClick={() => setParams({})}>Limpiar búsqueda</button>}
+        {q && <button className="button button-subtle" type="button" onClick={() => setParams({})}>Limpiar búsqueda</button>}
       </form>
       <QueryStatus query={query} onRetry={() => setVersion((current) => current + 1)} />
       {!query.error && query.data?.items.length === 0 && <FeatureNotice>No encontramos habitaciones para esta búsqueda.</FeatureNotice>}
