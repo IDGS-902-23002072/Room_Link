@@ -44,3 +44,40 @@ termina con éxito: la monitorización nunca rompe una corrida de pruebas.
 `.github/workflows/monitoring.yml` programa el sondeo cada 5 minutos (mínimo de
 GitHub Actions). Para cumplir los 60 sondeos por hora de T.1 se recomienda el
 cron de una VM con `* * * * *`, según el bloque superior.
+
+## Cierre mensual (F7)
+
+Exportar el CSV de un mes (el token se lee solo del entorno; nunca se pasa por
+argumentos ni se imprime):
+
+```bash
+ROOMLINK_BASE_URL=http://127.0.0.1:3000 \
+MONITOR_ADMIN_TOKEN=... \
+npm --prefix backend run monitor:export -- --period=2026-10
+```
+
+Guarda `reports/solicitudes-YYYY-MM.csv` con BOM y el encabezado esperado por la
+retención. `reports/` está ignorado por Git. La descarga HTTP real requiere una sesión
+de administrador; para no escribir en `roomlink` no se creó una, por lo que la
+verificación queda cubierta por `backend/tests/unit/monitoring-export-script.unit.test.ts`.
+
+Generar el mes simulado de la demo y su foto mensual:
+
+```bash
+npm --prefix backend run monitor:seed:demo -- --period=2026-10
+npm --prefix backend run monitor:slo -- --period=2026-10
+```
+
+Los datos se marcan `synthetic`/`test`: no contaminan las transacciones reales y
+T.3 aparece como “sin dato”. La guía completa está en `docs/monitoreo-demo.md`.
+
+Retención de 90 días. Sin `--apply` solo imprime el plan; con `--apply` borra meses
+que tengan foto en `mon_slo_compliance`, CSV válido y 90 días cumplidos:
+
+```bash
+npm --prefix backend run monitor:retention -- --period=2026-10
+npm --prefix backend run monitor:retention -- --apply --csv-dir=../reports
+```
+
+Plantilla de entrega mensual y checklist de cierre: `docs/reporte-mensual.md` y
+`docs/checklist-monitoreo.md`.
