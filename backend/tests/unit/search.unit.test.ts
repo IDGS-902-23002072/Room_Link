@@ -99,7 +99,7 @@ describe("SearchService (Roberto, HU-05)", () => {
       ).toThrow(/presupuesto mínimo/i);
     });
 
-    it("rechaza presupuesto min > max", () => {
+    it("[SLI 5.3] rechaza presupuesto min > max", () => {
       expect(() =>
         service.validateFilters({
           budgetMin: 5000,

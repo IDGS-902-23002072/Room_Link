@@ -1,0 +1,33 @@
+name: Monitoreo de disponibilidad
+
+# GitHub Actions no program cada minuto: el cron mínimo es 5 minutos.
+# Para T.1 (60 sondeos por hora) usar el cron de la VM descrito en scripts/README.md.
+# Este workflow es la vía gratuita de respaldo y permite ejecutar el sondeo a mano.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: monitoring-probe
+  cancel-in-progress: true
+
+jobs:
+  probe-ready:
+    name: Sondeo de /ready
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Sondear y guardar en roomlink_monitor
+        env:
+          ROOMLINK_BASE_URL: ${{ vars.ROOMLINK_BASE_URL }}
+          MONITOR_INGEST_URL: ${{ vars.MONITOR_INGEST_URL }}
+          MONITOR_INGEST_TOKEN: ${{ secrets.MONITOR_INGEST_TOKEN }}
+        run: node scripts/probe-ready.mjs

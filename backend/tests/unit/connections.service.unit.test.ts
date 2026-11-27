@@ -64,7 +64,7 @@ describe("ConnectionsService", () => {
     ).rejects.toMatchObject({ status: 403, code: "CONNECTION_FORBIDDEN" });
   });
 
-  it("accept transitions status and emits ConnectionAcceptedEvent", async () => {
+  it("[SLI 11.4] accept transitions status and emits ConnectionAcceptedEvent", async () => {
     const connection = makePending("c2");
     repo.items.set(connection.id, connection);
 

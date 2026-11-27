@@ -48,7 +48,7 @@ describe("AnalyticsService.recomputeDaily", () => {
     repo = new InMemoryAnalyticsRepository();
   });
 
-  it("aggregates all counters and upserts by day", async () => {
+  it("[SLI 15.3] aggregates all counters and upserts by day", async () => {
     const service = new AnalyticsService(repo, stubSource(), now);
     const result = await service.recomputeDaily(new Date("2026-11-06T09:00:00Z"));
 

@@ -36,7 +36,7 @@ describe("ApplicationsService.cancel — el postulante retira su solicitud (M09)
     service = new ApplicationsService(repo);
   });
 
-  it("cancela una postulación pendiente propia (se elimina)", async () => {
+  it("[SLI 9.5] cancela una postulación pendiente propia (se elimina)", async () => {
     seed(repo, "a1", "pending");
     await service.cancel("a1", SEEKER);
     expect(await repo.findById("a1")).toBeNull();

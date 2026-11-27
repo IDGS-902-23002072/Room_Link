@@ -121,8 +121,16 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit tests
-        run: npm run test:unit
+      - name: Unit tests (reporte JSON para F3)
+        run: npm run test:unit:json
+
+      - name: Subir resultados de Vitest a monitoreo
+        if: always()
+        env:
+          MONITOR_INGEST_TOKEN: ${{ secrets.MONITOR_INGEST_TOKEN }}
+          MONITOR_INGEST_URL: ${{ vars.MONITOR_INGEST_URL }}
+          VITEST_JSON_REPORT: ../reports/vitest-results.json
+        run: npm run monitor:ingest -- --suite=backend:unit --complete
 
   web:
     name: Web Vite · lint, pruebas y build

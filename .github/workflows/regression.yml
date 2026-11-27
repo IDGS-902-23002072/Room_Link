@@ -69,8 +69,8 @@ jobs:
           DB_NAME: roomlink
         run: bun run db:migrate:bun
 
-      - name: Unit tests
-        run: bun run test:unit:bun
+      - name: Unit tests (reporte JSON para F3)
+        run: bun run test:unit:json
 
       - name: Integration tests
         env:
@@ -89,6 +89,14 @@ jobs:
           DB_PASSWORD: roomlink_school
           DB_NAME: roomlink
         run: bunx --bun vitest run tests/smoke/
+
+      - name: Subir resultados de Vitest a monitoreo
+        if: always()
+        env:
+          MONITOR_INGEST_TOKEN: ${{ secrets.MONITOR_INGEST_TOKEN }}
+          MONITOR_INGEST_URL: ${{ vars.MONITOR_INGEST_URL }}
+          VITEST_JSON_REPORT: ../reports/vitest-results.json
+        run: bun run monitor:ingest -- --suite=backend:regression --complete
 
       - name: npm audit (informativo, no falla el gate)
         continue-on-error: true

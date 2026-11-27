@@ -121,7 +121,7 @@ useEffect(() => {
         {session.user.roles?.includes('host') && link('/anfitrion', 'Gestionar habitaciones', 'settings')}
         {link('/acuerdos', 'Acuerdos', 'test')}
         {link('/mis-roomies', 'Mis roomies', 'people')}
-        {isAdmin && <><p className="sidebar-label">ADMINISTRACIÓN</p>{link('/admin/moderacion', 'Moderación', 'test')}{link('/admin/dashboard', 'Dashboard', 'settings')}{link('/admin/identidad', 'Identidad', 'profile')}{link('/admin/bitacora', 'Bitácora', 'test')}</>}
+        {isAdmin && <><p className="sidebar-label">ADMINISTRACIÓN</p>{link('/admin/moderacion', 'Moderación', 'test')}{link('/admin/dashboard', 'Dashboard', 'settings')}{link('/admin/identidad', 'Identidad', 'profile')}{link('/admin/bitacora', 'Bitácora', 'test')}{link('/admin/monitoreo', 'Monitoreo', 'settings')}</>}
         <NavLink to="/denunciar" className="sidebar-help" onClick={() => { if (!fixed) close(false) }}>Reportar un anuncio</NavLink>
       </nav>
       <div className="sidebar-bottom">

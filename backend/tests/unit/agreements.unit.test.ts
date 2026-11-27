@@ -139,7 +139,7 @@ describe("AgreementsService (Roberto, HU-12)", () => {
   });
 
   describe("aceptarAcuerdo — EL-12.4 / EL-12.6", () => {
-    it("acepta al anfitrión y al roomie, y queda fullyAccepted", async () => {
+    it("[SLI 12.4] acepta al anfitrión y al roomie, y queda fullyAccepted", async () => {
       const agreement = await service.generarAcuerdo({
         listingId: listing,
         hostId: host,

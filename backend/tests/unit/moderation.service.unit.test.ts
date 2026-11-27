@@ -210,7 +210,7 @@ const createService = () => {
 };
 
 describe("ModerationService", () => {
-  it("accepts a valid listing report", async () => {
+  it("[SLI 13.5] accepts a valid listing report", async () => {
     const { repository, service } = createService();
 
     await expect(
