@@ -488,7 +488,7 @@ export function PantallaPerfil() {
                     pressed && styles.botonPresionado,
                   ]}>
                   <Text style={styles.textoBotonSecundario}>
-                    Compatibilidad y perfiles guardados (M06)
+                    Compatibilidad y perfiles guardados
                   </Text>
                 </Pressable>
               </Link>
@@ -582,8 +582,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 16,
     padding: 17,
-    borderRadius: 22,
-    backgroundColor: color.mentaSuave,
+    borderRadius: 12,
+    backgroundColor: color.superficie,
   },
   avatar: {
     width: 54,
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
   titulo: {
     color: color.tinta,
     fontSize: 29,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -0.65,
   },
   subtitulo: {
@@ -616,13 +616,13 @@ const styles = StyleSheet.create({
   },
   estado: {
     color: color.secundario,
-    fontSize: 12,
+    fontSize: 14,
     textAlign: 'center',
     padding: 22,
   },
   tarjeta: {
     padding: 16,
-    borderRadius: 20,
+    borderRadius: 12,
     backgroundColor: color.blanco,
     borderWidth: 1,
     borderColor: color.borde,
@@ -631,7 +631,7 @@ const styles = StyleSheet.create({
   tituloSeccion: {
     color: color.tinta,
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   filaTitulo: {
     flexDirection: 'row',
@@ -673,7 +673,7 @@ const styles = StyleSheet.create({
   },
   textoError: {
     color: color.rosaTexto,
-    fontSize: 11,
+    fontSize: 13,
     lineHeight: 16,
     textAlign: 'center',
   },
@@ -686,7 +686,7 @@ const styles = StyleSheet.create({
   },
   textoAviso: {
     color: color.accion,
-    fontSize: 11,
+    fontSize: 13,
     lineHeight: 16,
     textAlign: 'center',
   },
@@ -699,13 +699,13 @@ const styles = StyleSheet.create({
   },
   textoExito: {
     color: color.accion,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
     lineHeight: 16,
     textAlign: 'center',
   },
   botonGuardar: {
-    minHeight: 42,
+    minHeight: 50,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 11,
@@ -720,26 +720,26 @@ const styles = StyleSheet.create({
   },
   textoBoton: {
     color: color.blanco,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
   botonSecundario: {
-    minHeight: 40,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 11,
     backgroundColor: color.fondo,
     borderWidth: 1,
-    borderColor: color.menta,
+    borderColor: color.borde,
     marginTop: 10,
   },
   textoBotonSecundario: {
     color: color.accion,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
   botonAdmin: {
-    minHeight: 40,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 11,
@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
   },
   textoBotonAdmin: {
     color: color.accion,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
   },
   botonCerrarSesion: {
@@ -761,7 +761,7 @@ const styles = StyleSheet.create({
   },
   textoCerrarSesion: {
     color: color.rosaTexto,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
 });

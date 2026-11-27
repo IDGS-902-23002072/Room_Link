@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   titulo: {
     color: color.tinta,
     fontSize: 32,
-    fontWeight: "800",
+    fontWeight: "600",
     letterSpacing: -0.9,
   },
 
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
 
   pestanas: {
     marginHorizontal: 16,
-    backgroundColor: color.menta,
+    backgroundColor: color.superficie,
     borderRadius: 9,
     flexDirection: "row",
     padding: 3,
@@ -570,11 +570,11 @@ const styles = StyleSheet.create({
   },
 
   pestanaActiva: {
-    backgroundColor: color.menta,
+    backgroundColor: color.blanco,
   },
 
   textoPestana: {
-    fontSize: 12,
+    fontSize: 14,
     textAlign: "center",
     color: color.secundario,
   },
@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: color.secundario,
     marginTop: 35,
-    fontSize: 12,
+    fontSize: 14,
   },
 
   mensaje: {
@@ -609,13 +609,13 @@ const styles = StyleSheet.create({
 
   textoMensaje: {
     color: color.secundario,
-    fontSize: 12,
+    fontSize: 14,
     marginTop: 12,
   },
 
   error: {
     color: color.rosaTexto,
-    fontSize: 12,
+    fontSize: 14,
     textAlign: "center",
   },
 
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
 
   botonCrear: {
     backgroundColor: color.accion,
-    minHeight: 44,
+    minHeight: 50,
     borderRadius: 11,
     justifyContent: "center",
     alignItems: "center",

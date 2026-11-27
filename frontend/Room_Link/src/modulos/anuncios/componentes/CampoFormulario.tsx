@@ -25,7 +25,8 @@ export default function CampoFormulario({
 
       <TextInput
         {...inputProps}
-        placeholderTextColor="#9A8B9D"
+        accessibilityLabel={inputProps.accessibilityLabel ?? etiqueta}
+        placeholderTextColor={color.secundario}
         style={[
           styles.input,
           inputProps.multiline ? styles.multiline : undefined,
@@ -40,8 +41,8 @@ const styles = StyleSheet.create({
   contenedor: {
     backgroundColor: color.blanco,
     borderWidth: 1,
-    borderColor: "#E9E0EA",
-    borderRadius: 13,
+    borderColor: color.control,
+    borderRadius: 8,
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 9,
@@ -49,14 +50,14 @@ const styles = StyleSheet.create({
   },
   etiqueta: {
     color: color.secundario,
-    fontSize: 11,
+    fontSize: 13,
     marginBottom: 4,
   },
   input: {
     color: color.tinta,
-    fontSize: 14,
+    fontSize: 16,
     padding: 0,
-    minHeight: 23,
+    minHeight: 32,
   },
   multiline: {
     minHeight: 58,

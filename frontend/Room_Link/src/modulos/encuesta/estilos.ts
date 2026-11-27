@@ -6,18 +6,18 @@ export const estilos = StyleSheet.create({
   progreso: {
     height: 3,
     overflow: 'hidden',
-    backgroundColor: '#E9E2EB',
+    backgroundColor: color.borde,
     borderRadius: 2,
     marginTop: 12,
     marginBottom: 14,
   },
   progresoLleno: {
     height: '100%',
-    backgroundColor: '#63C8C2',
+    backgroundColor: color.accion,
     borderRadius: 2,
   },
   botonPrincipal: {
-    minHeight: 40,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
@@ -27,7 +27,7 @@ export const estilos = StyleSheet.create({
   },
   textoBoton: {
     color: color.blanco,
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '600',
   },
   botonPresionado: {
@@ -42,22 +42,22 @@ export const estilos = StyleSheet.create({
   },
   etiquetaMedidor: {
     color: color.tinta,
-    fontSize: 11,
+    fontSize: 13,
   },
   valorMedidor: {
     color: color.tinta,
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '600',
   },
   fondoMedidor: {
     height: 3,
     overflow: 'hidden',
     borderRadius: 2,
-    backgroundColor: '#E9E2EB',
+    backgroundColor: color.borde,
   },
   llenadoMedidor: {
     height: '100%',
     borderRadius: 2,
-    backgroundColor: '#63C8C2',
+    backgroundColor: color.accion,
   },
 });
