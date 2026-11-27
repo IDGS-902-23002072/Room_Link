@@ -8,6 +8,7 @@ CREATE USER IF NOT EXISTS 'roomlink_monitor'@'%'
   IDENTIFIED BY 'roomlink_monitor_school';
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON roomlink_monitor.* TO 'roomlink_monitor'@'%';
-GRANT CREATE, ALTER, DROP, INDEX ON roomlink_monitor.* TO 'roomlink_monitor'@'%';
+GRANT CREATE, ALTER, DROP, INDEX, REFERENCES ON roomlink_monitor.* TO 'roomlink_monitor'@'%';
+GRANT CREATE VIEW, SHOW VIEW ON roomlink_monitor.* TO 'roomlink_monitor'@'%';
 
 FLUSH PRIVILEGES;
