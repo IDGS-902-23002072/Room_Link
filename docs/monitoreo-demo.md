@@ -141,9 +141,15 @@ estas suites, definidas en `backend/src/monitoring/testRunner.ts`:
 
 | Id | Qué corre |
 |---|---|
-| `monitor` | `npm run test:monitor:json` (F1/F2/F3/F5) |
+| `funcional` | `npm run test:functional:json`: login, crear y publicar habitación, postular, aceptar y cerrar. Usa repositorios en memoria y etiqueta `mon-test-AAAAMMDD-xxxx`; no escribe en `roomlink`. |
+| `monitor` | `npm run test:monitor:json`: infraestructura F1/F2/F3/F5 (bitácora, privacidad, exclusiones y tolerancia a fallos). **No prueba login ni flujos de negocio**: por eso casi todas sus llamadas son `GET` sintéticos. |
 | `backend:unit` | `npm run test:unit:json` |
 | `backend:smoke` | `npm run test:smoke:json` |
+
+Cuando el profesor pregunte por la aplicación funcionando, hay que elegir
+`funcional`. Cuando pregunte por la bitácora y el registro, hay que elegir
+`monitor`. El detalle de cada prueba dice qué se verificó, qué datos etiquetados
+se usaron, qué se esperaba y qué se obtuvo; no muestra solo el nombre técnico.
 
 El botón no envía comandos: el cliente solo manda `{"suite":"..."}` y el servidor
 usa una allowlist, `spawn` sin shell, timeout de 3 minutos y una sola corrida a la
@@ -163,6 +169,7 @@ Eso escribió 1 fila en `mon_test_run` y 16 en `mon_test_result`, con `source='t
 Las mismas suites se pueden ejecutar desde la terminal en cualquier momento:
 
 ```bash
+npm --prefix backend run test:functional:json
 npm --prefix backend run test:monitor:json
 npm --prefix backend run test:unit:json
 npm --prefix backend run test:smoke:json

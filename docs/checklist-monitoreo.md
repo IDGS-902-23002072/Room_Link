@@ -12,12 +12,12 @@ regla o sin entorno). La fecha de verificación es 2026-11-27.
 | 4 | Eventos de negocio separados de resultados de prueba (F2/F4) | Hecho | `mon_activity_log` para bitácora de negocio y `mon_test_result` para pruebas; la guía usa `mon_activity_log` en lugar de `mon_business_event` por decisión acordada |
 | 5 | Un fallo de la base de monitoreo no afecta ninguna respuesta de la API (F2) | Hecho | escritor asíncrono con cola acotada y stdout JSON; `/ready` no consulta `roomlink_monitor`; prueba “con la base de monitoreo caída la API responde igual” |
 | 6 | Pruebas de disponibilidad: `/ready` sondeado cada minuto y guardado (F3) | Parcial | `scripts/probe-ready.mjs` y `scripts/record-backup.mjs` listos; la demo guardó 1860 sondeos sintéticos; GitHub Actions solo permite cada 5 min y falta el cron de 1 min en la VM |
-| 7 | Pruebas de funcionalidad por módulo ligadas a su SLI de regla, en cada versión (F4) | Hecho | 15 SLI de regla en `docs/sli-catalog.md`; `npm --prefix backend run test:unit`: 255/255 pasan; CI usa `MONITOR_INGEST_TOKEN` |
-| 8 | Pruebas de flujos críticos y de manejo de errores incluidas (F4) | Parcial | flujos y errores cubiertos en unitario y smoke (12/12); suite móvil **BLOCKED** (`vitest` no instalado en `frontend/`), E2E móvil/web **BLOCKED** (sin entorno desplegado, ver T-31…T-33) |
+| 7 | Pruebas de funcionalidad por módulo ligadas a su SLI de regla, en cada versión (F4) | Hecho | 15 SLI de regla en `docs/sli-catalog.md`; `npm --prefix backend run test:unit`: 259/259 pasan; CI usa `MONITOR_INGEST_TOKEN` |
+| 8 | Pruebas de flujos críticos y de manejo de errores incluidas (F4) | Parcial | suite `funcional` con 7/7 pasos legibles (login, anuncio, publicación, postulación, decisión y cierre) sin escribir en `roomlink`; unitario 259/259 y smoke 12/12; suite móvil **BLOCKED** (`vitest` no instalado en `frontend/`), E2E móvil/web **BLOCKED** (sin entorno desplegado, ver T-31…T-33) |
 | 9 | Resultados y eventos almacenados con fecha, commit y estado (F4) | Hecho | `mon_test_run`, `mon_test_result`, `mon_request_log` y `mon_activity_log`; ingesta con `x-monitor-token` |
 | 10 | Los 67 SLI están en el catálogo; sin endpoint se muestran “sin dato” (F1/F5) | Hecho | `backend/drizzle-monitor/` semilla y `docs/sli-catalog.md`; 67 filas cargadas en la base real; T.3 sale “sin dato” en la demo |
 | 11 | Cálculos: mes UTC-6, exclusiones, tx buena, ventana de 3 meses, truncado a 1 decimal (F5) | Hecho | `backend/src/monitoring/sliCalculator.ts`, `time.ts`; verificación SQL de la foto `2026-10`; T.1 = 99.5 % con `floor(good*1000/total)/10` |
-| 12 | Pantalla de administración con resumen, indicadores, pruebas y bitácora con filtros (F6) | Hecho | `web/src/pages/Monitoring/` con cuatro pestañas; bitácora con mensaje y `request_id` visibles; `Pruebas` ejecuta suites permitidas y muestra resultados; `npm --prefix web run test` y `build` pasan |
+| 12 | Pantalla de administración con resumen, indicadores, pruebas y bitácora con filtros (F6) | Hecho | `web/src/pages/Monitoring/` con cuatro pestañas; bitácora con mensaje y `request_id` visibles; `Pruebas` ejecuta suites permitidas y, en cada resultado, muestra explicación, datos etiquetados, esperado y obtenido; `funcional` aparece primero y `monitor` se describe como infraestructura; `npm --prefix web run test` y `build` pasan |
 | 13 | Pantalla solo para administradores; otro rol recibe 403 (F6) | Hecho | middleware `createAuthMiddleware` + `requireAdmin` por ruta; prueba “niega el panel a un usuario sin rol admin”; la ruta se oculta en navegación |
 | 14 | Comparación entre resultado y SLO visible por módulo (F6) | Hecho | pestaña Indicadores: valor, SLO, margen y semáforo; estados verde/rojo/gris |
 | 15 | CSV mensual de F1 y retención de 90 días (F7) | Parcial | `scripts/export-monthly.mjs` y `backend/src/monitoring/retention.ts` con modo seco por defecto; descarga HTTP real **BLOCKED** (no se creó sesión admin en `roomlink`), cobertura unitaria del script |
@@ -30,6 +30,7 @@ regla o sin entorno). La fecha de verificación es 2026-11-27.
 npm --prefix backend run typecheck
 npm --prefix backend run test:unit
 npm --prefix backend run test:smoke
+npm --prefix backend run test:functional
 npm --prefix web run test
 npm --prefix web run build
 npm --prefix backend run db:monitor:check
@@ -37,8 +38,8 @@ npm --prefix backend run monitor:seed:demo -- --period=2026-10
 npm --prefix backend run monitor:slo -- --period=2026-10
 ```
 
-Resultados reales: 33 archivos / 249 pruebas en backend, 12 pruebas smoke, 23 pruebas
-web, `typecheck` y `build` correctos. `npm --prefix backend run test:integration` falla con
+Resultados reales: 34 archivos / 259 pruebas en backend, 12 pruebas smoke, 7 pruebas
+funcionales, 23 pruebas web, `typecheck` y `build` correctos. `npm --prefix backend run test:integration` falla con
 `ER_DBACCESS_DENIED_ERROR` para `roomlink_app` y, además, ejecutarla con otro usuario
 haría migraciones e `INSERT` en `roomlink`; por esa razón está **BLOCKED** y no se
 ejecutó contra la base principal.
