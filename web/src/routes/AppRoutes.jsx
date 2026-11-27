@@ -11,6 +11,7 @@ import { FeatureNotice } from '../features/cesar-ui.jsx'
 import Notifications from '../features/Notifications.jsx'
 import Messages from '../features/messaging/Messages.jsx'
 import Moderation, { ModerationListing, ReportDirectory, ReportListing } from '../features/moderation/Moderation.jsx'
+import Monitoring from '../pages/Monitoring/Monitoring.jsx'
 import Questionnaire from '../features/compatibility/Questionnaire.jsx'
 import Recommendations from '../features/compatibility/Recommendations.jsx'
 import RoomDetail from '../features/rooms/RoomDetail.jsx'
@@ -144,6 +145,7 @@ export default function AppRoutes() {
             <Route element={<Dashboard />} path="dashboard" />
             <Route element={<IdentityReviewsPage />} path="identidad" />
             <Route element={<ActivityLog />} path="bitacora" />
+            <Route element={<Monitoring />} path="monitoreo" />
             <Route element={<Navigate replace to="cola" />} path="moderacion" />
             <Route element={<Moderation key="cola" tab="cola" />} path="moderacion/cola" />
             <Route element={<Moderation key="denuncias" tab="denuncias" />} path="moderacion/denuncias" />
