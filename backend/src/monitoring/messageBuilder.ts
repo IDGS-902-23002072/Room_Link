@@ -13,6 +13,19 @@ export interface DescribedEvent {
   source: EventSource;
 }
 
+/** Operaciones legibles para la bitácora; nunca el nombre técnico del evento. */
+const ACTION_BY_EVENT: Record<string, string> = {
+  UserRegisteredEvent: "Registro de cuenta",
+  LoginSucceededEvent: "Inicio de sesión",
+  LoginFailedEvent: "Inicio de sesión rechazado",
+  ConnectionRequestedEvent: "Solicitud de conexión",
+  ConnectionAcceptedEvent: "Conexión aceptada",
+  ApplicationStatusChanged: "Decisión de postulación",
+  ListingModeratedEvent: "Moderación de anuncio",
+  SanctionIssuedEvent: "Sanción aplicada",
+  MessageSentEvent: "Mensaje enviado",
+};
+
 const MODULE_BY_EVENT: Record<string, string> = {
   UserRegisteredEvent: "autenticación",
   LoginSucceededEvent: "autenticación",
@@ -372,7 +385,7 @@ export function describeDomainEvent(
   const module = MODULE_BY_EVENT[event.type] ?? "sistema";
   const common = {
     module,
-    action: event.type,
+    action: ACTION_BY_EVENT[event.type] ?? event.type,
     detail: sanitizeDetail(event.payload),
     actorId: resolveActor(event),
     source,

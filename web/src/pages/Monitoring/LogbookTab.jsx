@@ -64,6 +64,7 @@ export default function LogbookTab({ month, token }) {
   }
 
   const items = data?.items ?? []
+  const typeLabel = (type) => EVENT_TYPES.find(([value]) => value === type)?.[1] ?? type
 
   return (
     <div className={styles.stack}>
@@ -162,7 +163,7 @@ export default function LogbookTab({ month, token }) {
               {items.map((item) => (
                 <tr key={`${item.occurredAt}-${item.id}`}>
                   <td>{formatLocal(item.occurredAtLocal)}</td>
-                  <td>{item.type}</td>
+                  <td>{typeLabel(item.type)}</td>
                   <td>{item.module}</td>
                   <td>
                     <span>{item.operation}</span>

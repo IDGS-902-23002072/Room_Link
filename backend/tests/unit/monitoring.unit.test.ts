@@ -119,6 +119,7 @@ describe("F1 · bitácora descriptiva sin datos sensibles", () => {
     });
 
     expect(described.result).toBe("rejected");
+    expect(described.action).toBe("Inicio de sesión rechazado");
     expect(described.message).toContain("contraseña");
     expect(described.message).toContain("No se creó ninguna sesión");
     expect(JSON.stringify(described.detail)).not.toContain("persona@correo.com");
@@ -160,6 +161,17 @@ describe("F1 · bitácora descriptiva sin datos sensibles", () => {
       expect(JSON.stringify(activity.value.detail)).not.toContain("oculto@correo.test");
     }
     await writer.close();
+  });
+
+  it("usa nombres de negocio en español, no el tipo técnico del evento :: Se describió una decisión de postulación. La operación dice qué pasó y no se descarta por parecer un secreto.", () => {
+    const described = describeDomainEvent({
+      type: "ApplicationStatusChanged",
+      aggregateId: "app-1",
+      payload: { status: "accepted" },
+    });
+    expect(described.action).toBe("Decisión de postulación");
+    expect(described.message).toContain("postulación");
+    expect(described.source).toBe("real");
   });
 });
 
