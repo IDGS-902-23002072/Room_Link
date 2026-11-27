@@ -74,18 +74,18 @@ const styles = StyleSheet.create({
   },
   etiqueta: {
     color: color.accion,
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 5,
   },
   contenedorEntrada: {
-    minHeight: 42,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: color.borde,
-    borderRadius: 12,
+    borderColor: color.control,
+    borderRadius: 8,
     backgroundColor: color.blanco,
   },
   contenedorMultilinea: {
@@ -95,15 +95,15 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   contenedorEnfocado: {
-    borderColor: '#C9A9D1',
+    borderColor: color.accion,
   },
   contenedorError: {
-    borderColor: '#D89A9A',
+    borderColor: color.rosaTexto,
   },
   entrada: {
     flex: 1,
     color: color.tinta,
-    fontSize: 12,
+    fontSize: 15,
     paddingVertical: 0,
   },
   entradaMultilinea: {
@@ -112,25 +112,25 @@ const styles = StyleSheet.create({
   },
   prefijo: {
     color: color.accion,
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '600',
     marginRight: 6,
   },
   sufijo: {
     color: color.secundario,
-    fontSize: 9,
+    fontSize: 12,
     marginLeft: 6,
   },
   ayuda: {
     color: color.secundario,
-    fontSize: 9,
-    lineHeight: 13,
+    fontSize: 12,
+    lineHeight: 18,
     marginTop: 4,
   },
   textoError: {
-    color: '#B23A3A',
-    fontSize: 9,
-    lineHeight: 13,
+    color: color.rosaTexto,
+    fontSize: 12,
+    lineHeight: 18,
     marginTop: 4,
   },
 });

@@ -4,14 +4,13 @@
     "slug": "Room_Link",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/roomlink-mark.png",
     "scheme": "roomlink",
     "userInterfaceStyle": "light",
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#DBF2E8",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/roomlink-mark.png"
       },
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
@@ -23,16 +22,16 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./assets/images/roomlink-mark.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#185747",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/images/roomlink-mark.png",
+          "imageWidth": 120
         }
       ],
       "@react-native-community/datetimepicker",

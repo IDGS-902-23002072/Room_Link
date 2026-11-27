@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { color } from '@/constants/roomlink';
 
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -22,14 +24,17 @@ export function BuscadorHabitaciones({
   alBuscar: (valor: string) => void;
   alCambiarFiltro: (filtro: FiltroHabitacion) => void;
 }) {
+  const [enfocado, setEnfocado] = useState(false);
   return (
     <>
-      <View style={styles.campoBusqueda}>
+      <View style={[styles.campoBusqueda, enfocado && styles.enfocado]}>
         <Text accessible={false} style={styles.iconoBusqueda}>⌕</Text>
         <TextInput
           accessibilityLabel="Buscar habitaciones"
+          onFocus={() => setEnfocado(true)}
+          onBlur={() => setEnfocado(false)}
           onChangeText={alBuscar}
-          placeholder="Buscar habitaciones"
+          placeholder="Ciudad, zona o habitación"
           placeholderTextColor={color.secundario}
           returnKeyType="search"
           style={styles.entrada}
@@ -63,14 +68,15 @@ export function BuscadorHabitaciones({
 }
 
 const styles = StyleSheet.create({
+  enfocado: { borderColor: color.accion },
   campoBusqueda: {
-    height: 52,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: color.borde,
-    borderRadius: 18,
+    borderRadius: 8,
     backgroundColor: color.blanco,
   },
   iconoBusqueda: {
@@ -96,23 +102,23 @@ const styles = StyleSheet.create({
   filtro: {
     paddingHorizontal: 18,
     paddingVertical: 6,
-    borderRadius: 22,
+    borderRadius: 8,
     backgroundColor: color.blanco,
     borderWidth: 1,
     borderColor: color.borde,
-    height: 44,
+    minHeight: 44,
     justifyContent: 'center',
   },
   filtroActivo: {
-    backgroundColor: color.menta,
-    borderColor: color.menta,
+    backgroundColor: color.tinta,
+    borderColor: color.tinta,
   },
   textoFiltro: {
     color: color.secundario,
     fontSize: 14,
   },
   textoFiltroActivo: {
-    color: color.accion,
+    color: color.blanco,
     fontWeight: '700',
   },
 });

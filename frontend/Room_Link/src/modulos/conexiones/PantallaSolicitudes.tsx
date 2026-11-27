@@ -1,3 +1,6 @@
+import { color } from '@/constants/roomlink';
+import { MarcaRoomLink } from '@/components/MarcaRoomLink';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import React, { useCallback, useEffect, useState } from 'react';
 
@@ -12,7 +15,6 @@ import {
   StyleSheet,
   Text,
   View,
-  useColorScheme,
 } from 'react-native';
 
 import {
@@ -45,9 +47,8 @@ interface PerfilConexion {
 // ==========================================
 
 export function PantallaSolicitudes() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme ?? 'light'];
-  const oscuro = scheme === 'dark';
+  const colors = Colors.light;
+  const oscuro = false;
 
   // ==========================================
   // ESTADOS
@@ -387,12 +388,12 @@ export function PantallaSolicitudes() {
               {
                 backgroundColor:
                   item.status === 'accepted'
-                    ? '#DDF5E5'
+                    ? color.menta
                     : item.status === 'rejected'
-                      ? '#FCE4E4'
+                      ? color.rosa
                       : item.status === 'cancelled'
-                        ? '#E8E8E8'
-                        : '#F1E8F5',
+                        ? color.rosa
+                        : color.crema,
               },
             ]}
           >
@@ -402,12 +403,12 @@ export function PantallaSolicitudes() {
                 {
                   color:
                     item.status === 'accepted'
-                      ? '#247A43'
+                      ? color.accion
                       : item.status === 'rejected'
-                        ? '#B52D2D'
+                        ? color.rosaTexto
                         : item.status === 'cancelled'
-                          ? '#666666'
-                          : '#81638B',
+                          ? color.rosaTexto
+                          : color.accion,
                 },
               ]}
             >
@@ -514,7 +515,7 @@ export function PantallaSolicitudes() {
 
         {ocupado && (
           <ActivityIndicator
-            color="#81638B"
+            color={color.accion}
             style={estilos.indicador}
           />
         )}
@@ -527,7 +528,7 @@ export function PantallaSolicitudes() {
   // ==========================================
 
   return (
-    <View
+    <SafeAreaView edges={['top', 'left', 'right']}
       style={[
         estilos.contenedor,
         { backgroundColor: colors.background },
@@ -536,6 +537,7 @@ export function PantallaSolicitudes() {
       {/* ENCABEZADO */}
 
       <View style={estilos.encabezado}>
+        <MarcaRoomLink />
         <Text style={[estilos.titulo, { color: colors.text }]}>
           Mis conexiones
         </Text>
@@ -596,7 +598,7 @@ export function PantallaSolicitudes() {
       {cargando ? (
         <ActivityIndicator
           size="large"
-          color="#81638B"
+          color={color.accion}
           style={estilos.cargando}
         />
       ) : (
@@ -609,7 +611,7 @@ export function PantallaSolicitudes() {
             <RefreshControl
               refreshing={actualizando}
               onRefresh={actualizar}
-              tintColor="#81638B"
+              tintColor={color.accion}
             />
           }
           ListEmptyComponent={
@@ -639,7 +641,7 @@ export function PantallaSolicitudes() {
           }
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -656,11 +658,12 @@ const estilos = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
+    gap: 10,
   },
 
   titulo: {
-    fontSize: 23,
-    fontWeight: 'bold',
+    fontSize: 32,
+    fontWeight: '600',
   },
 
   subtitulo: {
@@ -672,7 +675,7 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#DDDDDD',
+    borderBottomColor: color.borde,
   },
 
   pestana: {
@@ -683,18 +686,18 @@ const estilos = StyleSheet.create({
 
   pestanaActiva: {
     borderBottomWidth: 3,
-    borderBottomColor: '#81638B',
+    borderBottomColor: color.accion,
   },
 
   textoPestana: {
     fontSize: 14,
-    color: '#888888',
+    color: color.secundario,
     fontWeight: '500',
   },
 
   textoPestanaActivo: {
-    color: '#81638B',
-    fontWeight: 'bold',
+    color: color.accion,
+    fontWeight: '600',
   },
 
   lista: {
@@ -719,7 +722,7 @@ const estilos = StyleSheet.create({
     width: 43,
     height: 43,
     borderRadius: 22,
-    backgroundColor: '#81638B',
+    backgroundColor: color.accion,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -734,7 +737,7 @@ const estilos = StyleSheet.create({
   avatarTexto: {
     color: '#FFFFFF',
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
 
   informacion: {
@@ -744,7 +747,7 @@ const estilos = StyleSheet.create({
 
   nombre: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
 
   fecha: {
@@ -760,7 +763,7 @@ const estilos = StyleSheet.create({
 
   textoEstado: {
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
 
   detalle: {
@@ -775,9 +778,9 @@ const estilos = StyleSheet.create({
   },
 
   etiquetaMensaje: {
-    color: '#81638B',
+    color: color.accion,
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 5,
   },
 
@@ -787,7 +790,7 @@ const estilos = StyleSheet.create({
   },
 
   sinMensaje: {
-    color: '#888888',
+    color: color.secundario,
     fontSize: 12,
     marginTop: 12,
     fontStyle: 'italic',
@@ -801,7 +804,7 @@ const estilos = StyleSheet.create({
 
   boton: {
     flex: 1,
-    minHeight: 42,
+    minHeight: 48,
     borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
@@ -809,30 +812,30 @@ const estilos = StyleSheet.create({
   },
 
   botonAceptar: {
-    backgroundColor: '#81638B',
+    backgroundColor: color.accion,
   },
 
   botonRechazar: {
-    backgroundColor: 'transparent',
+    backgroundColor: color.rosa,
     borderWidth: 1,
-    borderColor: '#B65B5B',
+    borderColor: color.rosa,
   },
 
   botonCancelar: {
-    backgroundColor: 'transparent',
+    backgroundColor: color.rosa,
     borderWidth: 1,
-    borderColor: '#B65B5B',
+    borderColor: color.rosa,
   },
 
   textoBoton: {
     color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 13,
   },
 
   textoBotonRechazar: {
-    color: '#B65B5B',
-    fontWeight: 'bold',
+    color: color.rosaTexto,
+    fontWeight: '600',
     fontSize: 13,
   },
 
@@ -853,13 +856,13 @@ const estilos = StyleSheet.create({
 
   iconoVacio: {
     fontSize: 48,
-    color: '#81638B',
+    color: color.accion,
     marginBottom: 12,
   },
 
   textoVacio: {
     fontSize: 17,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
 
   detalleVacio: {

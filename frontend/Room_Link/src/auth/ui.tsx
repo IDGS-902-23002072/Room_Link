@@ -2,6 +2,8 @@ import { Image } from 'expo-image';
 import { type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -45,6 +47,7 @@ export function PantallaAuth({
 }) {
   return (
     <SafeAreaView style={estilos.safe}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView
         contentContainerStyle={estilos.scroll}
         keyboardShouldPersistTaps="handled"
@@ -62,6 +65,7 @@ export function PantallaAuth({
         {subtitulo ? <Text style={estilos.subtitulo}>{subtitulo}</Text> : null}
         <View style={estilos.cuerpo}>{children}</View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -167,7 +171,7 @@ export function Aviso({ texto, tono }: { texto: string; tono: 'error' | 'ok' }) 
 const estilos = StyleSheet.create({
   safe: { flex: 1, backgroundColor: paleta.fondo },
   scroll: { width: '100%', maxWidth: 480, alignSelf: 'center', padding: 24, flexGrow: 1 },
-  portada: { width: '100%', height: 148, borderRadius: 23, marginTop: 18 },
+  portada: { width: '100%', height: 220, borderRadius: 8, marginTop: 18 },
   kicker: {
     color: paleta.secundario,
     fontSize: 13,
@@ -175,23 +179,23 @@ const estilos = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
-  titulo: { color: paleta.tinta, fontSize: 34, fontWeight: '800', marginTop: 19, letterSpacing: -1 },
+  titulo: { color: paleta.tinta, fontSize: 34, fontWeight: '600', marginTop: 19, letterSpacing: -1 },
   subtitulo: { color: paleta.tenue, fontSize: 15, lineHeight: 22, marginTop: 6 },
   cuerpo: { marginTop: 24, gap: 16 },
   campo: { gap: 6 },
   etiqueta: { color: paleta.tinta, fontSize: 14, fontWeight: '700' },
   input: {
     backgroundColor: color.fondo,
-    borderColor: paleta.borde,
+    borderColor: color.control,
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
     color: paleta.tinta,
   },
   boton: {
-    borderRadius: 16,
+    borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',

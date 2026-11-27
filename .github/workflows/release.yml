@@ -53,8 +53,8 @@ jobs:
           npm ci
           npm run build
 
-      # La app Expo de frontend/ es solo móvil: se entrega como APK compilado
-      # en local y nunca pasa por GitHub. Aquí se publica el sitio web de web/.
+      # La app Expo se compila en android-release.yml al actualizar main.
+      # Este workflow publica la API y el sitio web de web/.
       - name: Compilar sitio web (Vite) para producción
         working-directory: web
         env:

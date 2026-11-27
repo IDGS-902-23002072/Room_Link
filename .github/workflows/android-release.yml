@@ -1,0 +1,158 @@
+name: Android APK · compilar y publicar
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: roomlink-android-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Compilar APK firmado
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: production
+    outputs:
+      api_url: ${{ steps.config.outputs.api_url }}
+    env:
+      CI: '1'
+      NODE_ENV: production
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            frontend/Room_Link/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          # El default del action incluye el paquete 'tools', que Google eliminó
+          # del SDK y hace fallar a sdkmanager. platform-tools basta; el resto
+          # (platform + build-tools) lo provisiona Gradle con las licencias ya aceptadas.
+          packages: platform-tools
+
+      - name: Validar automatización de publicación
+        run: |
+          bash -n scripts/deploy-android-apk.sh
+          python3 -B -m unittest discover -s scripts/tests -p 'test_android_deploy.py'
+          node --test scripts/tests/android-config.test.cjs
+
+      - name: Comprobar firma y preparar configuración
+        id: config
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z ${!name} ]]; then
+              echo "::error::Falta el secreto de firma $name (KEYSTORE_BASE64 corresponde a ANDROID_KEYSTORE_BASE64)."
+              exit 1
+            fi
+          done
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/roomlink-release.keystore"
+          keytool -list -keystore "$RUNNER_TEMP/roomlink-release.keystore" \
+            -storepass:env ANDROID_KEYSTORE_PASSWORD -alias "$ANDROID_KEY_ALIAS" > /dev/null
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/roomlink-release.keystore" >> "$GITHUB_ENV"
+          # Código creciente, independiente de reinicios del contador del workflow.
+          echo "ANDROID_VERSION_CODE=$(date +%s)" >> "$GITHUB_ENV"
+          node --env-file=frontend/Room_Link/.env.production --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const value = process.env.EXPO_PUBLIC_API_URL;
+          const url = new URL(value);
+          if (url.protocol !== 'https:' || value !== url.origin) throw new Error('EXPO_PUBLIC_API_URL debe ser un origen HTTPS');
+          appendFileSync(process.env.GITHUB_ENV, `EXPO_PUBLIC_API_URL=${value}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `api_url=${value}\n`);
+          NODE
+
+      - name: Instalar dependencias y validar móvil
+        run: |
+          npm --prefix frontend ci --include=dev
+          npm --prefix frontend/Room_Link ci --include=dev
+          npm --prefix frontend test
+          cd frontend/Room_Link
+          npx --no-install tsc --noEmit
+
+      - name: Generar Android y compilar release
+        working-directory: frontend/Room_Link
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          npx --no-install expo prebuild --platform android --clean --no-install
+          cd android
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease --no-daemon --max-workers=2 \
+            --init-script "$GITHUB_WORKSPACE/scripts/android-signing.init.gradle" \
+            -PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64
+
+      - name: Verificar y empaquetar APK
+        run: |
+          set -euo pipefail
+          mkdir -p apk
+          cp frontend/Room_Link/android/app/build/outputs/apk/release/app-release.apk apk/roomlink.apk
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          test -n "$apksigner"
+          "$apksigner" verify --verbose --print-certs apk/roomlink.apk
+          cd apk
+          sha256sum roomlink.apk > roomlink.apk.sha256
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs';
+          writeFileSync('build.json', JSON.stringify({ commit: process.env.GITHUB_SHA, versionCode: Number(process.env.ANDROID_VERSION_CODE), apiUrl: process.env.EXPO_PUBLIC_API_URL, runId: process.env.GITHUB_RUN_ID }, null, 2));
+          NODE
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: roomlink-apk-${{ github.sha }}
+          path: apk/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Eliminar firma temporal
+        if: always()
+        run: rm -f "$RUNNER_TEMP/roomlink-release.keystore"
+
+  publish:
+    name: Publicar APK en Azure
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: ${{ needs.build.outputs.api_url }}/descargas/roomlink.apk
+    concurrency:
+      group: roomlink-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: roomlink-apk-${{ github.sha }}
+          path: apk
+      - name: Subir y verificar APK
+        env:
+          SSH_HOST: ${{ secrets.AZURE_VM_HOST }}
+          SSH_USER: ${{ secrets.AZURE_VM_USER }}
+          SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
+          API_URL: ${{ needs.build.outputs.api_url }}
+        run: bash scripts/deploy-android-apk.sh

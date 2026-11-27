@@ -11,6 +11,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  android-automation:
+    name: Android · validar automatización sin credenciales
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: |
+          bash -n scripts/deploy-android-apk.sh
+          python3 -B -m unittest discover -s scripts/tests -p 'test_android_deploy.py'
+          node --test scripts/tests/android-config.test.cjs
+
   lint-and-unit-frontend:
     name: Frontend móvil · pruebas unitarias
     runs-on: ubuntu-latest

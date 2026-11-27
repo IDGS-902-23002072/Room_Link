@@ -5,6 +5,7 @@ import { ActivityIndicator, BackHandler, Platform, Pressable, ScrollView, StyleS
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSesion } from '@/auth/SesionContext';
+import { CargandoHabitaciones } from '@/components/CargandoHabitaciones';
 import { MarcaRoomLink } from '@/components/MarcaRoomLink';
 import { color } from '@/constants/roomlink';
 
@@ -210,7 +211,7 @@ export function PantallaExploracion() {
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.area}>
-      <ScrollView ref={scroll} contentContainerStyle={styles.contenido} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scroll} stickyHeaderIndices={[0]} contentContainerStyle={styles.contenido} keyboardShouldPersistTaps="handled">
         <View style={styles.barra}>
           <MarcaRoomLink />
           <Link href="/notificaciones" asChild>
@@ -241,8 +242,10 @@ export function PantallaExploracion() {
             <View style={styles.hero}>
               <Image source={require('@/assets/images/interior-roomlink.webp')} contentFit="cover" style={styles.heroImagen} />
               <View style={styles.heroTexto}>
-                <Text accessibilityRole="header" style={styles.titulo}>Encuentra tu habitación</Text>
-                <Text style={styles.subtitulo}>Explora espacios, compara rentas y elige dónde vivir.</Text>
+                <Text style={styles.eyebrow}>TU SIGUIENTE CAPÍTULO</Text>
+                <Text accessibilityRole="header" style={styles.titulo}>Un espacio.
+Tu nueva vida.</Text>
+                <Text style={styles.subtitulo}>Encuentra el lugar y las personas con quienes quieres compartirlo.</Text>
               </View>
             </View>
             <BuscadorHabitaciones
@@ -252,9 +255,9 @@ export function PantallaExploracion() {
               alCambiarFiltro={(valor) => cambiarBusqueda(busqueda, valor)}
             />
             <View style={styles.accesos}>
-              <Link href="/buscar-roomies" style={styles.enlace}>Buscar roomies con filtros avanzados</Link>
+              <Link href="/buscar-roomies" style={styles.enlace}>Encuentra roomies  ↗</Link>
               <Link href="/encuesta" style={[styles.enlace, styles.enlaceAfinidad]}>
-                {tieneTest ? 'Mi test de convivencia' : 'Completar test de convivencia'}
+                {tieneTest ? 'Mi compatibilidad  ↗' : 'Descubre tu compatibilidad  ↗'}
               </Link>
             </View>
             <View style={styles.resultados}>
@@ -276,7 +279,7 @@ export function PantallaExploracion() {
               />
             ))}
             {cargando ? (
-              <ActivityIndicator accessibilityLabel="Cargando habitaciones" color={color.accion} style={styles.estado} />
+              habitaciones.length === 0 ? <CargandoHabitaciones /> : <ActivityIndicator accessibilityLabel="Cargando más habitaciones" color={color.accion} style={styles.estado} />
             ) : errorFeed ? (
               <>
                 <Aviso error>{errorFeed}</Aviso>
@@ -284,6 +287,7 @@ export function PantallaExploracion() {
               </>
             ) : habitaciones.length === 0 ? (
               <View style={styles.estado}>
+                <Text accessibilityRole="header" style={styles.seccion}>{tieneFiltros ? 'Probemos otra búsqueda' : 'Tu próximo hogar está por llegar'}</Text>
                 <Text style={styles.subtitulo}>
                   {tieneFiltros ? 'No encontramos habitaciones con esos filtros.' : 'Todavía no hay habitaciones publicadas.'}
                 </Text>
@@ -309,28 +313,29 @@ const styles = StyleSheet.create({
   area: { flex: 1, backgroundColor: color.blanco },
   contenido: {
     width: '100%', maxWidth: 520, alignSelf: 'center',
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 96, gap: 14,
+    paddingHorizontal: 20, paddingTop: 0, paddingBottom: 110, gap: 20,
   },
-  barra: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  barra: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: color.blanco, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.borde },
   campana: {
     width: 46, height: 46, alignItems: 'center', justifyContent: 'center',
-    borderColor: color.borde, borderWidth: 1, borderRadius: 15, backgroundColor: color.fondo,
+    borderColor: color.borde, borderWidth: 1, borderRadius: 24, backgroundColor: color.blanco,
   },
   icono: { width: 23, height: 23 },
   presionado: { opacity: 0.7 },
-  hero: { backgroundColor: color.mentaSuave, borderRadius: 26, overflow: 'hidden' },
-  heroImagen: { width: '100%', height: 156 },
-  heroTexto: { paddingHorizontal: 20, paddingVertical: 16, gap: 5 },
-  titulo: { color: color.tinta, fontSize: 31, fontWeight: '800', letterSpacing: -1.1 },
+  hero: { backgroundColor: color.superficie, borderRadius: 8, overflow: 'hidden', marginHorizontal: -20 },
+  heroImagen: { width: '100%', height: 280 },
+  heroTexto: { paddingHorizontal: 24, paddingVertical: 28, gap: 12 },
+  eyebrow: { color: color.secundario, fontSize: 11, fontWeight: '700', letterSpacing: 2 },
+  titulo: { color: color.tinta, fontSize: 38, fontWeight: '600', letterSpacing: -1.4 },
   subtitulo: { color: color.secundario, fontSize: 15, lineHeight: 22 },
   accesos: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   enlace: {
-    color: color.accion, backgroundColor: color.mentaSuave, padding: 12,
-    borderRadius: 13, fontSize: 13, fontWeight: '700', minHeight: 44, overflow: 'hidden',
+    color: color.tinta, backgroundColor: color.superficie, padding: 14,
+    borderRadius: 8, fontSize: 13, fontWeight: '700', minHeight: 44, overflow: 'hidden',
   },
-  enlaceAfinidad: { color: color.lavandaTexto, backgroundColor: color.lavanda },
+  enlaceAfinidad: { color: color.tinta, backgroundColor: color.superficie },
   resultados: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 6, marginTop: 8 },
-  seccion: { color: color.tinta, fontSize: 22, fontWeight: '800', letterSpacing: -0.45 },
+  seccion: { color: color.tinta, fontSize: 22, fontWeight: '600', letterSpacing: -0.45 },
   contador: { color: color.secundario, fontSize: 13, fontWeight: '600' },
   estado: { padding: 18, gap: 12, borderRadius: 18, backgroundColor: color.fondo },
 });

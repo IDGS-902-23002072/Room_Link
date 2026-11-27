@@ -168,7 +168,9 @@ test.describe("Flujo 1 · Auth cross-origin, Onboarding y Navegación móvil", (
 
     // Tab Descubrir (M04 / HU-04)
     await page.getByText("Descubrir", { exact: true }).click();
-    await expect(page.getByText("Encuentra tu habitación")).toBeVisible();
+    // Valida que Explorar esté operativo sin depender del eslogan de la portada.
+    await expect(page.getByRole("textbox", { name: "Buscar habitaciones", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Habitaciones en renta", exact: true })).toBeVisible();
 
     // Pantalla apilada: Búsqueda de roomies (M05 / HU-05)
     await page.locator('a[href*="/buscar-roomies"]').first().click();

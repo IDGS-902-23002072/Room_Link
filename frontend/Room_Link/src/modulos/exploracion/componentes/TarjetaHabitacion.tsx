@@ -1,9 +1,12 @@
+import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { color } from '@/constants/roomlink';
 
 import type { HabitacionFeed } from '../datos/habitaciones';
 import { PortadaHabitacion } from './PortadaHabitacion';
+
+const entrada = FadeIn.duration(220).reduceMotion(ReduceMotion.System);
 
 export function TarjetaHabitacion({
   habitacion, postulada, bloqueoPostulacion, enviando, guardada,
@@ -24,7 +27,7 @@ export function TarjetaHabitacion({
   };
 
   return (
-    <View testID={`habitacion-${habitacion.id}`} style={styles.tarjeta}>
+    <Animated.View entering={entrada} testID={`habitacion-${habitacion.id}`} style={styles.tarjeta}>
       <Pressable
         accessibilityLabel={`Abrir habitación ${habitacion.titulo}`}
         accessibilityRole="button"
@@ -88,30 +91,30 @@ export function TarjetaHabitacion({
           </Pressable>
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  tarjeta: { borderRadius: 24, borderWidth: 1, borderColor: color.borde, overflow: 'hidden', backgroundColor: color.blanco },
+  tarjeta: { borderRadius: 16, borderWidth: 1, borderColor: color.borde, overflow: 'hidden', backgroundColor: color.blanco },
   presionada: { opacity: 0.75 },
-  portada: { height: 192, backgroundColor: color.mentaSuave, alignItems: 'center', justifyContent: 'center' },
+  portada: { height: 240, backgroundColor: color.mentaSuave, alignItems: 'center', justifyContent: 'center' },
   indicadores: { position: 'absolute', top: 12, left: 12, right: 12, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 6 },
-  disponible: { color: color.accion, backgroundColor: color.menta, fontSize: 12, fontWeight: '800', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 12, overflow: 'hidden' },
+  disponible: { color: color.accion, backgroundColor: color.menta, fontSize: 12, fontWeight: '600', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 12, overflow: 'hidden' },
   fecha: { color: color.cremaTexto, backgroundColor: color.crema },
   fotos: { color: color.tinta, backgroundColor: color.blanco, fontSize: 12, fontWeight: '700', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 12, overflow: 'hidden' },
-  cuerpo: { padding: 16, gap: 6 },
+  cuerpo: { padding: 20, gap: 8 },
   fila: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 8 },
-  titulo: { color: color.tinta, fontSize: 20, lineHeight: 25, fontWeight: '800', letterSpacing: -0.35 },
-  precio: { color: color.tinta, fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  titulo: { color: color.tinta, fontSize: 20, lineHeight: 25, fontWeight: '600', letterSpacing: -0.35 },
+  precio: { color: color.tinta, fontSize: 24, fontWeight: '600', letterSpacing: -0.5 },
   secundario: { color: color.secundario, fontSize: 13, lineHeight: 19 },
   compatibilidad: { color: color.lavandaTexto, backgroundColor: color.lavanda, fontSize: 12, fontWeight: '700', padding: 7, borderRadius: 10, overflow: 'hidden' },
   acciones: { borderTopWidth: 1, borderColor: color.borde, flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingVertical: 11 },
-  botonIcono: { width: 44, minHeight: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderColor: color.borde, borderWidth: 1 },
+  botonIcono: { width: 44, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 8, borderColor: color.borde, borderWidth: 1 },
   icono: { color: color.accion, fontSize: 22 },
-  guardada: { backgroundColor: color.rosa, borderColor: color.rosa },
-  textoGuardada: { color: color.rosaTexto },
-  boton: { flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 13 },
+  guardada: { backgroundColor: color.menta, borderColor: color.menta },
+  textoGuardada: { color: color.accion },
+  boton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8 },
   primaria: { backgroundColor: color.accion },
   deshabilitada: { backgroundColor: color.fondo },
   enviada: { backgroundColor: color.menta },
