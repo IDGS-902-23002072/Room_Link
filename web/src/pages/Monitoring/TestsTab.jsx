@@ -107,6 +107,7 @@ export default function TestsTab({ token }) {
   const items = runs?.items ?? []
   const results = detail?.results ?? []
   const visibleResults = showAll ? results : results.filter((result) => result.result !== 'passed')
+  const selectedSuite = suites.find((item) => item.id === suite)
 
   return (
     <div className={styles.stack}>
@@ -137,6 +138,9 @@ export default function TestsTab({ token }) {
             Ejecutar suite
           </Button>
         </div>
+        {selectedSuite ? (
+          <p className={styles.cardNote}>{selectedSuite.description}</p>
+        ) : null}
         {runNotice ? (
           <Notice className={styles.runNotice} tone={runNotice.tone}>{runNotice.text}</Notice>
         ) : null}
@@ -231,10 +235,16 @@ export default function TestsTab({ token }) {
                   <Badge tone={result.result === 'passed' ? 'success' : 'danger'}>
                     {result.result === 'passed' ? 'Aprobada' : result.result === 'skipped' ? 'Omitida' : 'Fallida'}
                   </Badge>
-                  <span className={styles.resultName}>{result.testName}</span>
-                  <span className={styles.resultMeta}>
-                    {result.sliId ?? 'sin SLI'} · {result.module}
-                  </span>
+                  <div className={styles.resultBody}>
+                    <span className={styles.resultName}>{result.testName}</span>
+                    {result.message ? (
+                      <p className={styles.resultDescription}>{result.message}</p>
+                    ) : null}
+                    <span className={styles.resultMeta}>
+                      {result.sliId ?? 'sin SLI'} · {result.module}
+                      {result.dataSummary ? ` · Datos: ${result.dataSummary}` : ''}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
