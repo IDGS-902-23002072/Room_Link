@@ -71,6 +71,8 @@ export interface LogbookFilters {
   status?: string | undefined;
   inSliOnly?: boolean | undefined;
   includeExcluded?: boolean | undefined;
+  /** Vista de negocio: sin resúmenes de prueba, peticiones del panel ni datos de demo. */
+  onlyOperations?: boolean | undefined;
   cursor?: string | undefined;
   limit: number;
 }

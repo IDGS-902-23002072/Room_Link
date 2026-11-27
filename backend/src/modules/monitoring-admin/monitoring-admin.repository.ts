@@ -128,6 +128,13 @@ export class DrizzleMonitoringAdminRepository implements MonitoringAdminReposito
       clauses.push("status_label = ?");
       params.push(filters.status === "success" ? "éxito" : "error");
     }
+    if (filters.onlyOperations) {
+      clauses.push(
+        "type = 'business'",
+        "source <> 'synthetic'",
+        "operation NOT LIKE '%/api/v1/admin/monitoring/%'",
+      );
+    }
     if (filters.inSliOnly) clauses.push("sli_id IS NOT NULL");
     if (!filters.includeExcluded) clauses.push("excluded = 0");
     if (filters.cursor) {

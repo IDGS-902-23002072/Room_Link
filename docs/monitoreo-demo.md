@@ -310,21 +310,24 @@ foto en `mon_slo_compliance`, CSV válido y 90 días cumplidos.
 
 ## Aclaraciones frecuentes
 
-- **«Sin dato» en Indicadores.** El panel consulta el mes seleccionado en UTC-6; si
-  no hay foto mensual para ese mes, muestra «sin dato». Con la demo de noviembre
-  cargada, 28 SLI tienen dato y 36 siguen sin medición. T.3 sigue sin dato porque
-  depende de transacciones reales y la demo es sintética. No se inventan valores.
+- **Indicadores.** El panel consulta el mes seleccionado en UTC-6 y solo lista los
+  SLI que tienen transacciones registradas; los que no se están usando no aparecen.
+  Con la demo de noviembre cargada, 28 SLI tienen dato y 36 siguen sin medición.
+  T.3 sigue sin dato porque depende de transacciones reales y la demo es sintética.
+  No se inventan valores.
 - **`user_id` en el CSV.** La regla de privacidad del proyecto permite guardar solo
   patrón de ruta, estado, duración, **rol** y `request_id`. El CSV ya incluye
   `request_id` y `role`; agregar `user_id` (o un hash del mismo) rompería esa regla,
   así que no se hace.
 - **Bitácora.** Los campos Desde, Hasta, Módulo, Tipo de evento y Estado son
-  filtros. La tabla incluye además fecha, operación, mensaje, solicitud, estado y
-  duración. El Tipo de evento se muestra en español: «Petición API», «Operación de
-  negocio», «Sondeo /ready», «Prueba automática», «Incidente» y «Respaldo». Las filas
-  de una suite pueden aparecer como «Operación de negocio», «Petición API»,
-  «Sondeo /ready» o «Prueba automática», siempre con `source='test'`; no se mezclan
-  con el tráfico real.
+  filtros. Por defecto se muestran solo operaciones de negocio reales, con la
+  operación, el mensaje y el `request_id` de cada transacción; se ocultan los
+  resúmenes de prueba, las peticiones del propio panel y los datos de demo. Esas
+  peticiones sí se registran para el SLA; solo se ocultan de esta vista. Las
+  operaciones de las suites se incluyen marcadas como «Excluido» porque no cuentan
+  para el SLA; se pueden ocultar quitando «Incluir excluidos del SLA». El Tipo de
+  evento se muestra en español: «Petición API», «Operación de negocio»,
+  «Sondeo /ready», «Prueba automática», «Incidente» y «Respaldo».
 
 ## Límites de la demo
 

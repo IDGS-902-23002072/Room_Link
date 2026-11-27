@@ -91,6 +91,14 @@ class FakeRepo implements MonitoringAdminRepository {
     }
     if (filters.inSliOnly) rows = rows.filter((row) => row.sliId !== null);
     if (!filters.includeExcluded) rows = rows.filter((row) => row.excluded === 0);
+    if (filters.onlyOperations) {
+      rows = rows.filter(
+        (row) =>
+          row.type === "business" &&
+          row.source !== "synthetic" &&
+          !row.operation.includes("/api/v1/admin/monitoring/"),
+      );
+    }
     if (filters.cursor) {
       const [stamp, id] = filters.cursor.split("|");
       rows = rows.filter((row) => {
@@ -272,6 +280,7 @@ describe("F6 · panel de monitoreo para administradores", () => {
   it("página la bitácora por cursor y aplica filtros", async () => {
     const repo = fullRepo();
     const base = Date.parse("2026-11-05T12:00:00.000Z");
+    const requestId = randomUUID();
     repo.logbook = [3, 2, 1].map((minute) => ({
       id: `row-${minute}`,
       occurredAt: new Date(base - minute * 60_000),
@@ -283,7 +292,7 @@ describe("F6 · panel de monitoreo para administradores", () => {
       durationMs: 120,
       message: "HTTP 200",
       source: "real",
-      requestId: randomUUID(),
+      requestId,
       sliId: "1.3",
       excluded: 0,
     }));
@@ -297,6 +306,7 @@ describe("F6 · panel de monitoreo para administradores", () => {
     const page1 = await first.json();
     expect(page1.items).toHaveLength(1);
     expect(page1.items[0].id).toBe("row-1");
+    expect(page1.items[0].requestId).toBe(requestId);
     expect(page1.nextCursor).toContain("|row-1");
 
     const second = await app.request(
@@ -305,6 +315,48 @@ describe("F6 · panel de monitoreo para administradores", () => {
     );
     const page2 = await second.json();
     expect(page2.items[0].id).toBe("row-2");
+    await writer.close();
+  });
+
+  it("en la vista de operaciones oculta resúmenes de prueba, peticiones del panel y datos de demo", async () => {
+    const repo = fullRepo();
+    const base = Date.parse("2026-11-05T12:00:00.000Z");
+    const row = (
+      id: string,
+      values: Partial<LogbookRow>,
+    ): LogbookRow => ({
+      id,
+      occurredAt: new Date(base),
+      occurredAtLocal: new Date(base - 6 * 3_600_000),
+      type: "business",
+      module: "M7",
+      operation: "Publicación de anuncio",
+      statusLabel: "éxito",
+      durationMs: 120,
+      message: "Se publicó el anuncio. La habitación ya es visible para quienes buscan alojamiento.",
+      source: "real",
+      requestId: randomUUID(),
+      sliId: "7.4",
+      excluded: 0,
+      ...values,
+    });
+    repo.logbook = [
+      row("real", { id: "real" }),
+      row("suite", { source: "test", excluded: 1 }),
+      row("demo", { source: "synthetic", excluded: 1 }),
+      row("panel", { operation: "GET /api/v1/admin/monitoring/logbook" }),
+      row("resumen", { type: "test", operation: "[SLI 15.3] regla de la demo" }),
+    ];
+    const { app, writer } = setup(repo);
+    const token = await tokenFor(app, "admin@roomlink.test");
+    const response = await app.request(
+      "/api/v1/admin/monitoring/logbook?month=2026-11&scope=operations&includeExcluded=true",
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.items.map((item: { id: string }) => item.id).sort()).toEqual(["real", "suite"]);
+    expect(body.items.every((item: { message: string }) => item.message.length > 20)).toBe(true);
     await writer.close();
   });
 

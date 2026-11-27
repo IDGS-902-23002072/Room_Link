@@ -1,6 +1,6 @@
 # Matriz de cobertura documentada (SLI/SLO de Room_Link)
 
-Referencia cruzada entre los 15 SLIs de regla (M1–M15), la plataforma y los ID de `docs/matriz-pruebas.md`. **"Casos cubiertos" significa que existe una suite identificada para la regla**; el estado real de ejecución está en `docs/matriz-pruebas.md`. Verificación del 2026-11-27: backend unitario 249/249, web 23/23 y smoke 12/12 pasan; integración, suite móvil y E2E están `BLOCKED`. No se calculan porcentajes de cobertura.
+Referencia cruzada entre los 15 SLIs de regla (M1–M15), la plataforma y los ID de `docs/matriz-pruebas.md`. **"Casos cubiertos" significa que existe una suite identificada para la regla**; el estado real de ejecución está en `docs/matriz-pruebas.md`. Verificación del 2026-11-27: backend unitario 270/270, web 25/25 y smoke 12/12 pasan; integración, suite móvil y E2E están `BLOCKED`. No se calculan porcentajes de cobertura.
 
 Las columnas de positivos, negativos, límite y excepcionales cuentan los tipos de escenario **analizados en el código**, no resultados. "Casos pendientes" recoge reglas analizadas sin aserción y verificaciones sin desplegar; los ID `T-36`…`T-41` ya están implementados y se ejecutan en el unitario de monitoreo.
 

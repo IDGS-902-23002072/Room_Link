@@ -2,7 +2,7 @@
 
 Documento de análisis de los datos usados por las pruebas existentes y por las pruebas de monitoreo planeadas. Fuentes: secciones 7 y 8 del SLA (`IDGS1002 Proyecto 2.1 Omar Cordero.pdf`), la guía `opencode-monitoreo (1).md` y el código de pruebas del repositorio. Los identificadores `T-xx` referencian `docs/matriz-pruebas.md`.
 
-Convenciones: se describe la intención y las aserciones **definidas en el código**, con el resultado observado el **2026-11-27**. Las suites unitarias de backend (269/269), web (23/23), smoke (12/12) y móvil `frontend` (21/21) pasaron. El E2E móvil pasó 8/8 y el E2E de roles 8/19 contra la app real; la integración MySQL no se ejecutó porque llama a `migrate()`. No se afirma cobertura completa ni se calculan porcentajes de cobertura; los SLO citados son los del SLA. Los datos QA creados en `roomlink` se borraron al terminar.
+Convenciones: se describe la intención y las aserciones **definidas en el código**, con el resultado observado el **2026-11-27**. Las suites unitarias de backend (270/270), web (25/25), smoke (12/12) y móvil `frontend` (21/21) pasaron. El E2E móvil pasó 8/8 y el E2E de roles 8/19 contra la app real; la integración MySQL no se ejecutó porque llama a `migrate()`. No se afirma cobertura completa ni se calculan porcentajes de cobertura; los SLO citados son los del SLA. Los datos QA creados en `roomlink` se borraron al terminar.
 
 ## 1.5 · Reglas de autenticación (M1, SLO ≥ 90 % de pruebas aprobadas)
 

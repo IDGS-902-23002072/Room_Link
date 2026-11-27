@@ -87,6 +87,7 @@ export interface LogbookResponse {
     durationMs: number | null;
     message: string;
     source: string;
+    requestId: string | null;
     sliId: string | null;
     excluded: boolean;
   }>;
@@ -330,6 +331,8 @@ export class MonitoringAdminService {
         status: query.status,
         inSliOnly: query.inSli === "true" || query.inSli === "1",
         includeExcluded: query.includeExcluded === "true" || query.includeExcluded === "1",
+        onlyOperations:
+          query.scope === "operations" && (!query.type || query.type === "business"),
         cursor: query.cursor,
         limit: limit + 1,
       }),
@@ -346,6 +349,7 @@ export class MonitoringAdminService {
       durationMs: row.durationMs,
       message: row.message,
       source: row.source,
+      requestId: row.requestId,
       sliId: row.sliId,
       excluded: row.excluded === 1,
     }));

@@ -17,7 +17,7 @@ import styles from './Monitoring.module.css'
 
 export default function LogbookTab({ month, token }) {
   const bounds = monthBounds(month)
-  const [draft, setDraft] = useState({ from: bounds.from, to: bounds.to, module: '', type: '', status: '', inSli: false, includeExcluded: false })
+  const [draft, setDraft] = useState({ from: bounds.from, to: bounds.to, module: '', type: '', status: '', inSli: false, includeExcluded: true })
   const [filters, setFilters] = useState(draft)
   const [history, setHistory] = useState([null])
   const [page, setPage] = useState(0)
@@ -30,7 +30,8 @@ export default function LogbookTab({ month, token }) {
   useEffect(() => asyncEffect(async (isActive) => {
     setLoading(true)
     try {
-      const result = await getLogbook({ ...filters, month, cursor, limit: 50 }, token)
+      const scope = filters.type === '' || filters.type === 'business' ? 'operations' : undefined
+      const result = await getLogbook({ ...filters, scope, month, cursor, limit: 50 }, token)
       if (isActive()) {
         setData(result)
         setError('')
@@ -121,13 +122,17 @@ export default function LogbookTab({ month, token }) {
                 onChange={(event) => setDraft({ ...draft, includeExcluded: event.target.checked })}
                 type="checkbox"
               />
-              Mostrar excluidos
+              Incluir excluidos del SLA
             </label>
           </div>
           <div className={styles.filterActions}>
             <Button type="submit">Filtrar</Button>
           </div>
         </form>
+        <p className={styles.cardNote}>
+          Por defecto se muestran las operaciones de negocio reales. Las filas de las suites
+          aparecen marcadas como excluidas y no cuentan para el SLA.
+        </p>
         {rangeError ? <Notice tone="error">{rangeError}</Notice> : null}
       </Card>
 

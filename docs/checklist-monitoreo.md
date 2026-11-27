@@ -17,7 +17,7 @@ regla o sin entorno). La fecha de verificación es 2026-11-27.
 | 9 | Resultados y eventos almacenados con fecha, commit y estado (F4) | Hecho | `mon_test_run`, `mon_test_result`, `mon_request_log` y `mon_activity_log`; ingesta con `x-monitor-token` |
 | 10 | Los 67 SLI están en el catálogo; sin endpoint se muestran “sin dato” (F1/F5) | Hecho | `backend/drizzle-monitor/` semilla y `docs/sli-catalog.md`; 67 filas cargadas en la base real; T.3 sale “sin dato” en la demo |
 | 11 | Cálculos: mes UTC-6, exclusiones, tx buena, ventana de 3 meses, truncado a 1 decimal (F5) | Hecho | `backend/src/monitoring/sliCalculator.ts`, `time.ts`; verificación SQL de la foto `2026-10`; T.1 = 99.5 % con `floor(good*1000/total)/10` |
-| 12 | Pantalla de administración con resumen, indicadores, pruebas y bitácora con filtros (F6) | Hecho | `web/src/pages/Monitoring/` con cuatro pestañas; bitácora con mensaje y `request_id` visibles y tipos en español («Operación de negocio», «Sondeo /ready», «Prueba automática»); `Pruebas` ejecuta suites permitidas y muestra «Qué se verificó», «Qué pasó» y «Datos», con SLI/módulo/duración/esperado dentro de «Detalle técnico»; `funcional` y `disponibilidad` aparecen antes que `monitor`; `npm --prefix web run test` (23/23), `lint` y `build` pasan |
+| 12 | Pantalla de administración con resumen, indicadores, pruebas y bitácora con filtros (F6) | Hecho | `web/src/pages/Monitoring/` con cuatro pestañas; la bitácora muestra por defecto solo operaciones de negocio reales (incluidas las de las suites, marcadas como excluidas del SLA) con mensaje y `request_id` visibles, sin resúmenes de prueba, peticiones del panel ni datos de demo; `Indicadores` solo lista los que tienen transacciones en el mes; `Pruebas` muestra la hora en UTC-6; `npm --prefix web run test` (25/25), `lint` y `build` pasan |
 | 13 | Pantalla solo para administradores; otro rol recibe 403 (F6) | Hecho | middleware `createAuthMiddleware` + `requireAdmin` por ruta; prueba “niega el panel a un usuario sin rol admin”; la ruta se oculta en navegación |
 | 14 | Comparación entre resultado y SLO visible por módulo (F6) | Hecho | pestaña Indicadores: valor, SLO, margen y semáforo; estados verde/rojo/gris |
 | 15 | CSV mensual de F1 y retención de 90 días (F7) | Parcial | `scripts/export-monthly.mjs` y `backend/src/monitoring/retention.ts` con modo seco por defecto; descarga HTTP real **BLOCKED** (no se creó sesión admin en `roomlink`), cobertura unitaria del script |
@@ -41,7 +41,7 @@ npm --prefix backend run monitor:slo -- --period=2026-10
 ```
 
 Resultados reales: 35 archivos / 269 pruebas en backend, 21 pruebas de monitor,
-12 pruebas smoke, 8 funcionales, 5 de disponibilidad, 23 pruebas web y 21 pruebas
+12 pruebas smoke, 8 funcionales, 5 de disponibilidad, 25 pruebas web y 21 pruebas
 móviles en `frontend`; `typecheck`, `lint`, `db:monitor:check` y `build` correctos.
 El E2E móvil pasó **8/8** y el E2E de roles **8/19** contra backend y web reales.
 `roomlink_app` ya tiene permisos en `roomlink`, pero `test:integration` llama a

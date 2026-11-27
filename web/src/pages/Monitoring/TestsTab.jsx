@@ -7,7 +7,7 @@ import Field from '../../components/Field/Field.jsx'
 import Notice from '../../components/Notice/Notice.jsx'
 import { asyncEffect } from '../../hooks/asyncEffect.js'
 import {
-  formatLocal,
+  formatUtc6,
   getTestRun,
   getTestRuns,
   getTestSuites,
@@ -164,7 +164,7 @@ export default function TestsTab({ token }) {
             <caption className={styles.srOnly}>Corridas de pruebas automáticas</caption>
             <thead>
               <tr>
-                <th scope="col">Finalizó</th>
+                <th scope="col">Finalizó (UTC-6)</th>
                 <th scope="col">Suite</th>
                 <th scope="col">Resultado</th>
                 <th scope="col">Detalle</th>
@@ -173,7 +173,7 @@ export default function TestsTab({ token }) {
             <tbody>
               {items.map((run) => (
                 <tr key={run.id}>
-                  <td>{formatLocal(run.finishedAt)}</td>
+                  <td>{formatUtc6(run.finishedAt)}</td>
                   <td>{run.suite}</td>
                   <td>
                     <Badge tone={run.complete && run.failedTests === 0 ? 'success' : run.complete ? 'danger' : 'neutral'}>

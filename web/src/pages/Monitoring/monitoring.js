@@ -60,7 +60,7 @@ export function runTestSuite(suite, token) {
   })
 }
 
-export function getLogbook({ month, from, to, module, type, status, inSli, includeExcluded, cursor, limit = 50 }, token) {
+export function getLogbook({ month, from, to, module, type, status, inSli, includeExcluded, scope, cursor, limit = 50 }, token) {
   return apiRequest(
     `${BASE}/logbook${query({
       month,
@@ -71,6 +71,7 @@ export function getLogbook({ month, from, to, module, type, status, inSli, inclu
       status: status === 'success' || status === 'error' ? status : undefined,
       inSli: inSli ? 'true' : undefined,
       includeExcluded: includeExcluded ? 'true' : undefined,
+      scope,
       cursor,
       limit,
     })}`,
@@ -99,7 +100,7 @@ export function formatDuration(ms) {
   return ms === null || ms === undefined ? 'sin dato' : `${Math.round(ms)} ms`
 }
 
-/** El backend ya entrega la fecha convertida a UTC-6; se muestra sin volver a desplazarla. */
+/** La bitácora ya entrega la fecha convertida a UTC-6; se muestra sin volver a desplazarla. */
 export function formatLocal(iso) {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return 'Fecha no disponible'
@@ -108,6 +109,18 @@ export function formatLocal(iso) {
     timeStyle: 'medium',
     timeZone: 'UTC',
   }).format(date)
+}
+
+/** Las corridas de pruebas llegan en UTC; se desplazan a UTC-6 antes de mostrarlas. */
+export function formatUtc6(iso) {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return 'Fecha no disponible'
+  const local = new Date(date.getTime() - 6 * 60 * 60 * 1000)
+  return new Intl.DateTimeFormat('es-MX', {
+    dateStyle: 'medium',
+    timeStyle: 'medium',
+    timeZone: 'UTC',
+  }).format(local)
 }
 
 export function stateOf(sli) {

@@ -40,8 +40,9 @@ export default function SlisTab({ month, token }) {
       </Notice>
     )
   }
-  const items = (data?.items ?? []).filter((item) => !module || item.module === module)
-  const modules = [...new Set((data?.items ?? []).map((item) => item.module))].sort()
+  const inUse = (data?.items ?? []).filter((item) => (item.totalTx ?? 0) > 0)
+  const items = inUse.filter((item) => !module || item.module === module)
+  const modules = [...new Set(inUse.map((item) => item.module))].sort()
 
   return (
     <div className={styles.stack}>
@@ -57,13 +58,14 @@ export default function SlisTab({ month, token }) {
           </select>
         </Field>
         <p className={styles.cardNote}>
-          El valor se trunca a un decimal. Cumple si la proporción de casos buenos alcanza el SLO.
+          Solo se listan los indicadores con transacciones registradas en el mes. El valor se
+          trunca a un decimal y cumple si la proporción de casos buenos alcanza el SLO.
         </p>
       </Card>
 
       {items.length === 0 ? (
         <EmptyState
-          description="No hay mediciones guardadas para este mes. Ejecuta el cálculo mensual para ver los 67 indicadores."
+          description="No hay indicadores con transacciones registradas en este mes."
           title="Sin información de indicadores"
         />
       ) : (
