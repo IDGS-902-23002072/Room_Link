@@ -191,7 +191,7 @@ antes aparecían nombres técnicos como `ApplicationStatusChanged`, que además 
 descartaban por parecer un secreto al tener 24 caracteres seguidos.
 
 Evidencia real de una ejecución anterior del endpoint contra MySQL (cuando la
-suite `monitor` tenía 16 pruebas; hoy tiene 20):
+suite `monitor` tenía 16 pruebas; hoy tiene 21):
 
 ```json
 {"origin":"monitoring","event":"test_run_executed","suite":"monitor","exitCode":0,"totalTests":16,"passedTests":16,"failedTests":0}
@@ -200,7 +200,7 @@ suite `monitor` tenía 16 pruebas; hoy tiene 20):
 
 Eso escribió 1 fila en `mon_test_run` y 16 en `mon_test_result`, con `source='test'`.
 Con el puente de registros, además se encolan las operaciones y los sondeos de la
-suite. Las corridas locales actuales son: `monitor` 20/20, `funcional` 8/8 y
+suite. Las corridas locales actuales son: `monitor` 21/21, `funcional` 8/8 y
 `disponibilidad` 4/4 (2026-11-27).
 
 Para comprobarlo en MySQL después de ejecutar `funcional` y `disponibilidad` desde

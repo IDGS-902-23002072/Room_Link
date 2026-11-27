@@ -13,7 +13,7 @@ regla o sin entorno). La fecha de verificación es 2026-11-27.
 | 5 | Un fallo de la base de monitoreo no afecta ninguna respuesta de la API (F2) | Hecho | escritor asíncrono con cola acotada y stdout JSON; `/ready` no consulta `roomlink_monitor`; prueba “con la base de monitoreo caída la API responde igual” |
 | 6 | Pruebas de disponibilidad: `/ready` sondeado cada minuto y guardado (F3) | Parcial | Suite `disponibilidad` con 4/4 pruebas: `/health` y `/ready` con base activa y caída, cada llamada deja un `mon_probe` con mensaje claro (`availabilityProbe.ts`); el puente entregó 5 sondeos con `request_id` en la corrida local; la demo guardó 1860 sondeos sintéticos; falta el cron de 1 min en la VM (GitHub Actions solo cada 5 min) |
 | 7 | Pruebas de funcionalidad por módulo ligadas a su SLI de regla, en cada versión (F4) | Hecho | 15 SLI de regla en `docs/sli-catalog.md`; `npm --prefix backend run test:unit`: 269/269 pasan; CI usa `MONITOR_INGEST_TOKEN` |
-| 8 | Pruebas de flujos críticos y de manejo de errores incluidas (F4) | Parcial | suite `funcional` con 8/8 pasos legibles (login, test de convivencia, anuncio, publicación, postulación, decisión y cierre) sin escribir en `roomlink`; el puente dejó 42 pasos con `request_id`; `disponibilidad` 4/4; unitario 269/269, monitor 20/20 y smoke 12/12; suite móvil **BLOCKED** (`vitest` no instalado en `frontend/`), E2E móvil/web **BLOCKED** (sin entorno desplegado, ver T-31…T-33) |
+| 8 | Pruebas de flujos críticos y de manejo de errores incluidas (F4) | Parcial | suite `funcional` con 8/8 pasos legibles (login, test de convivencia, anuncio, publicación, postulación, decisión y cierre) sin escribir en `roomlink`; el puente dejó 42 pasos con `request_id`; `disponibilidad` 4/4; unitario 269/269, monitor 21/21 y smoke 12/12; suite móvil **BLOCKED** (`vitest` no instalado en `frontend/`), E2E móvil/web **BLOCKED** (sin entorno desplegado, ver T-31…T-33) |
 | 9 | Resultados y eventos almacenados con fecha, commit y estado (F4) | Hecho | `mon_test_run`, `mon_test_result`, `mon_request_log` y `mon_activity_log`; ingesta con `x-monitor-token` |
 | 10 | Los 67 SLI están en el catálogo; sin endpoint se muestran “sin dato” (F1/F5) | Hecho | `backend/drizzle-monitor/` semilla y `docs/sli-catalog.md`; 67 filas cargadas en la base real; T.3 sale “sin dato” en la demo |
 | 11 | Cálculos: mes UTC-6, exclusiones, tx buena, ventana de 3 meses, truncado a 1 decimal (F5) | Hecho | `backend/src/monitoring/sliCalculator.ts`, `time.ts`; verificación SQL de la foto `2026-10`; T.1 = 99.5 % con `floor(good*1000/total)/10` |
@@ -40,7 +40,7 @@ npm --prefix backend run monitor:seed:demo -- --period=2026-10
 npm --prefix backend run monitor:slo -- --period=2026-10
 ```
 
-Resultados reales: 35 archivos / 269 pruebas en backend, 20 pruebas de monitor,
+Resultados reales: 35 archivos / 269 pruebas en backend, 21 pruebas de monitor,
 12 pruebas smoke, 8 funcionales, 4 de disponibilidad, 23 pruebas web,
 `typecheck`, `lint`, `db:monitor:check` y `build` correctos. `npm --prefix backend run test:integration` falla con
 `ER_DBACCESS_DENIED_ERROR` para `roomlink_app` y, además, ejecutarla con otro usuario
