@@ -134,6 +134,13 @@ import {
   MonitoringIngestService,
   createMonitoringIngestRoutes,
 } from "./modules/monitoring/index.js";
+import {
+  DrizzleMonitoringAdminRepository,
+  MonitoringAdminController,
+  MonitoringAdminService,
+  createMonitoringAdminRoutes,
+  type MonitoringAdminRepository,
+} from "./modules/monitoring-admin/index.js";
 
 export interface AppDependencies {
   checkDatabase?: () => Promise<void>;
@@ -157,6 +164,8 @@ export interface AppDependencies {
   /** Inyectable en pruebas: permite verificar el registro sin base de monitoreo. */
   monitorWriter?: BatchedMonitorWriter;
   monitorIngestToken?: string;
+  /** Inyectable en pruebas: el panel solo lee `roomlink_monitor`. */
+  monitoringAdminRepo?: MonitoringAdminRepository;
 }
 
 export const createApp = (dependencies: AppDependencies = {}): Hono => {
@@ -429,6 +438,16 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
   app.route(
     "/api/v1/admin/activity-log",
     createActivityLogRoutes(activityLogController, authService),
+  );
+
+  // Panel de monitoreo (F6): solo admin, solo lectura de `roomlink_monitor`.
+  const monitoringAdminService = new MonitoringAdminService(
+    dependencies.monitoringAdminRepo ?? new DrizzleMonitoringAdminRepository(),
+  );
+  const monitoringAdminController = new MonitoringAdminController(monitoringAdminService);
+  app.route(
+    "/api/v1/admin/monitoring",
+    createMonitoringAdminRoutes(monitoringAdminController, authService),
   );
 
   // Ingesta de monitoreo (F2/F3/F5): token de servicio, sin sesión de usuario.

@@ -196,6 +196,8 @@ export const monSloCompliance = mysqlTable(
     sliValue: decimal("sli_value", { precision: 5, scale: 1 }),
     sloValue: decimal("slo_value", { precision: 5, scale: 1 }),
     compliant: tinyint("compliant"),
+    /** 1 cuando el SLA se calculó con la ventana acumulada de 3 meses. */
+    used3mWindow: tinyint("used_3m_window").notNull().default(0),
     computedAt: timestamp("computed_at", { fsp: 6 }).notNull().defaultNow(),
     message: text("message").notNull(),
   },

@@ -33,6 +33,7 @@ export interface SloSnapshot {
   sliValue: string | null;
   sloValue: string | null;
   compliant: number | null;
+  used3mWindow: number;
   message: string;
 }
 
@@ -109,6 +110,7 @@ export async function calculateMonthlySlo(period: string): Promise<SloSnapshot[]
 
   for (const sli of SLI_CATALOG) {
     let metric: Metric;
+    let used3mWindow = 0;
 
     if (sli.id === "T.2") {
       const run = longestFailedProbeRun(
@@ -159,6 +161,7 @@ export async function calculateMonthlySlo(period: string): Promise<SloSnapshot[]
         good: rows.filter((row) => row.elapsedMs !== null && row.elapsedMs <= (sli.thresholdMs ?? Number.MAX_SAFE_INTEGER)).length,
       };
       const fallback = counts.total < 30 ? await countCaseFallback(sli.id, threeMonths.start, current.end) : counts;
+      used3mWindow = counts.total < 30 ? 1 : 0;
       metric = buildMetric(fallback.good, fallback.total, sli.sloPercent, `Casos de ${sli.id}`);
     } else if (sli.method === "F1" && sli.thresholdMs !== null) {
       const rows = requestRows.filter((row) => row.sliId === sli.id);
@@ -169,6 +172,7 @@ export async function calculateMonthlySlo(period: string): Promise<SloSnapshot[]
       const fallback = counts.total < 30
         ? await countRequestFallback(sli.id, sli.thresholdMs, threeMonths.start, current.end, excludedRequestIds, excludedRoutes)
         : counts;
+      used3mWindow = counts.total < 30 ? 1 : 0;
       metric = buildMetric(fallback.good, fallback.total, sli.sloPercent, `Transacciones de ${sli.id}`);
     } else {
       metric = buildMetric(0, 0, sli.sloPercent, `Medición de ${sli.id}`);
@@ -182,6 +186,7 @@ export async function calculateMonthlySlo(period: string): Promise<SloSnapshot[]
       sliValue: metric.value === null ? null : metric.value.toFixed(1),
       sloValue: sli.sloPercent === null ? null : sli.sloPercent.toFixed(1),
       compliant: metric.compliant === null ? null : metric.compliant ? 1 : 0,
+      used3mWindow,
       message: metric.message,
     });
   }
