@@ -323,7 +323,7 @@ describe("F1 · middleware global sin afectar respuestas", () => {
     await writer.close();
   });
 
-  it("no registra health, ready ni el SSE :: Se llamaron las rutas de salud, disposición y el canal de eventos. Ninguna generó registro, porque son ruido para el monitoreo.", async () => {
+  it("no mezcla health, ready ni el SSE con las transacciones :: Se llamaron las rutas de salud, disposición y el canal de eventos. No generaron registros de petición; salud y disposición solo dejaron sondeos de disponibilidad.", async () => {
     const sink = new CapturingSink();
     const writer = quietWriter(sink);
     const app = createApp({ monitorWriter: writer, checkDatabase: vi.fn() });
@@ -333,7 +333,8 @@ describe("F1 · middleware global sin afectar respuestas", () => {
     await app.request("/api/v1/messages/rooms/abc/events");
     await writer.close();
 
-    expect(sink.records).toHaveLength(0);
+    expect(sink.records.filter((record) => record.kind === "request")).toHaveLength(0);
+    expect(sink.records.filter((record) => record.kind === "probe")).toHaveLength(2);
   });
 
   it("marca el tráfico etiquetado como prueba sin leer datos personales :: Se envió una petición con etiqueta de prueba y un request_id inválido. Quedó marcada como prueba con un identificador nuevo y sin datos personales.", async () => {

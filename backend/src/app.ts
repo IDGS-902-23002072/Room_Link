@@ -126,6 +126,7 @@ import {
 } from "./modules/activity-log/index.js";
 import { cors } from "hono/cors";
 import { createRequestLogger } from "./monitoring/requestLogger.js";
+import { recordAvailabilityProbe } from "./monitoring/availabilityProbe.js";
 import { createMonitorActivityListener } from "./monitoring/activityListener.js";
 import { DrizzleMonitorSink } from "./monitoring/sink.js";
 import { BatchedMonitorWriter } from "./monitoring/writer.js";
@@ -464,16 +465,22 @@ export const createApp = (dependencies: AppDependencies = {}): Hono => {
     createMonitoringIngestRoutes(monitoringIngestController, monitoringIngestService),
   );
 
-  // Endpoints del sistema / orquestación
-  app.get("/health", (context) =>
-    context.json({ status: "ok", service: "room-link-backend" }),
-  );
+  // Endpoints del sistema / orquestación. Siguen fuera del F1, pero dejan
+  // un sondeo legible en mon_probe para las pruebas de disponibilidad.
+  app.get("/health", (context) => {
+    const startedAt = Date.now();
+    recordAvailabilityProbe(monitorWriter, context, "/health", "up", 200, startedAt);
+    return context.json({ status: "ok", service: "room-link-backend" });
+  });
 
   app.get("/ready", async (context) => {
+    const startedAt = Date.now();
     try {
       await checkDb();
+      recordAvailabilityProbe(monitorWriter, context, "/ready", "up", 200, startedAt);
       return context.json({ status: "ready", database: "connected" });
     } catch {
+      recordAvailabilityProbe(monitorWriter, context, "/ready", "down", 503, startedAt);
       return context.json(
         { status: "unavailable", database: "disconnected" },
         503,

@@ -6,7 +6,7 @@ import { parseSource, shouldExclude, toRoutePattern, type EventSource } from "./
 import { findSliByRoute, SLI_BY_ID } from "./sliCatalog.js";
 import { emitMonitorEvent, type BatchedMonitorWriter } from "./writer.js";
 
-const UUID_HEADER =
+export const UUID_HEADER =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface RequestLoggerOptions {

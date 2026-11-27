@@ -168,6 +168,94 @@ describe("Suite funcional · flujos principales con datos aislados", () => {
   );
 
   it(
+    `[SLI 3.1] Test de convivencia y candidatos :: El anfitrión guardó las siete respuestas, consultó su test y el feed, vio un candidato y envió una solicitud; cada paso quedó trazable con el mismo request_id :: ${DATA} :: Esperado: test guardado, feed con candidato y solicitud pendiente :: Obtenido: test guardado, feed con candidato y solicitud pendiente`,
+    async () => {
+      compatibilityRepo.feed = [
+        {
+          userId: ids.third,
+          fullName: "Candidato de prueba",
+          age: 28,
+          city: null,
+          zone: null,
+          budgetMin: null,
+          budgetMax: null,
+          photoUrl: null,
+          bio: null,
+          occupation: null,
+          compatibilityScore: 85,
+          compatibilitySummary: [],
+        },
+      ];
+      const answers = {
+        schedule: 2,
+        cleanliness: 4,
+        noise: 2,
+        pets: 5,
+        smoking: 1,
+        visits: 3,
+        genderPref: 5,
+      };
+      const compatRequestId = randomUUID();
+      const saved = await request(`/api/v1/compatibility/${ids.host}`, {
+        method: "PUT",
+        headers: { ...auth(tokens.host, true), "x-request-id": compatRequestId },
+        body: JSON.stringify(answers),
+      });
+      expect(saved.status).toBe(200);
+      const savedBody = (await saved.json()) as { completed?: boolean; summary?: unknown[] };
+      expect(savedBody.completed).toBe(true);
+      expect(savedBody.summary).toHaveLength(7);
+
+      const mine = await request(`/api/v1/compatibility/${ids.host}`, {
+        headers: auth(tokens.host),
+      });
+      expect(mine.status).toBe(200);
+      expect((await mine.json() as { completed?: boolean }).completed).toBe(true);
+
+      const feed = await request(`/api/v1/compatibility/${ids.host}/feed`, {
+        headers: auth(tokens.host),
+      });
+      expect(feed.status).toBe(200);
+      const feedBody = (await feed.json()) as { hasTest?: boolean; profiles?: unknown[] };
+      expect(feedBody.hasTest).toBe(true);
+      expect(feedBody.profiles?.length).toBeGreaterThan(0);
+
+      const candidate = await request(
+        `/api/v1/compatibility/${ids.host}/candidates/${ids.third}`,
+        { headers: auth(tokens.host) },
+      );
+      expect(candidate.status).toBe(200);
+      expect((await candidate.json() as { userId?: string }).userId).toBe(ids.third);
+
+      const connection = await request(`/api/v1/compatibility/${ids.host}/connections`, {
+        method: "POST",
+        headers: auth(tokens.host, true),
+        body: JSON.stringify({ candidateId: ids.third, introMessage: null }),
+      });
+      expect(connection.status).toBe(201);
+      expect((await connection.json() as { status?: string }).status).toBe("pending");
+
+      await writer.flush();
+      const tracedRequest = sink.records.find(
+        (record) =>
+          record.kind === "request" &&
+          record.value.requestId === compatRequestId,
+      );
+      const tracedActivity = sink.records.find(
+        (record) =>
+          record.kind === "activity" &&
+          record.value.requestId === compatRequestId,
+      );
+      expect(tracedRequest?.kind).toBe("request");
+      expect(tracedActivity?.kind).toBe("activity");
+      if (tracedRequest?.kind === "request" && tracedActivity?.kind === "activity") {
+        expect(tracedActivity.value.module).toBe("compatibilidad");
+        expect(tracedActivity.value.message).toContain("siete respuestas");
+      }
+    },
+  );
+
+  it(
     `[SLI 7.1] Crear anuncio de habitación :: El anfitrión publicó un borrador; la app lo guardó con el título etiquetado :: ${DATA} :: Esperado: 201 en borrador :: Obtenido: 201 en borrador`,
     async () => {
       const form = new FormData();
@@ -287,7 +375,9 @@ describe("Suite funcional · flujos principales con datos aislados", () => {
 
       await writer.flush();
       const activity = sink.records.find(
-        (record) => record.kind === "activity" && record.value.message.includes("postulación"),
+        (record) =>
+          record.kind === "activity" &&
+          record.value.message.includes("Se aceptó una postulación"),
       );
       expect(activity?.kind).toBe("activity");
       if (activity?.kind === "activity") {
@@ -311,12 +401,24 @@ describe("Suite funcional · flujos principales con datos aislados", () => {
   );
 
   it(
-    `Registro de la corrida :: Cada petición se etiquetó como prueba y se guardó como patrón de ruta, estado y duración; la bitácora no contiene correos ni secretos :: ${DATA} :: Esperado: registros etiquetados y sin datos sensibles :: Obtenido: registros etiquetados y sin datos sensibles`,
+    `Registro de la corrida :: Cada petición se etiquetó como prueba, explicó qué pasó y dejó una actividad con el mismo request_id; la bitácora no contiene correos ni secretos :: ${DATA} :: Esperado: pasos trazables y sin datos sensibles :: Obtenido: pasos trazables y sin datos sensibles`,
     async () => {
       await writer.flush();
       const requests = sink.records.filter((record) => record.kind === "request");
+      const activities = sink.records.filter((record) => record.kind === "activity");
       expect(requests.length).toBeGreaterThan(0);
       expect(requests.every((record) => record.value.source === "test")).toBe(true);
+      expect(
+        requests.every((record) =>
+          activities.some(
+            (activity) =>
+              activity.kind === "activity" &&
+              activity.value.requestId === record.value.requestId &&
+              typeof record.value.message === "string" &&
+              activity.value.message === record.value.message,
+          ),
+        ),
+      ).toBe(true);
       const serialized = JSON.stringify(sink.records);
       expect(serialized).not.toContain("password");
       expect(serialized).not.toContain("roomlink.test");

@@ -141,6 +141,7 @@ describe("F6 · ejecución de pruebas desde el panel", () => {
     const body = await response.json();
     expect(body.items.map((item: { id: string }) => item.id)).toEqual([
       "funcional",
+      "disponibilidad",
       "monitor",
       "backend:unit",
       "backend:smoke",

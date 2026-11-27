@@ -19,7 +19,13 @@ export const TEST_SUITES: readonly TestSuiteDefinition[] = [
     id: "funcional",
     label: "Funcional · flujos principales",
     description:
-      "Login, publicación de habitaciones, postulaciones y cierre con la propia app. Datos etiquetados en memoria; no escribe en roomlink.",
+      "Login, test de convivencia, creación de anuncios, postulaciones y cierre con la propia app. Cada paso queda trazable en la bitácora; datos en memoria, sin escribir en roomlink.",
+  },
+  {
+    id: "disponibilidad",
+    label: "Disponibilidad · /health y /ready",
+    description:
+      "Sondea /health y /ready con la base disponible y caída. Comprueba que cada sondeo deje un registro claro en la bitácora de monitoreo.",
   },
   {
     id: "monitor",
@@ -94,6 +100,11 @@ const COMMANDS: Record<string, SuiteCommand> = {
     cwd: backendDir,
     args: ["run", "test:functional:json"],
     report: resolve(repoDir, "reports/vitest-functional.json"),
+  },
+  disponibilidad: {
+    cwd: backendDir,
+    args: ["run", "test:availability:json"],
+    report: resolve(repoDir, "reports/vitest-availability.json"),
   },
   monitor: {
     cwd: backendDir,
