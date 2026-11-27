@@ -248,6 +248,39 @@ npm --prefix web run test
 La web sigue ejecutándose en terminal/CI: su competencia es `node --test` y todavía
 no entrega un reporte JSON comparable al de Vitest, por eso no está en la allowlist.
 
+## Corrida E2E real contra `roomlink` (2026-11-27)
+
+A diferencia de la demo sintética, se autorizó escribir **solo datos QA** en la base
+principal para probar la app desplegada localmente. No hubo migraciones ni cambios de
+esquema. Servicios usados: backend en `127.0.0.1:3000`, Expo web en `127.0.0.1:8081`,
+Vite web en `localhost:5173` y MySQL en `127.0.0.1:3307` con `DB_NAME=roomlink`.
+
+```bash
+npm --prefix frontend run test
+E2E_API_URL=http://127.0.0.1:3000/api/v1 \
+E2E_WEB_URL=http://127.0.0.1:8081 \
+CHROME_PATH='C:\Program Files\Google\Chrome\Application\chrome.exe' \
+npm --prefix frontend run test:e2e
+```
+
+El primer intento falló porque Expo servía con `EXPO_PUBLIC_API_URL` de otra IP; se
+reinició el servidor web con `EXPO_PUBLIC_API_URL=http://127.0.0.1:3000`. Resultado:
+**21/21** en `frontend` y **8/8** en el E2E móvil.
+
+Para `qa-roles.spec.mjs` se usó el config propio del repositorio
+(`frontend/playwright.qa.config.mjs`) con `E2E_QA_WEB_URL=http://localhost:5173`,
+`E2E_QA_MOBILE_URL=http://127.0.0.1:8081` y las credenciales de BD leídas de
+`backend/.env` (`DB_PORT=3307`). Resultado: **8/19**:
+
+- 8 fallos por desfase de selectores/navegación frente a la UI actual.
+- 1 fallo por Mailpit no disponible en `127.0.0.1:8025`.
+- 1 fallo porque Vite dev no sirve service worker PWA.
+- 1 fallo porque el paso «Reglas y costos» del flujo Expo ya no coincide con la pantalla.
+
+Al terminar se borraron los usuarios QA, las zonas QA y la imagen subida por la
+prueba. La base quedó en 18 usuarios, 3 anuncios, 18 roles y 1 zona, igual que antes
+de la corrida. Los Specs no se modificaron.
+
 ## Export y retención
 
 El CSV mensual se descarga con token de administrador (nunca por argumentos ni en
