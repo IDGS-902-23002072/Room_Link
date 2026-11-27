@@ -134,6 +134,14 @@ La bitácora muestra como columnas propias el **mensaje** y el **`request_id`**
 (`Solicitud`). Para eventos sin identificador se muestra `—`. El mensaje está acotado a
 160 caracteres en la vista y nunca incluye correos, tokens, IPs ni URLs con ids.
 
+Los mensajes ya no son solo `HTTP 200` o `HTTP 500`. Cada petición guarda una
+explicación en `mon_request_log.message` y crea una actividad de negocio con el
+mismo `request_id`. La vista `mon_v_logbook` muestra esa actividad (por ejemplo,
+«Creación de anuncio» o «Envío de postulación») y oculta la fila de petición para
+no duplicar el mismo paso. Las filas antiguas sin mensaje siguen cayendo al mensaje
+de error o al código HTTP. Los sondeos de `/health` y `/ready` también dejan su
+explicación en `mon_probe`.
+
 ## Ejecutar pruebas desde el panel
 
 En `Pruebas` hay un selector de suite y un botón **Ejecutar suite**. Solo se aceptan
@@ -141,15 +149,17 @@ estas suites, definidas en `backend/src/monitoring/testRunner.ts`:
 
 | Id | Qué corre |
 |---|---|
-| `funcional` | `npm run test:functional:json`: login, crear y publicar habitación, postular, aceptar y cerrar. Usa repositorios en memoria y etiqueta `mon-test-AAAAMMDD-xxxx`; no escribe en `roomlink`. |
+| `funcional` | `npm run test:functional:json`: login, test de convivencia con candidatos, crear y publicar habitación, postular, aceptar y cerrar. Usa repositorios en memoria y etiqueta `mon-test-AAAAMMDD-xxxx`; no escribe en `roomlink`. Cada paso queda trazable por `request_id`. |
+| `disponibilidad` | `npm run test:availability:json`: sondea `/health` y `/ready` con la base disponible y caída. Verifica los mensajes de `mon_probe`; no sustituye al cron de producción, pero sí deja la evidencia automática de la app. |
 | `monitor` | `npm run test:monitor:json`: infraestructura F1/F2/F3/F5 (bitácora, privacidad, exclusiones y tolerancia a fallos). **No prueba login ni flujos de negocio**: por eso casi todas sus llamadas son `GET` sintéticos. |
 | `backend:unit` | `npm run test:unit:json` |
 | `backend:smoke` | `npm run test:smoke:json` |
 
 Cuando el profesor pregunte por la aplicación funcionando, hay que elegir
-`funcional`. Cuando pregunte por la bitácora y el registro, hay que elegir
-`monitor`. El detalle de cada prueba dice qué se verificó, qué datos etiquetados
-se usaron, qué se esperaba y qué se obtuvo; no muestra solo el nombre técnico.
+`funcional`. Cuando pregunte por disponibilidad, `disponibilidad`. Cuando pregunte
+por la bitácora y el registro, `monitor`. El detalle de cada prueba es corto:
+«Qué se verificó», «Qué pasó» y «Datos»; el SLI, el módulo, la duración y lo
+esperado quedan dentro de «Detalle técnico», al final.
 
 El botón no envía comandos: el cliente solo manda `{"suite":"..."}` y el servidor
 usa una allowlist, `spawn` sin shell, timeout de 3 minutos y una sola corrida a la
@@ -157,7 +167,8 @@ vez. El resultado se encola en `roomlink_monitor` con el escritor existente, sin
 ninguna petición espere a la base. Después se recarga la lista y se abre el detalle
 con todas las pruebas visibles (el botón alterna a «Solo fallidas»).
 
-Evidencia real de la ejecución del endpoint contra MySQL:
+Evidencia real de una ejecución anterior del endpoint contra MySQL (cuando la
+suite `monitor` tenía 16 pruebas; hoy tiene 20):
 
 ```json
 {"origin":"monitoring","event":"test_run_executed","suite":"monitor","exitCode":0,"totalTests":16,"passedTests":16,"failedTests":0}
@@ -165,11 +176,14 @@ Evidencia real de la ejecución del endpoint contra MySQL:
 ```
 
 Eso escribió 1 fila en `mon_test_run` y 16 en `mon_test_result`, con `source='test'`.
+Las corridas locales actuales son: `monitor` 20/20, `funcional` 8/8 y
+`disponibilidad` 4/4 (2026-11-27).
 
 Las mismas suites se pueden ejecutar desde la terminal en cualquier momento:
 
 ```bash
 npm --prefix backend run test:functional:json
+npm --prefix backend run test:availability:json
 npm --prefix backend run test:monitor:json
 npm --prefix backend run test:unit:json
 npm --prefix backend run test:smoke:json
