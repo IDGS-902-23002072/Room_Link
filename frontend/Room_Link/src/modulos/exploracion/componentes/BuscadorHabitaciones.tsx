@@ -2,7 +2,8 @@ import { useState } from 'react';
 
 import { color } from '@/constants/roomlink';
 
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 
 export const filtrosHabitaciones = [
   'Todas',
@@ -29,7 +30,7 @@ export function BuscadorHabitaciones({
     <>
       <View style={[styles.campoBusqueda, enfocado && styles.enfocado]}>
         <Text accessible={false} style={styles.iconoBusqueda}>⌕</Text>
-        <TextInput
+        <EntradaValidada
           accessibilityLabel="Buscar habitaciones"
           onFocus={() => setEnfocado(true)}
           onBlur={() => setEnfocado(false)}

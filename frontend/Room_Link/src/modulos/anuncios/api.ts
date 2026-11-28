@@ -6,6 +6,7 @@ import {
   obtenerToken,
   obtenerUserId,
 } from "@/auth/sesion";
+import { mensajeTextoRestringido, tieneTextoRestringido } from "@/modulos/comunes/validacionCampos";
 
 // ======================================================
 // CONFIGURACIÓN
@@ -277,6 +278,12 @@ function agregarDatosFormulario(
   formData: FormData,
   datos: Omit<DatosAnuncio, "fotos">
 ): void {
+  if ([datos.titulo, datos.descripcion, datos.ubicacion].some(
+    (valor) => valor != null && tieneTextoRestringido(valor),
+  )) {
+    throw new Error(mensajeTextoRestringido);
+  }
+
   // TÍTULO
   formData.append("titulo", datos.titulo.trim());
 

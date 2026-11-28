@@ -230,11 +230,20 @@ function Busqueda({ usuarioId }: { usuarioId: string }) {
       {!iniciada && <Aviso>Cargando tus preferencias…</Aviso>}
       {pestana === 'filtros' && <>
         <Tarjeta titulo="Filtros generales">
-          <View style={estilos.fila}>{campos.map(([claveCampo, etiqueta]) => (
-            <View key={claveCampo} style={busqueda.campo}>
-              <CampoPerfil alCambiar={(valor) => setFiltros({ ...filtros, [claveCampo]: valor })} etiqueta={etiqueta} keyboardType="number-pad" maxLength={claveCampo.startsWith('edad') ? 3 : 10} valor={filtros[claveCampo]} />
+          {[campos.slice(0, 2), campos.slice(2)].map((rango) => (
+            <View key={rango[0][0]} style={busqueda.rango}>
+              {rango.map(([claveCampo, etiqueta]) => (
+                <CampoPerfil
+                  key={claveCampo}
+                  alCambiar={(valor) => setFiltros({ ...filtros, [claveCampo]: valor })}
+                  etiqueta={etiqueta}
+                  keyboardType="number-pad"
+                  maxLength={claveCampo.startsWith('edad') ? 3 : 10}
+                  valor={filtros[claveCampo]}
+                />
+              ))}
             </View>
-          ))}</View>
+          ))}
           <Texto>Ciudad</Texto>
           <Opciones alCambiar={(ciudad) => setFiltros({ ...filtros, ciudad, zonas: [] })} opciones={[[ '', 'Todas'], ...ciudades.map((ciudad) => [ciudad, ciudad] as const)]} valor={filtros.ciudad} />
           <Texto>Zonas de interés</Texto>
@@ -335,6 +344,6 @@ function Busqueda({ usuarioId }: { usuarioId: string }) {
 }
 
 const busqueda = StyleSheet.create({
-  campo: { flexBasis: '46%', flexGrow: 1 },
+  rango: { flexDirection: 'row', gap: 8 },
   foto: { width: 64, height: 64, borderRadius: 18, backgroundColor: '#EEE4F1' },
 });

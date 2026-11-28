@@ -12,9 +12,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOnboarding } from '@/auth/useOnboarding';
@@ -45,11 +45,11 @@ function Campo({
   valor: string;
   onChange: (v: string) => void;
   placeholder?: string;
-} & Omit<React.ComponentProps<typeof TextInput>, 'onChange' | 'value' | 'onChangeText'>) {
+} & Omit<React.ComponentProps<typeof EntradaValidada>, 'onChange' | 'value' | 'onChangeText'>) {
   return (
     <View style={{ marginBottom: 14 }}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
+      <EntradaValidada
         style={styles.input}
         value={valor}
         onChangeText={onChange}

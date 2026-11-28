@@ -8,10 +8,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
   type KeyboardTypeOptions,
 } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MarcaRoomLink } from '@/components/MarcaRoomLink';
@@ -92,7 +92,7 @@ export function Campo({
   return (
     <View style={estilos.campo}>
       <Text style={estilos.etiqueta}>{etiqueta}</Text>
-      <TextInput
+      <EntradaValidada
         accessibilityLabel={etiqueta}
         testID={testID}
         style={estilos.input}

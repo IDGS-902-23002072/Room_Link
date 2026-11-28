@@ -8,10 +8,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MarcaRoomLink } from '@/components/MarcaRoomLink';
@@ -304,7 +304,7 @@ export function PantallaChats({ roomIdInicial }: { roomIdInicial?: string }) {
 
           <View style={styles.buscadorWrap}>
             <Text style={styles.iconoBuscar}>⌕</Text>
-            <TextInput
+            <EntradaValidada
               value={busqueda}
               onChangeText={setBusqueda}
               placeholder="Buscar conversación"
@@ -483,7 +483,7 @@ export function PantallaChats({ roomIdInicial }: { roomIdInicial?: string }) {
                   </Pressable>
                 ))}
               </View>
-              <TextInput
+              <EntradaValidada
                 value={idManual}
                 onChangeText={setIdManual}
                 placeholder={
@@ -620,7 +620,7 @@ export function PantallaChats({ roomIdInicial }: { roomIdInicial?: string }) {
 
           <View style={styles.compositorWrap}>
             <View style={styles.compositor}>
-              <TextInput
+              <EntradaValidada
                 value={textoMensaje}
                 onChangeText={setTextoMensaje}
                 placeholder="Escribe un mensaje…"

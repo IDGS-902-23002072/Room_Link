@@ -6,10 +6,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSesion } from '@/auth/SesionContext';
@@ -204,7 +204,7 @@ export function PantallaSanciones() {
             ))}
           </View>
 
-          <TextInput
+          <EntradaValidada
             value={userIdObjetivo}
             onChangeText={setUserIdObjetivo}
             placeholder="UUID del usuario sancionado (userId)"
@@ -212,7 +212,7 @@ export function PantallaSanciones() {
             style={styles.input}
             autoCapitalize="none"
           />
-          <TextInput
+          <EntradaValidada
             value={listingIdObjetivo}
             onChangeText={setListingIdObjetivo}
             placeholder="UUID del anuncio (opcional, listingId)"
@@ -220,7 +220,7 @@ export function PantallaSanciones() {
             style={styles.input}
             autoCapitalize="none"
           />
-          <TextInput
+          <EntradaValidada
             value={reportIdObjetivo}
             onChangeText={setReportIdObjetivo}
             placeholder="UUID de la denuncia origen (opcional, reportId)"
@@ -229,7 +229,7 @@ export function PantallaSanciones() {
             autoCapitalize="none"
           />
           {tipo === 'temporary_suspension' ? (
-            <TextInput
+            <EntradaValidada
               value={expiraEn}
               onChangeText={setExpiraEn}
               placeholder="Expiración ISO (ej. 2027-01-15T00:00:00Z)"
@@ -238,7 +238,7 @@ export function PantallaSanciones() {
               autoCapitalize="none"
             />
           ) : null}
-          <TextInput
+          <EntradaValidada
             value={motivo}
             onChangeText={setMotivo}
             placeholder="Motivo detallado de la sanción"
@@ -262,7 +262,7 @@ export function PantallaSanciones() {
         <View style={styles.tarjeta}>
           <Text style={styles.tituloItem}>Consultar historial por usuario</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TextInput
+            <EntradaValidada
               value={userIdConsulta}
               onChangeText={setUserIdConsulta}
               placeholder="UUID del usuario"

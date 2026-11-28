@@ -9,9 +9,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSesion } from '@/auth/SesionContext';
@@ -347,7 +347,7 @@ export function PantallaDetalleInmueble({
             <View style={styles.tarjeta}>
               <Text style={styles.etiqueta}>Áreas comunes y reglas adicionales</Text>
               {esAnfitrion ? (
-                <TextInput
+                <EntradaValidada
                   value={reglas.extraRules ?? ''}
                   onChangeText={(extraRules) => setReglas((p) => ({ ...p, extraRules }))}
                   multiline
@@ -400,7 +400,7 @@ export function PantallaDetalleInmueble({
             <View style={styles.tarjeta}>
               <Text style={styles.etiqueta}>Depósito de garantía</Text>
               {esAnfitrion ? (
-                <TextInput
+                <EntradaValidada
                   value={deposito}
                   onChangeText={setDeposito}
                   keyboardType="numeric"
@@ -446,7 +446,7 @@ export function PantallaDetalleInmueble({
                     </Pressable>
                   </View>
                   {!serviciosIncluidos && (
-                    <TextInput
+                    <EntradaValidada
                       value={servicios}
                       onChangeText={setServicios}
                       keyboardType="numeric"
@@ -498,7 +498,7 @@ export function PantallaDetalleInmueble({
                     </Pressable>
                   </View>
                   {!mantenimientoIncluido && (
-                    <TextInput
+                    <EntradaValidada
                       value={mantenimiento}
                       onChangeText={setMantenimiento}
                       keyboardType="numeric"

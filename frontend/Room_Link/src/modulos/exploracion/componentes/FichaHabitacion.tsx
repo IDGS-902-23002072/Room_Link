@@ -2,7 +2,8 @@ import { color } from '@/constants/roomlink';
 
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 
 import {
   denunciarAnuncio,
@@ -10,6 +11,7 @@ import {
 } from '@/modulos/moderacion/api';
 
 import type { HabitacionFeed } from '../datos/habitaciones';
+import { GaleriaHabitacion } from './GaleriaHabitacion';
 import { PortadaHabitacion } from './PortadaHabitacion';
 
 const MOTIVOS_DENUNCIA: { key: MotivoDenunciaAnuncio; label: string }[] = [
@@ -21,6 +23,8 @@ const MOTIVOS_DENUNCIA: { key: MotivoDenunciaAnuncio; label: string }[] = [
 
 export function FichaHabitacion({
   habitacion,
+  cargandoDetalle,
+  alReintentarDetalle,
   postulada,
   bloqueoPostulacion,
   enviando,
@@ -28,6 +32,8 @@ export function FichaHabitacion({
   alCerrar,
 }: {
   habitacion: HabitacionFeed;
+  cargandoDetalle: boolean;
+  alReintentarDetalle: () => void;
   postulada: boolean;
   bloqueoPostulacion?: string | undefined;
   enviando: boolean;
@@ -35,6 +41,7 @@ export function FichaHabitacion({
   alCerrar: () => void;
 }) {
   const router = useRouter();
+  const [galeriaAbierta, setGaleriaAbierta] = useState(false);
   const [mensaje, setMensaje] = useState('');
   const [mostrandoDenuncia, setMostrandoDenuncia] = useState(false);
   const [motivoDenuncia, setMotivoDenuncia] =
@@ -65,12 +72,26 @@ export function FichaHabitacion({
 
   return (
     <View>
-      <View style={styles.portada}>
+      <Pressable
+        accessibilityRole={habitacion.fotos > 0 ? 'button' : undefined}
+        accessibilityLabel={habitacion.fotos > 0 ? 'Abrir galería de fotos de la habitación' : 'Sin fotografías'}
+        disabled={habitacion.fotos <= 0}
+        onPress={() => setGaleriaAbierta(true)}
+        style={styles.portada}
+      >
         <PortadaHabitacion id={habitacion.id} fotos={habitacion.fotos} />
         {habitacion.fotos > 0 && <Text style={styles.fotos}>
           {habitacion.fotos} {habitacion.fotos === 1 ? 'foto' : 'fotos'}
         </Text>}
-      </View>
+      </Pressable>
+      {galeriaAbierta && (
+        <GaleriaHabitacion
+          habitacion={habitacion}
+          cargando={cargandoDetalle}
+          alReintentar={alReintentarDetalle}
+          alCerrar={() => setGaleriaAbierta(false)}
+        />
+      )}
 
       <Text accessibilityRole="header" style={styles.titulo}>{habitacion.titulo}</Text>
       <Text style={styles.renta}>{habitacion.rentaTexto}</Text>
@@ -136,7 +157,7 @@ export function FichaHabitacion({
           <Text style={[styles.etiqueta, styles.etiquetaMensaje]}>
             Mensaje para el anfitrión (opcional)
           </Text>
-          <TextInput
+          <EntradaValidada
             accessibilityLabel="Mensaje para el anfitrión"
             maxLength={500}
             multiline
@@ -204,7 +225,7 @@ export function FichaHabitacion({
                 </Pressable>
               ))}
             </View>
-            <TextInput
+            <EntradaValidada
               value={detalleDenuncia}
               onChangeText={setDetalleDenuncia}
               placeholder="Describe el problema (opcional)"

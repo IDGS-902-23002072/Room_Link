@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
 import { Link } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSesion } from '@/auth/SesionContext';
@@ -262,7 +263,7 @@ function AnalyticsAdmin() {
           {([['start', 'Desde'], ['end', 'Hasta']] as const).map(([campo, etiqueta]) => (
             <View key={campo}>
               <Text style={st.secundario}>{etiqueta}</Text>
-              <TextInput accessibilityLabel={`${etiqueta}, AAAA-MM-DD`} autoCapitalize="none" maxLength={10}
+              <EntradaValidada accessibilityLabel={`${etiqueta}, AAAA-MM-DD`} autoCapitalize="none" maxLength={10}
                 onChangeText={(valor) => setBorrador({ ...borrador, [campo]: valor })} placeholder="AAAA-MM-DD"
                 style={st.entrada} value={borrador[campo]} />
             </View>

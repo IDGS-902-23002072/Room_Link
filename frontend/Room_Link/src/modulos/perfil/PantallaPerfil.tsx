@@ -29,6 +29,7 @@ import {
 } from './api';
 import { CampoPerfil } from './componentes/CampoPerfil';
 import { Accion, Tarjeta, Texto } from '../comunes/InterfazModulo';
+import { esTelefonoNacional, normalizarTelefonoGuardado } from '../comunes/validacionCampos';
 
 const MAX_BIOGRAFIA = 300;
 
@@ -66,8 +67,8 @@ function validarPerfil(perfil: PerfilFormulario): string | null {
   }
 
   const telefono = perfil.telefono?.trim();
-  if (telefono && !/^[+\d][\d\s().-]{5,29}$/.test(telefono)) {
-    return 'Escribe un número de teléfono válido.';
+  if (telefono && !esTelefonoNacional(telefono)) {
+    return 'Escribe un número de teléfono de México de 10 dígitos.';
   }
 
   const presupuestoMin = perfil.presupuestoMin.trim();
@@ -136,12 +137,15 @@ export function PantallaPerfil() {
 
     const cargar = async () => {
       const local = await leerPerfilLocal();
+      if (local?.telefono) local.telefono = normalizarTelefonoGuardado(local.telefono);
       if (!activo) return;
 
       try {
         const remoto = await obtenerPerfil();
         if (activo) {
-          const datos = { ...perfilDesdeApi(remoto), ...local };
+          const remotoNormalizado = perfilDesdeApi(remoto);
+          remotoNormalizado.telefono = normalizarTelefonoGuardado(remotoNormalizado.telefono ?? '');
+          const datos = { ...remotoNormalizado, ...local };
           setPerfil(datos);
           setPerfilGuardado(datos);
         }
@@ -319,7 +323,13 @@ export function PantallaPerfil() {
             <Tarjeta titulo="Datos de contacto">
               <Texto secundario>Correo de tu cuenta</Texto>
               <Texto>{sesion?.usuario.email}</Texto>
-              <CampoPerfil alCambiar={actualizarCampo('telefono')} etiqueta="Teléfono" keyboardType="phone-pad" maxLength={30} valor={perfil.telefono ?? ''} />
+              <CampoPerfil
+                alCambiar={actualizarCampo('telefono')}
+                etiqueta="Teléfono"
+                ayuda="10 dígitos de México, sin lada internacional. Opcional."
+                keyboardType="phone-pad"
+                valor={perfil.telefono ?? ''}
+              />
             </Tarjeta>
 
             <View style={styles.tarjeta}>

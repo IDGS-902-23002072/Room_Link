@@ -15,9 +15,11 @@ import {
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
 import { obtenerUserId } from '@/auth/sesion';
+import { estilos as estilosModulo } from '@/modulos/comunes/InterfazModulo';
 
 import {
   listarConexiones,
@@ -313,13 +315,23 @@ export function PantallaMisRoomies() {
   }
 
   return (
-    <View
+    <SafeAreaView
       style={[
         estilos.contenedor,
         { backgroundColor: colors.background },
       ]}
     >
       <View style={estilos.encabezado}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace('/solicitudes');
+          }}
+          style={estilosModulo.volver}
+        >
+          <Text style={estilosModulo.enlace}>‹ Volver</Text>
+        </Pressable>
         <Text style={[estilos.titulo, { color: colors.text }]}>
           Mis roomies
         </Text>
@@ -373,7 +385,7 @@ export function PantallaMisRoomies() {
           }
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -385,6 +397,7 @@ const estilos = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 22,
     paddingBottom: 15,
+    rowGap: 6,
   },
   titulo: {
     fontSize: 23,

@@ -1,7 +1,8 @@
 import { color } from '@/constants/roomlink';
 
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   guardarCostosInmueble,
@@ -121,7 +122,7 @@ export default function PantallaReglasCostos({ id, onVolver, onPublicado }: {
             </View>)}
             {textRules.map(([key, label]) => <View key={key} style={styles.field}>
               <Text>{label}</Text>
-              <TextInput accessibilityLabel={label} editable={!busy} style={styles.input} value={rules[key] ?? ''}
+              <EntradaValidada accessibilityLabel={label} editable={!busy} style={styles.input} value={rules[key] ?? ''}
                 onChangeText={(text) => setRules((current) => ({ ...current, [key]: text }))} />
             </View>)}
           </View>
@@ -131,7 +132,7 @@ export default function PantallaReglasCostos({ id, onVolver, onPublicado }: {
             {existing.map((item, index) => <Text key={item.id ?? index}>{item.concept} · ${item.amount.toFixed(2)}</Text>)}
             {costTypes.map(({ kind, concept }) => <View key={kind} style={styles.field}>
               <Text>{concept}</Text>
-              <TextInput accessibilityLabel={concept} editable={!busy && !noExtra} keyboardType="decimal-pad"
+              <EntradaValidada accessibilityLabel={concept} editable={!busy && !noExtra} keyboardType="decimal-pad"
                 value={amounts[kind] ?? ''} style={styles.input}
                 onChangeText={(text) => setAmounts((current) => ({ ...current, [kind]: text }))} />
             </View>)}

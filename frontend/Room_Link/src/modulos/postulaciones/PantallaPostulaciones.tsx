@@ -12,9 +12,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { cerrarAnuncio, obtenerAnuncioPorId } from '@/modulos/anuncios/api';
 
@@ -325,7 +325,7 @@ export default function PantallaPostulaciones({
 
             {/* Nota local para el host (aún no la consume el backend de decide). */}
             <Text style={styles.cardLabel}>Mensaje para la persona</Text>
-            <TextInput
+            <EntradaValidada
               style={styles.input}
               placeholder="Me gustaría que agendáramos una visita."
               placeholderTextColor={COL.gris}

@@ -1,4 +1,5 @@
 import { solicitud } from '../compatibilidad/api';
+import type { FotoExistente } from '../anuncios/api';
 
 export type EstadoHabitacion = 'draft' | 'published' | 'closed' | string;
 
@@ -22,6 +23,7 @@ export interface HabitacionDetalle extends HabitacionResumen {
   description: string | null;
   locationId: string | null;
   maxRoommates: number | null;
+  photos?: Pick<FotoExistente, 'id' | 'position'>[];
 }
 
 export interface PostulacionRespuesta {
@@ -81,7 +83,7 @@ async function buscarHabitaciones(
   });
   if (filtros.presupuestoMax !== undefined) params.set('budgetMax', String(filtros.presupuestoMax));
   const resultado = await solicitud<{
-    items: (Omit<HabitacionDetalle, 'photosCount' | 'locationId'> & { photoCount: number })[];
+    items: (Omit<HabitacionDetalle, 'photosCount' | 'locationId' | 'photos'> & { photoCount: number })[];
     total: number;
     totalPages: number;
   }>(`/api/v1/search/listings?${params}`, { signal });

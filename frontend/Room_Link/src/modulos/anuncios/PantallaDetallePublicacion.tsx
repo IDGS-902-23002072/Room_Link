@@ -5,13 +5,13 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   obtenerAnuncioPorId,
@@ -129,7 +129,7 @@ export default function PantallaDetallePublicacion({
   );
 
   return (
-    <SafeAreaView style={styles.pantalla}>
+    <SafeAreaView style={styles.pantalla} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.encabezado}>

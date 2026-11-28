@@ -12,9 +12,9 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
-  TextInput,
   Keyboard,
 } from "react-native";
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 
 import * as Location from "expo-location";
 
@@ -389,7 +389,7 @@ export default function PantallaUbicacion({
           Dirección de la habitación
         </Text>
 
-        <TextInput
+        <EntradaValidada
           style={styles.inputDireccion}
           value={direccion}
           onChangeText={manejarCambioDireccion}

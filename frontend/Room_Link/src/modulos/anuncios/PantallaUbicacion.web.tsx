@@ -1,7 +1,8 @@
 import { color } from '@/constants/roomlink';
 
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { solicitud } from '@/modulos/compatibilidad/api';
 
@@ -48,7 +49,7 @@ export default function PantallaUbicacion({
       <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
         <Text style={estilos.titulo}>Ubicación</Text>
         <Text style={estilos.nota}>Busca una calle, colonia o referencia pública en OpenStreetMap y selecciona el resultado.</Text>
-        <TextInput
+        <EntradaValidada
           accessibilityLabel="Dirección o colonia"
           style={estilos.input}
           value={direccion}

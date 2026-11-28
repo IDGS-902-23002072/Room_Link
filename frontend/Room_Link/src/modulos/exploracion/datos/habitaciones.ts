@@ -12,6 +12,7 @@ export type HabitacionFeed = {
   disponibleDesde: string | null;
   disponibleYa: boolean;
   fotos: number;
+  fotosDetalle?: HabitacionDetalle['photos'];
   descripcion: string | null;
   maxCompaneros: number | null;
   /** Afinidad (0-100) entre el buscador y el anfitrión; null si no hay test o perfil. */
@@ -61,6 +62,7 @@ export function adaptarHabitacion(
       : null,
     disponibleYa: estaDisponibleYa(habitacion.availableFrom),
     fotos: habitacion.photosCount,
+    fotosDetalle: detalle.photos,
     descripcion: detalle.description ?? null,
     maxCompaneros: detalle.maxRoommates ?? null,
     compatibilidad: null,

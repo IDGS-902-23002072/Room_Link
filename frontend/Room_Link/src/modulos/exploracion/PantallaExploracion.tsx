@@ -33,6 +33,7 @@ export function PantallaExploracion() {
   const [errorFeed, setErrorFeed] = useState('');
   const [intentoFeed, reintentarFeed] = useState(0);
   const [detalle, setDetalle] = useState<HabitacionFeed | null>(null);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [postuladas, setPostuladas] = useState<Set<string>>(new Set());
   const [estadoPostulaciones, setEstadoPostulaciones] = useState<'cargando' | 'listo' | 'error'>('cargando');
   const [enviandoId, setEnviandoId] = useState<string | null>(null);
@@ -141,13 +142,14 @@ export function PantallaExploracion() {
     if (estadoPostulaciones === 'error') return 'Postulación no disponible';
   }
 
-  async function abrirHabitacion(habitacion: HabitacionFeed) {
+  async function abrirHabitacion(habitacion: HabitacionFeed, desdeFeed = true) {
     solicitudDetalle.current?.abort();
     const controller = new AbortController();
     solicitudDetalle.current = controller;
     setDetalle(habitacion);
+    setCargandoDetalle(true);
     setErrorAccion('');
-    scroll.current?.scrollTo({ y: 0, animated: false });
+    if (desdeFeed) scroll.current?.scrollTo({ y: 0, animated: false });
     try {
       const datos = adaptarHabitacion(await obtenerHabitacion(habitacion.id, controller.signal));
       if (!controller.signal.aborted) {
@@ -157,6 +159,8 @@ export function PantallaExploracion() {
       if (!controller.signal.aborted) {
         setErrorAccion(cause instanceof Error ? cause.message : 'No pudimos cargar el detalle.');
       }
+    } finally {
+      if (!controller.signal.aborted) setCargandoDetalle(false);
     }
   }
 
@@ -230,6 +234,8 @@ export function PantallaExploracion() {
             <FichaHabitacion
               key={detalle.id}
               habitacion={conAfinidad(detalle)}
+              cargandoDetalle={cargandoDetalle}
+              alReintentarDetalle={() => void abrirHabitacion(detalle, false)}
               postulada={postuladas.has(detalle.id)}
               bloqueoPostulacion={bloqueo(detalle)}
               enviando={enviandoId === detalle.id}

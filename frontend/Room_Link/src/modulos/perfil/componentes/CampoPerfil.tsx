@@ -1,7 +1,8 @@
 import { color } from '@/constants/roomlink';
 
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { StyleSheet, Text, View, type TextInputProps } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 
 export function CampoPerfil({
   etiqueta,
@@ -40,7 +41,7 @@ export function CampoPerfil({
           error ? styles.contenedorError : null,
         ]}>
         {prefijo && <Text style={styles.prefijo}>{prefijo}</Text>}
-        <TextInput
+        <EntradaValidada
           accessibilityLabel={accessibilityLabel ?? etiqueta}
           autoCapitalize={props.autoCapitalize ?? (multiline ? 'sentences' : 'words')}
           autoComplete={props.autoComplete}

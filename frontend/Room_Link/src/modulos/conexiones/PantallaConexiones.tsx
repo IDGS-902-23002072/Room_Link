@@ -6,10 +6,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSesion } from '@/auth/SesionContext';
@@ -225,7 +225,7 @@ export function PantallaConexiones() {
         {mostrandoNueva ? (
           <View style={styles.tarjeta}>
             <Text style={styles.tituloItem}>Enviar solicitud de conexión</Text>
-            <TextInput
+            <EntradaValidada
               value={candidateId}
               onChangeText={setCandidateId}
               placeholder="UUID del candidato (candidateId)"
@@ -233,7 +233,7 @@ export function PantallaConexiones() {
               style={styles.input}
               autoCapitalize="none"
             />
-            <TextInput
+            <EntradaValidada
               value={introMessage}
               onChangeText={setIntroMessage}
               placeholder="Mensaje de presentación (opcional)"

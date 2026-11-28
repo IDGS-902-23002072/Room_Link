@@ -6,10 +6,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSesion } from '@/auth/SesionContext';
@@ -260,7 +260,7 @@ export function PantallaModeracion() {
           {requiereMotivo ? (
             <View style={{ gap: 6 }}>
               <Text style={styles.etiquetaCampo}>Motivo</Text>
-              <TextInput
+              <EntradaValidada
                 value={motivo}
                 onChangeText={setMotivo}
                 placeholder="Explica la decisión al anunciante"
@@ -532,7 +532,7 @@ export function PantallaModeracion() {
       <>
         <View style={styles.buscadorWrap}>
           <Text style={styles.iconoBuscar}>⌕</Text>
-          <TextInput
+          <EntradaValidada
             value={busqueda}
             onChangeText={setBusqueda}
             placeholder="Buscar por anuncio o folio"

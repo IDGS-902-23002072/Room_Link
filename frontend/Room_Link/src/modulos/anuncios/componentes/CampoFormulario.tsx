@@ -4,10 +4,10 @@ import React from "react";
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   TextInputProps,
 } from "react-native";
+import { EntradaValidada } from '@/modulos/comunes/EntradaValidada';
 
 type Props = TextInputProps & {
   etiqueta: string;
@@ -23,7 +23,7 @@ export default function CampoFormulario({
     <View style={[styles.contenedor, contenedorStyle]}>
       <Text style={styles.etiqueta}>{etiqueta}</Text>
 
-      <TextInput
+      <EntradaValidada
         {...inputProps}
         accessibilityLabel={inputProps.accessibilityLabel ?? etiqueta}
         placeholderTextColor={color.secundario}
