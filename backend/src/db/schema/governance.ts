@@ -166,8 +166,14 @@ export const modActivityLog = mysqlTable(
       .default(sql`(JSON_OBJECT())`),
     ipAddress: varchar("ip_address", { length: 45 }),
     createdAt: timestamp("created_at", { fsp: 6 }).notNull().defaultNow(),
+    module: varchar("module", { length: 40 }),
+    outcome: varchar("outcome", { length: 20 }),
+    description: varchar("description", { length: 500 }),
   },
-  (table) => [index("idx_mod_activity_user").on(table.userId, table.createdAt)],
+  (table) => [
+    index("idx_mod_activity_user").on(table.userId, table.createdAt),
+    index("idx_mod_activity_module").on(table.module, table.createdAt),
+  ],
 );
 
 export const notifNotifications = mysqlTable(

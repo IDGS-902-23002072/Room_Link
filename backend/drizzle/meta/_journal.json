@@ -57,6 +57,13 @@
       "when": 1795470452272,
       "tag": "0007_restore_room_card_view",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1795556852272,
+      "tag": "0008_activity_log_descriptions",
+      "breakpoints": true
     }
   ]
 }

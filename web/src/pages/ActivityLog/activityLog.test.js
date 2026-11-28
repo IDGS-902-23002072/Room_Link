@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { PAGE_SIZE, buildQuery, dayBoundary, describeAction, toCsv, totalPages } from './activityLog.js'
+import {
+  PAGE_SIZE,
+  buildQuery,
+  dayBoundary,
+  describeAction,
+  describeOutcome,
+  toCsv,
+  totalPages,
+} from './activityLog.js'
 
 test('describe los eventos conocidos y deja los demás tal cual', () => {
   assert.equal(describeAction('SanctionIssuedEvent'), 'Sanción emitida')
@@ -49,4 +57,39 @@ test('el CSV escapa comillas y neutraliza fórmulas', () => {
   assert.equal(header.startsWith('"Fecha","Evento"'), true)
   assert.ok(row.includes(`"'=cmd"`))
   assert.ok(row.includes('""a"":""\\""q\\'))
+})
+
+test('la consulta incluye módulo y resultado cuando se eligen', () => {
+  const params = new URLSearchParams(
+    buildQuery({ page: 1, action: '', module: 'Autenticación', outcome: 'rejected', userId: '', from: '', to: '' }),
+  )
+  assert.equal(params.get('module'), 'Autenticación')
+  assert.equal(params.get('outcome'), 'rejected')
+})
+
+test('describe los resultados conocidos y marca los registros antiguos sin resultado', () => {
+  assert.equal(describeOutcome('success'), 'Exitosa')
+  assert.equal(describeOutcome('rejected'), 'Rechazada')
+  assert.equal(describeOutcome(undefined), 'Sin resultado')
+  assert.equal(describeAction('LoginFailedEvent'), 'Inicio de sesión rechazado')
+})
+
+test('el CSV incluye el mensaje descriptivo completo, el módulo y el resultado', () => {
+  const description = 'Se rechazó el inicio de sesión porque la contraseña no coincide con la registrada para la cuenta.'
+  const csv = toCsv([
+    {
+      createdAt: '2026-11-26T00:00:00.000Z',
+      action: 'LoginFailedEvent',
+      module: 'Autenticación',
+      outcome: 'rejected',
+      description,
+      userId: 'u1',
+      ipAddress: null,
+      metadata: {},
+    },
+  ])
+  const [header, row] = csv.split('\r\n')
+  assert.ok(header.includes('"Módulo","Resultado","Descripción"'))
+  assert.ok(row.includes('"Autenticación","Rechazada"'))
+  assert.ok(row.includes(description))
 })

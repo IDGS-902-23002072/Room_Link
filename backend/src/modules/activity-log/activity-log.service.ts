@@ -9,6 +9,9 @@ export interface LogInput {
   action: string;
   metadata?: Record<string, unknown>;
   ipAddress?: string | null;
+  module?: string | null;
+  outcome?: string | null;
+  description?: string | null;
 }
 
 export class ActivityLogService {
@@ -25,6 +28,9 @@ export class ActivityLogService {
         metadata: input.metadata ?? {},
         ipAddress: input.ipAddress ?? null,
         createdAt: this.now(),
+        module: input.module ?? null,
+        outcome: input.outcome ?? null,
+        description: input.description ?? null,
       }),
     );
   }

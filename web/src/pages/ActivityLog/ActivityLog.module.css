@@ -105,3 +105,11 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Mensaje descriptivo: se muestra completo, con saltos de línea si es largo. */
+.description {
+  margin: 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}

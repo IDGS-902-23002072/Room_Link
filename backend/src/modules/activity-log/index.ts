@@ -3,3 +3,4 @@ export * from "./activity-log.consumer.js";
 export * from "./activity-log.controller.js";
 export * from "./activity-log.routes.js";
 export * from "./activity-log.view.js";
+export * from "./activity-log.describe.js";

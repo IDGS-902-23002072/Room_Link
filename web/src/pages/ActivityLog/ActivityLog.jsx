@@ -10,8 +10,12 @@ import { asyncEffect } from '../../hooks/asyncEffect.js'
 import { useAuth } from '../../hooks/useAuth.js'
 import {
   ACTION_LABELS,
+  MODULE_OPTIONS,
+  OUTCOME_LABELS,
+  OUTCOME_TONES,
   PAGE_SIZE,
   describeAction,
+  describeOutcome,
   formatMoment,
   getActivityLog,
   toCsv,
@@ -19,7 +23,7 @@ import {
 } from './activityLog.js'
 import styles from './ActivityLog.module.css'
 
-const EMPTY_FILTERS = { action: '', userId: '', from: '', to: '' }
+const EMPTY_FILTERS = { action: '', module: '', outcome: '', userId: '', from: '', to: '' }
 
 function downloadCsv(items) {
   const blob = new Blob([`﻿${toCsv(items)}`], { type: 'text/csv;charset=utf-8' })
@@ -102,7 +106,7 @@ export default function ActivityLog() {
             </Button>
           </>
         }
-        description="Registro inmutable de las operaciones del sistema: quién hizo qué y cuándo."
+        description="Registro inmutable de las operaciones del sistema: qué ocurrió, en qué módulo, con qué resultado y por qué."
         eyebrow="ROOMLINK · ADMINISTRACIÓN"
         title="Bitácora"
       />
@@ -118,6 +122,34 @@ export default function ActivityLog() {
           >
             <option value="">Todos</option>
             {Object.entries(ACTION_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </Field>
+        <Field htmlFor="log-module" label="Módulo">
+          <select
+            autoComplete="off"
+            id="log-module"
+            name="module"
+            onChange={(event) => setDraft({ ...draft, module: event.target.value })}
+            value={draft.module}
+          >
+            <option value="">Todos</option>
+            {MODULE_OPTIONS.map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
+        </Field>
+        <Field htmlFor="log-outcome" label="Resultado">
+          <select
+            autoComplete="off"
+            id="log-outcome"
+            name="outcome"
+            onChange={(event) => setDraft({ ...draft, outcome: event.target.value })}
+            value={draft.outcome}
+          >
+            <option value="">Todos</option>
+            {Object.entries(OUTCOME_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
@@ -183,8 +215,11 @@ export default function ActivityLog() {
                   <Card as="div" className={styles.entry}>
                     <div className={styles.entryHead}>
                       <Badge tone="accent">{describeAction(item.action)}</Badge>
+                      {item.module ? <Badge>{item.module}</Badge> : null}
+                      <Badge tone={OUTCOME_TONES[item.outcome] ?? 'neutral'}>{describeOutcome(item.outcome)}</Badge>
                       <time dateTime={item.createdAt}>{formatMoment(item.createdAt)}</time>
                     </div>
+                    {item.description ? <p className={styles.description}>{item.description}</p> : null}
                     <p className={styles.entryMeta}>
                       Usuario: <code>{item.userId ?? 'Sistema'}</code>
                       {item.ipAddress ? <> · IP: <code>{item.ipAddress}</code></> : null}
@@ -215,7 +250,7 @@ export default function ActivityLog() {
           action={filtered ? <Button onClick={clearFilters} variant="secondary">Limpiar filtros</Button> : null}
           description={
             filtered
-              ? 'Prueba con otro evento, usuario o rango de fechas.'
+              ? 'Prueba con otro evento, módulo, resultado, usuario o rango de fechas.'
               : 'Cuando haya operaciones en el sistema aparecerán aquí.'
           }
           title={filtered ? 'Sin resultados' : 'La bitácora está vacía'}

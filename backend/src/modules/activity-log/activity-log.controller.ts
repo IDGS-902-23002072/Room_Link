@@ -15,6 +15,8 @@ export class ActivityLogController {
       const filter: ActivityLogFilter = {};
       const userId = c.req.query("userId");
       const action = c.req.query("action");
+      const module = c.req.query("module");
+      const outcome = c.req.query("outcome");
       const from = c.req.query("from");
       const to = c.req.query("to");
       const limitRaw = Number(c.req.query("limit") ?? 50);
@@ -22,6 +24,8 @@ export class ActivityLogController {
 
       if (userId) filter.userId = userId;
       if (action) filter.action = action;
+      if (module) filter.module = module;
+      if (outcome) filter.outcome = outcome;
       if (from) {
         const d = new Date(from);
         if (!Number.isNaN(d.getTime())) filter.from = d;

@@ -3,6 +3,8 @@ import type { ActivityLogEntry } from "../entities/ActivityLogEntry.js";
 export interface ActivityLogFilter {
   userId?: string;
   action?: string;
+  module?: string;
+  outcome?: string;
   from?: Date;
   to?: Date;
   limit?: number;

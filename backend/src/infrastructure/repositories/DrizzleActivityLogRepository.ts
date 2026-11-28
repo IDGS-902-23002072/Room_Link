@@ -21,6 +21,9 @@ export class DrizzleActivityLogRepository implements IActivityLogRepository {
       metadata: entry.metadata,
       ipAddress: entry.ipAddress,
       createdAt: entry.createdAt,
+      module: entry.module,
+      outcome: entry.outcome,
+      description: entry.description,
     };
     await this.db.insert(modActivityLog).values(record);
     return entry;
@@ -57,6 +60,8 @@ export class DrizzleActivityLogRepository implements IActivityLogRepository {
     const parts = [] as any[];
     if (filter.userId) parts.push(eq(modActivityLog.userId, filter.userId));
     if (filter.action) parts.push(eq(modActivityLog.action, filter.action));
+    if (filter.module) parts.push(eq(modActivityLog.module, filter.module));
+    if (filter.outcome) parts.push(eq(modActivityLog.outcome, filter.outcome));
     if (filter.from) parts.push(gte(modActivityLog.createdAt, filter.from));
     if (filter.to) parts.push(lte(modActivityLog.createdAt, filter.to));
     if (!parts.length) return undefined;
@@ -71,6 +76,9 @@ export class DrizzleActivityLogRepository implements IActivityLogRepository {
       metadata: (row.metadata ?? {}) as Record<string, unknown>,
       ipAddress: row.ipAddress ?? null,
       createdAt: new Date(row.createdAt),
+      module: row.module ?? null,
+      outcome: row.outcome ?? null,
+      description: row.description ?? null,
     });
   }
 }
