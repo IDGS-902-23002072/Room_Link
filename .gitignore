@@ -71,6 +71,3 @@ desktop.ini
 logs/
 tmp/
 .tmp/
-
-# Salida generada por el reporter de pruebas de monitoreo
-backend/.vitest/
